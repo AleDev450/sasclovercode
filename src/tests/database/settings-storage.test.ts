@@ -132,12 +132,32 @@ describe("schema and constraints (TEST-601 to TEST-607)", () => {
     ).resolves.toBeDefined();
   });
 
-  it("rejects a branding path that points outside the tenant folder", async () => {
+  it("rejects a branding path that is not ours at all", async () => {
     await expect(
       db.query("update public.tenant_themes set logo_path = 'evil/logo.png' where tenant_id = $1", [
         tenantA,
       ]),
-    ).rejects.toThrow(/paths_shape/);
+    ).rejects.toThrow(/paths_own_tenant/);
+  });
+
+  it("rejects a branding path pointing at ANOTHER tenant's folder", async () => {
+    // The shape alone used to be enough, so a well-formed path into somebody
+    // else's folder was storable. Unreadable, but it should not exist.
+    await expect(
+      db.query("update public.tenant_themes set logo_path = $2 where tenant_id = $1", [
+        tenantA,
+        `tenants/${tenantB}/branding/logo.png`,
+      ]),
+    ).rejects.toThrow(/paths_own_tenant/);
+  });
+
+  it("accepts a branding path inside the tenant's own folder", async () => {
+    await expect(
+      db.query("update public.tenant_themes set logo_path = $2 where tenant_id = $1", [
+        tenantA,
+        `tenants/${tenantA}/branding/logo.png`,
+      ]),
+    ).resolves.toBeDefined();
   });
 
   it("rejects a social link that is not https (TEST-605)", async () => {
@@ -385,5 +405,97 @@ describe("provisioning creates defaults (TEST-619, TEST-620)", () => {
 
     expect(settings[0]?.trade_name).toBe("Directa");
     expect(Number(theme[0]?.c)).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Findings of the Phase 06 audit
+// ---------------------------------------------------------------------------
+
+describe("audit: a business cannot destroy its own configuration", () => {
+  it("refuses a DELETE of the settings row, even from an owner", async () => {
+    // `FOR ALL` also granted DELETE. An owner could remove the row the trigger
+    // exists to guarantee, after which every read failed and nothing in the
+    // product could recreate it - the trigger only fires on tenant INSERT. A
+    // business could permanently break its own dashboard with one request.
+    await db.asUser(ownerA, () =>
+      db.query("delete from public.tenant_settings where tenant_id = $1", [tenantA]),
+    );
+
+    const rows = await db.query<{ c: string }>(
+      "select count(*)::text c from public.tenant_settings where tenant_id = $1",
+      [tenantA],
+    );
+    expect(Number(rows[0]?.c)).toBe(1);
+  });
+
+  it("refuses a DELETE of the theme row", async () => {
+    await db.asUser(ownerA, () =>
+      db.query("delete from public.tenant_themes where tenant_id = $1", [tenantA]),
+    );
+
+    const rows = await db.query<{ c: string }>(
+      "select count(*)::text c from public.tenant_themes where tenant_id = $1",
+      [tenantA],
+    );
+    expect(Number(rows[0]?.c)).toBe(1);
+  });
+
+  it("refuses an INSERT of a second settings row", async () => {
+    await expect(
+      db.asUser(ownerA, () =>
+        db.query("insert into public.tenant_settings (tenant_id) values ($1)", [tenantB]),
+      ),
+    ).rejects.toThrow(/row-level security|policy|duplicate key/i);
+  });
+
+  it("still allows the UPDATE that the screen actually needs", async () => {
+    await db.asUser(ownerA, () =>
+      db.query("update public.tenant_settings set district = 'Miraflores' where tenant_id = $1", [
+        tenantA,
+      ]),
+    );
+    const rows = await db.query<{ district: string | null }>(
+      "select district from public.tenant_settings where tenant_id = $1",
+      [tenantA],
+    );
+    expect(rows[0]?.district).toBe("Miraflores");
+  });
+
+  it("keeps full write access for social links, which ARE a collection", async () => {
+    await db.asUser(ownerA, () =>
+      db.query(
+        `insert into public.tenant_social_links (tenant_id, platform, url)
+         values ($1, 'youtube', 'https://youtube.com/@sugurolls')`,
+        [tenantA],
+      ),
+    );
+    await db.asUser(ownerA, () =>
+      db.query(
+        "delete from public.tenant_social_links where tenant_id = $1 and platform = 'youtube'",
+        [tenantA],
+      ),
+    );
+
+    const rows = await db.query<{ c: string }>(
+      "select count(*)::text c from public.tenant_social_links where tenant_id = $1 and platform = 'youtube'",
+      [tenantA],
+    );
+    expect(Number(rows[0]?.c)).toBe(0);
+  });
+});
+
+describe("audit: the bucket ceiling matches what the folders accept", () => {
+  it("does not allow a MIME type no folder would take", async () => {
+    const rows = await db.query<{ allowed_mime_types: string[] }>(
+      "select allowed_mime_types from storage.buckets where id = 'tenant-assets'",
+    );
+    const allowed = rows[0]?.allowed_mime_types ?? [];
+
+    // SVG was excluded from branding because it can carry script. Leaving it
+    // allowed at the bucket contradicted that at the layer that matters most.
+    expect(allowed).not.toContain("image/svg+xml");
+    expect(allowed).toContain("image/png");
+    expect(allowed).toContain("application/pdf");
   });
 });

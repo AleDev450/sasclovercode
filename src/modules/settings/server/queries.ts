@@ -8,7 +8,7 @@ import "server-only";
  * maybe. A caller never has to write a fallback.
  */
 
-import { DatabaseError, NotFoundError } from "@/lib/errors";
+import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SocialPlatform } from "@/types/database";
@@ -56,9 +56,17 @@ export async function getBusinessSettings(tenantId: string): Promise<BusinessSet
     logger.error("settings.read_failed", { tenantId, error });
     throw new DatabaseError("Settings lookup failed.", { cause: error });
   }
-  // RLS returns nothing for a tenant the caller cannot see, which is the same
-  // observable outcome as "does not exist" - and deliberately so.
-  if (data === null) throw new NotFoundError("Configuracion");
+  // Reaching here with no row means the invariant broke.
+  //
+  // The caller's membership was already verified by `requireActiveTenant`, so
+  // RLS is not hiding it, and the row cannot have been deleted: Phase 06 gives
+  // these tables UPDATE-only policies precisely so it cannot. A missing row
+  // therefore means the trigger failed - a fault, not a 404. Saying 500 keeps
+  // that distinguishable from "wrong URL" in the logs and in monitoring.
+  if (data === null) {
+    logger.error("settings.row_missing", { tenantId });
+    throw new DatabaseError("Tenant settings row is missing.", { context: { tenantId } });
+  }
 
   return {
     legalName: data.legal_name,
@@ -87,7 +95,10 @@ export async function getTenantTheme(tenantId: string): Promise<TenantTheme> {
     logger.error("theme.read_failed", { tenantId, error });
     throw new DatabaseError("Theme lookup failed.", { cause: error });
   }
-  if (data === null) throw new NotFoundError("Tema");
+  if (data === null) {
+    logger.error("theme.row_missing", { tenantId });
+    throw new DatabaseError("Tenant theme row is missing.", { context: { tenantId } });
+  }
 
   return {
     primaryColor: data.primary_color,

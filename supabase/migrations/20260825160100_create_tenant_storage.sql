@@ -23,7 +23,12 @@ values (
   -- 5 MB at the bucket, tighter per-folder limits in the application. Two
   -- layers: the bucket is the ceiling nobody can raise from the app.
   5242880,
-  array['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml', 'image/x-icon', 'application/pdf']
+  -- The union of what the folders actually accept, and nothing more. A type
+  -- allowed here but rejected by every folder is a raised ceiling for no
+  -- capability - and `image/svg+xml` in particular was excluded from branding
+  -- on purpose, since an SVG can carry script. Leaving it here would have
+  -- contradicted that reasoning at the layer that matters most.
+  array['image/png', 'image/jpeg', 'image/webp', 'image/x-icon', 'application/pdf']
 )
 on conflict (id) do nothing;
 

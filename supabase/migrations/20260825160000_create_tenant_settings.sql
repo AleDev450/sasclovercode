@@ -99,11 +99,17 @@ create table public.tenant_themes (
   constraint tenant_themes_border_radius_allowed
     check (border_radius in ('none', 'sm', 'md', 'lg', 'full')),
 
-  -- A stored path must look like one of ours, so a hand-written row cannot
-  -- point the branding of one business at another business's folder.
-  constraint tenant_themes_paths_shape check (
-    (logo_path is null or logo_path ~ '^tenants/[0-9a-f-]{36}/branding/')
-    and (favicon_path is null or favicon_path ~ '^tenants/[0-9a-f-]{36}/branding/')
+  -- The path must point at THIS tenant's own folder.
+  --
+  -- Checking only the shape (`^tenants/{some-uuid}/branding/`) let an owner
+  -- store a path into another business's folder. They could not read it - the
+  -- storage policy requires membership - so it rendered as a broken image
+  -- rather than a leak, but a cross-tenant reference should not be storable at
+  -- all. A CHECK can reference another column of the same row, so it does not
+  -- have to settle for the shape.
+  constraint tenant_themes_paths_own_tenant check (
+    (logo_path is null or logo_path ~ ('^tenants/' || tenant_id::text || '/branding/'))
+    and (favicon_path is null or favicon_path ~ ('^tenants/' || tenant_id::text || '/branding/'))
   )
 );
 
@@ -174,8 +180,18 @@ create policy tenant_settings_select_member
   on public.tenant_settings for select to authenticated
   using (public.is_tenant_member(tenant_id));
 
-create policy tenant_settings_write_manager
-  on public.tenant_settings for all to authenticated
+-- UPDATE only, deliberately: no INSERT and no DELETE.
+--
+-- `FOR ALL` also grants DELETE, and an owner deleting their own settings row
+-- broke the invariant the trigger exists to hold - every read then failed and
+-- nothing in the product could recreate the row, because the trigger only fires
+-- when a TENANT is inserted. A business could permanently break its own
+-- dashboard with one request.
+--
+-- The row is created by the trigger and edited here. There is no legitimate
+-- reason for the application to create or destroy it.
+create policy tenant_settings_update_manager
+  on public.tenant_settings for update to authenticated
   using (public.has_permission(tenant_id, 'settings.manage'))
   with check (public.has_permission(tenant_id, 'settings.manage'));
 
@@ -183,8 +199,9 @@ create policy tenant_themes_select_member
   on public.tenant_themes for select to authenticated
   using (public.is_tenant_member(tenant_id));
 
-create policy tenant_themes_write_manager
-  on public.tenant_themes for all to authenticated
+-- UPDATE only, for the same reason as tenant_settings above.
+create policy tenant_themes_update_manager
+  on public.tenant_themes for update to authenticated
   using (public.has_permission(tenant_id, 'settings.manage'))
   with check (public.has_permission(tenant_id, 'settings.manage'));
 
@@ -192,6 +209,8 @@ create policy tenant_social_links_select_member
   on public.tenant_social_links for select to authenticated
   using (public.is_tenant_member(tenant_id));
 
+-- Social links DO get full write access: unlike settings and theme, they are a
+-- collection a business genuinely creates and removes entries from.
 create policy tenant_social_links_write_manager
   on public.tenant_social_links for all to authenticated
   using (public.has_permission(tenant_id, 'settings.manage'))

@@ -35,6 +35,21 @@ export default defineConfig({
   test: {
     globals: false,
     passWithNoTests: false,
+    /*
+     * Every file under `src/tests/database/` boots a full PostgreSQL in
+     * WebAssembly. Left to run one per core, that many engines at once
+     * exhausted memory and killed worker forks - which surfaces as "Worker
+     * forks emitted error" rather than as a failing assertion, so a run reads
+     * as broken tests instead of a resource limit. It was intermittent, which
+     * is worse: an intermittent suite teaches people to re-run rather than
+     * look.
+     *
+     * Capping the workers trades a little wall time for a suite that is green
+     * or red for reasons about the code. Vitest 4 spells this `maxWorkers`;
+     * `poolOptions.forks.maxForks` is from an older major and is not a valid
+     * key here.
+     */
+    maxWorkers: 4,
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],

@@ -6,9 +6,9 @@
 Phase:                06
 Nombre:               Business Settings + Theme
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-25 (auditoría de fase, §26)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -632,6 +632,11 @@ KL-607  No se genera una URL firmada todavía: se guarda la ruta y la lectura
         del asset llega con la Fase 07.
 
 KL-608  Los cambios de esta fase están sin commitear.
+
+KL-609  La suite tarda más desde que se limitó `maxWorkers`. Es el precio de que
+        sea determinista. Si los archivos de base de datos siguen creciendo,
+        conviene revisar si compartir una sola instancia entre archivos es
+        viable sin perder aislamiento entre tests.
 ```
 
 ---
@@ -649,4 +654,96 @@ KL-608  Los cambios de esta fase están sin commitear.
   límite a `ALLOWED` y `MAX_BYTES`; el patrón ya está.
 - Si se permite alguna vez subir SVG, tiene que servirse desde un origen
   distinto o pasar por un saneador; no basta con añadirlo a la lista.
+```
+
+---
+
+## 26. Auditoría de la fase
+
+Cuatro hallazgos. El primero rompía el invariante que la propia fase acababa de
+crear; el cuarto no es del código de la fase sino de la suite entera.
+
+### A6-1 — Una empresa podía destruir su propia configuración (corregido)
+
+Las políticas de `tenant_settings` y `tenant_themes` eran `FOR ALL`, y **`FOR
+ALL` incluye DELETE**. Sonda:
+
+```text
+owner borra sus settings -> filas restantes: 0
+```
+
+A partir de ahí toda lectura fallaba y **nada en el producto podía recrear la
+fila**: el trigger solo dispara al insertar un TENANT, no al borrar sus ajustes.
+Una empresa podía romper su propio panel de forma permanente con una sola
+petición, y sin forma de recuperarse desde la interfaz.
+
+La raíz fue de comodidad: escribí `FOR ALL` porque cubría lectura y escritura de
+una vez, sin preguntarme qué verbos de los cuatro tenían sentido aquí. La
+respuesta es **solo UPDATE**: la fila la crea el trigger y la edita la pantalla;
+no hay motivo legítimo para que la aplicación la cree ni la destruya.
+
+Corregido con políticas explícitas de UPDATE. `tenant_social_links` **sí**
+conserva escritura completa, porque a diferencia de las otras dos es una
+colección de la que una empresa legítimamente añade y quita elementos.
+
+### A6-2 — La ruta del logo podía apuntar a la carpeta de otra empresa (corregido)
+
+El CHECK verificaba la _forma_ (`^tenants/{algún-uuid}/branding/`) pero no que el
+uuid fuera el de **esa** fila. Sonda: guardar `tenants/{B}/branding/logo.png` en
+el tema del tenant A funcionaba.
+
+No es una fuga —la política de Storage exige pertenencia para leer, así que
+saldría una imagen rota— pero una referencia cross-tenant no debería poder
+almacenarse. Un CHECK puede referirse a otra columna de la misma fila, así que
+no tenía por qué conformarse con la forma.
+
+### A6-3 — El bucket permitía un MIME que ninguna carpeta acepta (corregido)
+
+`image/svg+xml` estaba en `allowed_mime_types` del bucket, pero ninguna carpeta
+lo acepta. Techo elevado a cambio de ninguna capacidad — y precisamente el tipo
+que excluí de branding **porque un SVG puede llevar script**. Dejarlo en el
+bucket contradecía ese razonamiento en la capa que más importa. La lista del
+bucket es ahora la unión de lo que las carpetas aceptan.
+
+### A6-4 — La suite de tests no era fiable (corregido)
+
+Durante la verificación, una corrida murió con `Worker forks emitted error` y la
+siguiente pasó entera. No eran tests fallando: los procesos de Vitest se caían.
+
+Causa: los **10** archivos de `src/tests/database/` arrancan cada uno un
+PostgreSQL completo en WebAssembly, y Vitest los paraleliza uno por núcleo. La
+memoria se agotaba.
+
+Esto importa más que su severidad aparente: **una suite intermitente es peor que
+una lenta**, porque enseña a reintentar en vez de mirar, y porque un fallo así se
+lee como «los tests están rotos» y no como «se acabó la memoria». Corregido
+limitando `maxWorkers` a 4. Verificado con cinco corridas consecutivas en verde.
+
+De paso quedó documentado que Vitest 4 usa `maxWorkers`, y no
+`poolOptions.forks.maxForks`, que es de una mayor anterior y no es una clave
+válida.
+
+### Revisado y corregido por consistencia
+
+`getBusinessSettings` y `getTenantTheme` lanzaban `NotFoundError` dentro de
+páginas — la misma clase de problema que A5-1. Pero tras A6-1 la fila ya no puede
+borrarse y `requireActiveTenant` ya verificó la membresía, así que una fila
+ausente significa que **el invariante se rompió**: es un fallo, no un 404. Ahora
+lanzan `DatabaseError` con un log específico, para que en monitoreo se distinga
+de una URL equivocada.
+
+### Revisado sin hallazgos
+
+```text
+- El recorrido de ruta sigue rechazado en todos los segmentos.
+- Ni un miembro sin settings.manage ni un owner ajeno escriben nada.
+- El anónimo no lee ninguna de las tres tablas.
+- La extensión sigue derivándose del MIME validado, no del nombre subido.
+- Las políticas de Storage no cambiaron: siguen leyendo el tenant de la ruta.
+```
+
+### Resultado
+
+```text
+Format PASS · Lint PASS · Types PASS · Tests 646/646 · Build PASS
 ```
