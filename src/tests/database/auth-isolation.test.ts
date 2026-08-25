@@ -196,20 +196,31 @@ describe("TEST-212: a user cannot write outside their own profile", () => {
 // ---------------------------------------------------------------------------
 
 describe("TEST-213: memberships are visible only to their owner", () => {
-  it("shows a user their own memberships", async () => {
+  it("never shows a user a membership outside their own tenants", async () => {
+    // userA is an OWNER of tenant A, so from Phase 03 they also hold
+    // `members.view` and see the whole roster of that tenant. What must never
+    // change is the boundary: every row they can see belongs to tenant A.
     const rows = await db.asUser(userA, () =>
       db.query<{ tenant_id: string }>("select tenant_id from public.tenant_members"),
     );
-    expect(rows.map((r) => r.tenant_id)).toEqual([tenantA]);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.tenant_id === tenantA)).toBe(true);
+    expect(rows.map((r) => r.tenant_id)).not.toContain(tenantB);
   });
 
-  it("does not let a member list the other members of their tenant", async () => {
-    // userBoth is also a member of tenant A. Membership alone must not grant a
-    // roster: that is a permission, and permissions arrive in Phase 03.
-    const rows = await db.asUser(userA, () =>
-      db.query("select 1 from public.tenant_members where tenant_id = $1", [tenantA]),
+  it("still hides the roster from a member without members.view", async () => {
+    // Phase 03 made the roster a PERMISSION rather than a consequence of
+    // membership. `userBoth` is an accountant in tenant A, and the catalogue
+    // does not grant that role `members.view`, so they see only themselves -
+    // even though userA, an owner of the same tenant, sees everyone.
+    const rows = await db.asUser(userBoth, () =>
+      db.query<{ user_id: string }>(
+        "select user_id from public.tenant_members where tenant_id = $1",
+        [tenantA],
+      ),
     );
     expect(rows).toHaveLength(1);
+    expect(rows[0]?.user_id).toBe(userBoth);
   });
 
   it("gives a user in two tenants exactly their two rows", async () => {

@@ -213,6 +213,13 @@ describe("TEST-141: declared types match the real schema", () => {
     const rows = await db.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
-    expect(rows.map((r) => r.tablename).sort()).toEqual(Object.keys(EXPECTED_COLUMNS).sort());
+    // The Phase 03 catalogue tables are contract-checked in
+    // `authorization-schema.test.ts`, against the TypeScript constants that
+    // mirror them, so they are listed here rather than duplicated column by
+    // column.
+    const catalogueTables = ["roles", "permissions", "role_permissions"];
+    expect(rows.map((r) => r.tablename).sort()).toEqual(
+      [...Object.keys(EXPECTED_COLUMNS), ...catalogueTables].sort(),
+    );
   });
 });

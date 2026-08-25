@@ -17,6 +17,7 @@ Status.
 | 007 | [SQL testing without Docker](./007-sql-testing-without-docker.md)            | ACCEPTED | 01    |
 | 008 | [SSR sessions and route protection](./008-session-and-route-protection.md)   | ACCEPTED | 02    |
 | 009 | [Profiles and membership](./009-profiles-and-membership.md)                  | ACCEPTED | 02    |
+| 010 | [RBAC authorization](./010-rbac-authorization.md)                            | ACCEPTED | 03    |
 
 ## Planned
 

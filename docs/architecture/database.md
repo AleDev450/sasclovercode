@@ -1,6 +1,6 @@
 # Database
 
-> Current as of Phase 01.
+> Current as of Phase 03.
 
 One PostgreSQL database, one `public` schema, one migration history, hosted on
 Supabase. Rationale: [ADR-001](../adr/001-single-database-multitenancy.md).
@@ -72,15 +72,26 @@ decision cannot be reverted by accident.
 RLS is enabled on every table holding private data, and is never disabled
 (master sections 10 and 51).
 
-| Table            | RLS     | Policies | Effective access                      |
-| ---------------- | ------- | -------- | ------------------------------------- |
-| `tenants`        | enabled | none     | denied for `anon` and `authenticated` |
-| `tenant_domains` | enabled | none     | denied for `anon` and `authenticated` |
+| Table              | RLS     | Policies | Effective access                                                         |
+| ------------------ | ------- | -------- | ------------------------------------------------------------------------ |
+| `tenants`          | enabled | 1 SELECT | members of that tenant only                                              |
+| `tenant_domains`   | enabled | none     | denied; only the guarded resolver reads                                  |
+| `profiles`         | enabled | own row  | a user sees and edits only themselves                                    |
+| `tenant_members`   | enabled | 4        | own row always; roster with `members.view`; writes with `members.manage` |
+| `roles`            | enabled | 1 SELECT | read-only catalogue, authenticated only                                  |
+| `permissions`      | enabled | 1 SELECT | read-only catalogue, authenticated only                                  |
+| `role_permissions` | enabled | 1 SELECT | read-only catalogue, authenticated only                                  |
 
-No policies at all is the strictest possible posture. Legitimate anonymous reads
-go through `resolve_tenant_by_domain()`. Per-user policies arrive in Phase 03.
+The three catalogue tables use `using (true)`, and that does **not** contradict
+master section 10: they hold no tenant data, only the product's capability list.
+A test asserts the exception stays read-only and that nothing else uses it.
 
-`using (true)` on a private table is forbidden, and a test asserts none exists.
+Authorization is resolved by `has_permission(tenant_id, permission)`, which both
+the policies and the application call. See
+[ADR-010](../adr/010-rbac-authorization.md).
+
+`using (true)` on a private table is forbidden, and a test asserts no table
+outside the catalogue uses it.
 
 ### SECURITY DEFINER functions
 

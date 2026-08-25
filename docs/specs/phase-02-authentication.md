@@ -6,9 +6,9 @@
 Phase:                02
 Nombre:               Authentication
 Estado:               COMPLETED
-Versión:              1.0.0
+Versión:              1.1.0
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-25 (auditoría de fase: §15-§25 añadidas)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -512,6 +512,11 @@ KL-209  `tenant_members.role` es un enum. La Fase 03 debe decidir si permanece
 
 KL-210  El shim de `auth` en el arnés no reproduce `auth.jwt()` ni los claims de
         rol. La Fase 03 deberá extenderlo si sus políticas los usan.
+
+KL-211  La numeración de secciones de este SPEC no sigue el orden de §55: las
+        secciones que faltaban se añadieron al final (§15-§25) en lugar de
+        reordenar el documento, para no invalidar las referencias existentes.
+        El contenido exigido está completo; el orden no coincide.
 ```
 
 ---
@@ -539,3 +544,302 @@ KL-210  El shim de `auth` en el arnés no reproduce `auth.jwt()` ni los claims d
 - Fase 24 debe registrar en `audit_logs` los eventos que hoy solo van al logger:
   inicio de sesión, cierre, cambio de contraseña.
 ```
+
+---
+
+## 15. Diagrama de relaciones
+
+> Añadido en la auditoría de la fase (§55 punto 9).
+
+```mermaid
+erDiagram
+    AUTH_USERS ||--|| PROFILES : "1:1 cascade"
+    PROFILES ||--o{ TENANT_MEMBERS : "pertenece a"
+    TENANTS ||--o{ TENANT_MEMBERS : "tiene miembros"
+
+    AUTH_USERS {
+        uuid id PK
+        text email
+    }
+    PROFILES {
+        uuid id PK
+        text email
+        text full_name
+        text avatar_url
+    }
+    TENANT_MEMBERS {
+        uuid id PK
+        uuid tenant_id FK
+        uuid user_id FK
+        tenant_role role
+        membership_status status
+    }
+    TENANTS {
+        uuid id PK
+        text slug UK
+    }
+```
+
+Un usuario pertenece a **varios** tenants con distinto rol en cada uno
+(§11 del documento maestro). `UNIQUE (tenant_id, user_id)` impide la membresía
+duplicada, no la múltiple.
+
+---
+
+## 16. Tenant Isolation
+
+```text
+Tenant Isolation Impact: ALTO
+```
+
+> Sección obligatoria de §55 punto 10. Faltaba en la versión 1.0.0 del SPEC y se
+> añade aquí sin cambiar el código: describe lo que las migraciones ya hacen.
+
+```text
+¿Cómo se determina el tenant?
+  En esta fase NO se determina un tenant activo. La autenticación responde
+  "quién eres", no "en qué empresa estás". La selección de tenant activo es de
+  la Fase 05. El tenant de una petición sigue viniendo del hostname (Fase 01).
+
+¿Qué tablas llevan tenant_id?
+  tenant_members. `profiles` no lo lleva a propósito: un usuario es una persona,
+  no una persona-por-empresa, y duplicarlo por tenant rompería el modelo de
+  §11 (un mismo usuario en varias empresas).
+
+¿Cómo evita RLS el acceso cross-tenant?
+  tenant_members solo tiene política de SELECT y su predicado es
+  `(select auth.uid()) = user_id`. Un miembro del tenant A no puede ver las
+  filas del tenant B ni siquiera del suyo propio si no son suyas: la política
+  filtra por usuario, no por tenant, que es más restrictivo.
+
+  No existen políticas de INSERT, UPDATE ni DELETE. Conceder o revocar una
+  membresía es imposible con la clave publishable, por diseño: es una decisión
+  de autorización y pertenece a las Fases 03 y 04.
+
+¿Qué consultas requieren validación de tenant?
+  Ninguna de esta fase consulta por tenant. `get_my_memberships()` parte de
+  `auth.uid()` y devuelve solo las membresías propias.
+
+¿Existe algún recurso global?
+  `profiles` es global por naturaleza: la identidad de una persona no pertenece
+  a ninguna empresa. Su política restringe cada fila a su dueño, de modo que la
+  globalidad de la tabla no implica visibilidad global.
+```
+
+**Invariante que esta fase añade y la Fase 03 debe preservar:** ninguna política
+puede permitir que un usuario lea filas de `tenant_members` cuyo `user_id` no
+sea el suyo, salvo que un permiso explícito de listado de miembros lo autorice
+y quede acotado al tenant activo.
+
+---
+
+## 17. API / Server Actions
+
+```text
+signInWithPassword(formData)      Server Action
+  Input:    email, password, next?
+  Éxito:    redirect a `next` saneado, o a DEFAULT_SIGNED_IN_PATH
+  Error:    mensaje único e indistinguible (AB-201)
+
+requestPasswordReset(formData)    Server Action
+  Input:    email
+  Salida:   respuesta idéntica siempre (AB-202)
+
+updatePassword(formData)          Server Action
+  Precondición: sesión de recuperación activa
+  Error:    ValidationError con detalle por campo
+
+signOut()                         Server Action
+  Método:   POST. Nunca un enlace GET (AB-207)
+
+GET /auth/confirm                 Route Handler
+  Input:    token_hash, type (lista blanca), next?
+  Salida:   redirect; todas las causas de fallo comparten destino (AB-211)
+```
+
+No se publica ningún endpoint que reciba un identificador de usuario: eso
+convertiría la autenticación en un oráculo de enumeración.
+
+---
+
+## 18. UI / UX
+
+```text
+/login             Formulario de acceso. Estados: idle | pending | error.
+                   El error nunca distingue causa (AB-201).
+/forgot-password   Solicitud de recuperación. Confirmación siempre idéntica.
+/reset-password    Nueva contraseña. Requiere sesión de recuperación.
+/auth/confirm      Sin UI. Route Handler que redirige.
+/dashboard         Marcador de posición protegido (KL-207).
+```
+
+Todas las pantallas usan las primitivas accesibles de la Fase 00: `Label`
+asociado con `htmlFor`, `aria-invalid` en campos con error, `role="alert"` en
+los mensajes y estado `loading` que bloquea el reenvío del formulario.
+
+---
+
+## 19. Flujos principales
+
+```text
+ACCESO
+  /login -> signInWithPassword -> Supabase Auth
+     |                                |
+     |  credenciales inválidas        |  válidas
+     |  o correo inexistente          |
+     v                                v
+  mismo mensaje                  cookies de sesión
+                                       |
+                                 redirect a `next` saneado
+
+RECUPERACIÓN
+  /forgot-password -> requestPasswordReset -> correo (si la cuenta existe)
+     |
+  confirmación idéntica en ambos casos
+     |
+  enlace -> /auth/confirm -> verifyOtp -> /reset-password -> updatePassword
+
+CADA PETICIÓN
+  proxy.ts -> getUser() (revalida contra Supabase)
+     |            |
+     |  anónima   |  autenticada
+     v            v
+  ¿ruta privada?  ¿ruta solo-anónima?
+     |  sí            |  sí
+     v                v
+  redirect /login  redirect /dashboard
+```
+
+---
+
+## 20. Manejo de errores
+
+```text
+Credenciales inválidas / correo inexistente  -> mensaje único (nunca distingue)
+Cuenta sin confirmar                          -> el mismo mensaje único
+Entrada que no cumple el esquema Zod          -> ValidationError      422
+Sesión ausente en código que la exige         -> AuthenticationError  401
+`next` no local                               -> se descarta y se usa el default
+Enlace de correo inválido, usado o expirado   -> destino de fallo único
+Fallo de lectura de `profiles`                -> se registra; la sesión sigue
+                                                 siendo válida (el perfil es
+                                                 accesorio, la identidad no)
+```
+
+La regla de la fase: **ningún mensaje de error puede revelar si una cuenta
+existe**. Es la diferencia entre un formulario de acceso y un verificador de
+correos electrónicos.
+
+---
+
+## 21. Observabilidad
+
+```text
+auth.session.absent            debug  petición anónima; es lo normal
+auth.signin.succeeded          info   { userId }
+auth.signin.failed             warn   { reason }  sin el correo introducido
+auth.signout.succeeded         info   { userId }
+auth.password.reset_requested  info   sin indicar si la cuenta existía
+auth.profile.read_failed       error  { userId }
+auth.proxy.redirect_to_sign_in debug  { pathname }
+```
+
+Nunca se registran contraseñas, tokens ni `token_hash`: la redacción central de
+la Fase 00 los cubre, y además no se pasan al logger.
+
+---
+
+## 22. Edge cases
+
+```text
+EC-201  Cookie de sesión manipulada -> getUser() la rechaza contra el servidor.
+EC-202  Sesión expirada a mitad de navegación -> el proxy la refresca y escribe
+        la cookie; sin ese paso el usuario quedaría fuera en silencio.
+EC-203  Redirect con `?next=//evil.com` -> descartado por safeRedirectPath.
+EC-204  Redirect con `?next=%2F%2Fevil.com` -> descartado; se decodifica antes.
+EC-205  Server Action invocada directamente sin pasar por la página -> cada
+        acción valida la sesión por su cuenta (requireUser).
+EC-206  Usuario con sesión visitando /login -> redirigido a /dashboard.
+EC-207  Usuario existente en auth.users sin fila en profiles -> la sesión sigue
+        siendo válida; los campos de perfil quedan nulos.
+EC-208  Usuario sin ninguna membresía -> autenticado, cero tenants. Es un
+        estado legítimo hasta la Fase 04.
+EC-209  Tenant archivado entre las membresías -> get_my_memberships lo omite.
+EC-210  `?error=` con texto arbitrario en /login -> no se renderiza; solo
+        selecciona de un mapa fijo (AB-213).
+```
+
+---
+
+## 23. Performance considerations
+
+```text
+queries        getUser() es una llamada HTTP a Supabase Auth por petición que
+               atraviesa el proxy. Es el coste inevitable de no confiar en la
+               cookie. Los assets estáticos y /api/health quedan fuera del
+               matcher precisamente por esto.
+memoización    getCurrentUser() usa cache() de React: varios componentes en un
+               render comparten una sola verificación.
+indexes        tenant_members_user_id_idx sirve la consulta más frecuente
+               ("mis membresías"); la UNIQUE (tenant_id, user_id) sirve el resto.
+caching        Ninguna caché entre peticiones de la identidad: serviría la
+               sesión de un usuario a otro.
+Riesgo         Si la latencia de getUser() se vuelve un problema medible, la
+               alternativa es verificar el JWT localmente con la clave pública
+               del proyecto. No se hace ahora: sin medición sería optimización
+               prematura (§26), y la verificación local tiene sus propios modos
+               de fallo.
+```
+
+---
+
+## 24. Migraciones
+
+```text
+20260825120000_create_profiles.sql
+  - tabla profiles (PK = FK a auth.users, ON DELETE CASCADE)
+  - constraints de formato y longitud
+  - trigger de updated_at
+  - trigger de alta automática desde auth.users
+  - RLS habilitada + políticas profiles_select_own y profiles_update_own
+
+20260825120100_create_tenant_members.sql
+  - enums tenant_role y membership_status
+  - tabla tenant_members + UNIQUE (tenant_id, user_id)
+  - índice tenant_members_user_id_idx
+  - trigger de updated_at
+  - RLS habilitada + política tenant_members_select_own
+  - SIN políticas de escritura: deliberado
+
+20260825120200_create_membership_access.sql
+  - función get_my_memberships() SECURITY DEFINER, search_path fijado
+  - revoke execute from public, grant solo a authenticated
+```
+
+Reglas heredadas de §22: una migración aplicada en producción no se edita nunca.
+
+---
+
+## 25. Rollback
+
+```text
+database schema
+  drop function public.get_my_memberships();
+  drop table public.tenant_members;
+  drop type public.membership_status;
+  drop type public.tenant_role;
+  drop table public.profiles;          -- arrastra el trigger de alta
+  (auth.users NO se toca: lo gestiona Supabase)
+
+configuración
+  Revertir enable_signup en el panel del proyecto desplegado si se había
+  cambiado (KL-206).
+
+código
+  git revert del rango de la fase. `src/proxy.ts` desaparece y con él la
+  protección de rutas; comprobar que ninguna ruta privada quede publicada.
+```
+
+Riesgo de rollback: **MEDIO**. A diferencia de las Fases 00 y 01, aquí ya puede
+haber usuarios reales en `auth.users`. Borrar `profiles` elimina sus datos de
+perfil, no sus cuentas. A partir de la Fase 04 el rollback exigirá respaldo.

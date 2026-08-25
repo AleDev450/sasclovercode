@@ -67,12 +67,26 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
   // two tenant tables: opening those up is an authorization decision that
   // belongs to Phase 03, and until then nothing but the guarded resolver reads
   // them.
-  it("defines no policies on the tenant tables, so the default stays deny", async () => {
-    const rows = await db.query<{ tablename: string; policyname: string }>(
-      `select tablename, policyname from pg_policies
-       where schemaname = 'public' and tablename in ('tenants', 'tenant_domains')`,
+  it("keeps tenant_domains with no policies at all", async () => {
+    // Phase 03 opened `tenants` to its members, deliberately. `tenant_domains`
+    // stays fully closed: the only read path remains resolve_tenant_by_domain.
+    const rows = await db.query<{ policyname: string }>(
+      `select policyname from pg_policies
+       where schemaname = 'public' and tablename = 'tenant_domains'`,
     );
     expect(rows).toEqual([]);
+  });
+
+  it("exposes tenants through exactly one member-scoped SELECT policy", async () => {
+    const rows = await db.query<{ policyname: string; cmd: string; qual: string | null }>(
+      `select policyname, cmd, qual from pg_policies
+       where schemaname = 'public' and tablename = 'tenants'`,
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.policyname).toBe("tenants_select_member");
+    expect(rows[0]?.cmd).toBe("SELECT");
+    // The predicate must be the membership check, never an unconditional true.
+    expect(rows[0]?.qual).toContain("is_tenant_member");
   });
 
   // Phase-agnostic: this one must hold for every table any phase ever adds.
@@ -87,12 +101,30 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     expect(rows.map((r) => r.tablename)).toEqual([]);
   });
 
-  it("has no policy that would grant blanket access", async () => {
-    // Guards against a future `using (true)` on a private table (master §10).
-    const rows = await db.query<{ qual: string | null }>(
-      "select qual from pg_policies where schemaname = 'public'",
+  it("has no policy that would grant blanket access to tenant data", async () => {
+    // Master §10 forbids `using (true)` on tables holding private data.
+    //
+    // The Phase 03 catalogue (roles / permissions / role_permissions) does use
+    // `using (true)`, and legitimately: it holds no tenant data, only the
+    // product's capability list. Everything else must be predicated.
+    const CATALOGUE = ["roles", "permissions", "role_permissions"];
+
+    const rows = await db.query<{ tablename: string; qual: string | null }>(
+      "select tablename, qual from pg_policies where schemaname = 'public'",
     );
-    expect(rows.every((r) => r.qual !== "true")).toBe(true);
+
+    const offenders = rows.filter((r) => r.qual === "true" && !CATALOGUE.includes(r.tablename));
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the catalogue exception read-only, so it cannot become a write hole", async () => {
+    const rows = await db.query<{ cmd: string }>(
+      `select cmd from pg_policies
+       where schemaname = 'public'
+         and tablename in ('roles','permissions','role_permissions')`,
+    );
+    expect(rows).toHaveLength(3);
+    expect(rows.every((r) => r.cmd === "SELECT")).toBe(true);
   });
 });
 

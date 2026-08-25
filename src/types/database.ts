@@ -172,6 +172,82 @@ export type Database = {
           },
         ];
       };
+      roles: {
+        Row: {
+          code: TenantRole;
+          label: string;
+          description: string | null;
+          rank: number;
+          created_at: string;
+        };
+        Insert: {
+          code: TenantRole;
+          label: string;
+          description?: string | null;
+          rank: number;
+          created_at?: string;
+        };
+        Update: {
+          code?: TenantRole;
+          label?: string;
+          description?: string | null;
+          rank?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      permissions: {
+        Row: {
+          code: string;
+          resource: string;
+          action: string;
+          description: string | null;
+          created_at: string;
+        };
+        Insert: {
+          code: string;
+          resource: string;
+          action: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          code?: string;
+          resource?: string;
+          action?: string;
+          description?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      role_permissions: {
+        Row: {
+          role: TenantRole;
+          permission: string;
+        };
+        Insert: {
+          role: TenantRole;
+          permission: string;
+        };
+        Update: {
+          role?: TenantRole;
+          permission?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_role_fkey";
+            columns: ["role"];
+            referencedRelation: "roles";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "role_permissions_permission_fkey";
+            columns: ["permission"];
+            referencedRelation: "permissions";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -198,6 +274,18 @@ export type Database = {
           role: TenantRole;
           status: MembershipStatus;
         }[];
+      };
+      is_tenant_member: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      has_permission: {
+        Args: { p_tenant_id: string; p_permission: string };
+        Returns: boolean;
+      };
+      my_permissions: {
+        Args: { p_tenant_id: string };
+        Returns: { permission: string }[];
       };
     };
     Enums: {

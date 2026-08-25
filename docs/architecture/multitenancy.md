@@ -1,6 +1,6 @@
 # Multi-tenancy
 
-> Current as of Phase 01. Sections marked with a phase describe intent, not
+> Current as of Phase 03. Sections marked with a phase describe intent, not
 > implemented behaviour.
 
 ## The rule
@@ -115,7 +115,8 @@ call site (master sections 42 and 43).
 | `tenants`, `tenant_domains`         | 01    | Implemented     |
 | Hostname resolution                 | 01    | Implemented     |
 | RLS deny-by-default                 | 01    | Implemented     |
-| `tenant_members`, per-user policies | 03    | Not implemented |
+| `tenant_members`, per-user policies | 02/03 | Implemented     |
+| RBAC (roles, permissions, matrix)   | 03    | Implemented     |
 | Tenant provisioning                 | 04    | Not implemented |
 | Domain verification, Vercel API     | 09    | Not implemented |
 | `tenant_id` on business tables      | 10+   | Not implemented |
@@ -125,4 +126,6 @@ call site (master sections 42 and 43).
 `src/tests/database/isolation.test.ts` runs the project's migrations against a
 real PostgreSQL and asserts, among other things, that no hostname ever returns
 another tenant's data (TEST-140). It is the suite the product rests on, and it
-grows in Phase 03.
+grows with every phase. Phase 03 added `authorization.test.ts`, whose TEST-331
+walks **every role in the catalogue** and proves that none of them reaches the
+other tenant, reading or writing.

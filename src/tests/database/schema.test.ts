@@ -51,6 +51,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825120000_create_profiles.sql",
       "20260825120100_create_tenant_members.sql",
       "20260825120200_create_membership_access.sql",
+      // Phase 03
+      "20260825130000_create_authorization_catalog.sql",
+      "20260825130100_create_authorization_functions.sql",
+      "20260825130200_create_authorization_policies.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -62,7 +66,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.map((t) => t.tablename)).toEqual([
+      "permissions",
       "profiles",
+      "role_permissions",
+      "roles",
       "tenant_domains",
       "tenant_members",
       "tenants",

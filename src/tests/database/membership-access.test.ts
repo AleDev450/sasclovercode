@@ -69,13 +69,25 @@ describe("TEST-220: returns the caller's own memberships, with tenant identity",
     expect(rows[0]?.status).toBe("active");
   });
 
-  it("resolves tenant name and slug even though `tenants` is unreadable", async () => {
-    // The point of the function: a direct SELECT returns nothing.
-    const direct = await db.asUser(userA, () => db.query("select 1 from public.tenants"));
-    expect(direct).toEqual([]);
-
+  it("resolves tenant name and slug in one call", async () => {
+    // Phase 02 wrote this test when `tenants` was unreadable to everyone, so a
+    // direct SELECT returned nothing. Phase 03 opened it to members, which is
+    // why the original premise no longer holds.
+    //
+    // The function still earns its place: it returns the membership AND the
+    // tenant identity together, so a caller does not have to join two queries,
+    // and it keeps working for callers that hold no SELECT on `tenants`.
     const viaFunction = await callAs(userA);
     expect(viaFunction[0]?.tenant_name).toBe("Sugu Rolls");
+    expect(viaFunction[0]?.tenant_slug).toBe("sugurolls");
+  });
+
+  it("returns only the caller's own tenants, whatever `tenants` now exposes", async () => {
+    const rows = await callAs(userA);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.tenant_slug).not.toBe("polleria-el-rey");
+    }
   });
 
   it("returns several rows for a user in several tenants", async () => {
