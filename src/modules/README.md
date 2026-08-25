@@ -3,27 +3,27 @@
 Business domains live here, one folder per domain, following the layout in
 `CLOVERCODE_MASTER.md` section 13.
 
-Phase 00 creates **no** modules on purpose: section 51 forbids building future
-functionality ahead of its phase. This file documents the convention that later
-phases must follow so the structure stays uniform.
+Phase 00 created **no** modules on purpose: section 51 forbids building future
+functionality ahead of its phase. This file documents the convention that every
+phase must follow so the structure stays uniform.
 
-## Planned modules and owning phase
+## Modules and owning phase
 
-| Module      | Phase |
-| ----------- | ----- |
-| `tenants`   | 01    |
-| `auth`      | 02    |
-| `users`     | 02    |
-| `roles`     | 03    |
-| `locations` | 10    |
-| `catalog`   | 11    |
-| `customers` | 12    |
-| `orders`    | 13    |
-| `pos`       | 15    |
-| `billing`   | 17    |
-| `inventory` | 18    |
-| `website`   | 07    |
-| `reports`   | 23    |
+| Module      | Phase | Status                                                                                                                                 |
+| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `tenants`   | 01    | Not created. Phase 01 delivered `src/lib/tenant` only, with no UI or actions to own.                                                   |
+| `auth`      | 02    | Created.                                                                                                                               |
+| `users`     | 04    | Planned. Profile and membership management is Phase 04, not Phase 02: this phase gives a user a session, it does not administer users. |
+| `roles`     | 03    | Planned.                                                                                                                               |
+| `website`   | 07    | Planned.                                                                                                                               |
+| `locations` | 10    | Planned.                                                                                                                               |
+| `catalog`   | 11    | Planned.                                                                                                                               |
+| `customers` | 12    | Planned.                                                                                                                               |
+| `orders`    | 13    | Planned.                                                                                                                               |
+| `pos`       | 15    | Planned.                                                                                                                               |
+| `billing`   | 17    | Planned.                                                                                                                               |
+| `inventory` | 18    | Planned.                                                                                                                               |
+| `reports`   | 23    | Planned.                                                                                                                               |
 
 ## Anatomy of a module
 

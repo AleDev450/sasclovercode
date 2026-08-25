@@ -15,6 +15,8 @@ Status.
 | 005 | [Testing strategy](./005-testing-strategy.md)                                | ACCEPTED | 00    |
 | 006 | [Tenant resolution](./006-tenant-resolution.md)                              | ACCEPTED | 01    |
 | 007 | [SQL testing without Docker](./007-sql-testing-without-docker.md)            | ACCEPTED | 01    |
+| 008 | [SSR sessions and route protection](./008-session-and-route-protection.md)   | ACCEPTED | 02    |
+| 009 | [Profiles and membership](./009-profiles-and-membership.md)                  | ACCEPTED | 02    |
 
 ## Planned
 

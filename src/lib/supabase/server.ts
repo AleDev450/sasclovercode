@@ -58,8 +58,14 @@ export async function createNextCookieAdapter(): Promise<CookieMethodsServer> {
 export async function createSupabaseServerClient(
   cookieMethods?: CookieMethodsServer,
 ): Promise<CloverCodeSupabaseClient> {
-  const env = getPublicEnv();
+  // Cookies FIRST, environment second. `cookies()` is what tells Next.js the
+  // route is request-dependent; reaching it makes the renderer abandon static
+  // prerendering for this route. Reading the environment first would instead
+  // throw during `next build` on a machine without credentials - the exact
+  // failure Phase 00 EC-02 forbids - before Next.js ever learned the route was
+  // dynamic.
   const cookieAdapter = cookieMethods ?? (await createNextCookieAdapter());
+  const env = getPublicEnv();
 
   return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,

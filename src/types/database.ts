@@ -23,6 +23,12 @@ export type TenantStatus = "active" | "suspended" | "archived";
 export type TenantDomainType = "system" | "custom";
 export type DomainVerificationStatus = "pending" | "verifying" | "active" | "failed";
 
+/** Master section 12. Order matches the enum's sort order in PostgreSQL. */
+export type TenantRole =
+  "owner" | "admin" | "manager" | "cashier" | "waiter" | "kitchen" | "delivery" | "accountant";
+
+export type MembershipStatus = "active" | "invited" | "suspended";
+
 export type Database = {
   public: {
     Tables: {
@@ -96,6 +102,76 @@ export type Database = {
           },
         ];
       };
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          full_name?: string | null;
+          avatar_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tenant_members: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          user_id: string;
+          role: TenantRole;
+          status: MembershipStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          user_id: string;
+          role: TenantRole;
+          status?: MembershipStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          user_id?: string;
+          role?: TenantRole;
+          status?: MembershipStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "tenant_members_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tenant_members_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -111,11 +187,25 @@ export type Database = {
           is_primary: boolean;
         }[];
       };
+      get_my_memberships: {
+        Args: Record<string, never>;
+        Returns: {
+          membership_id: string;
+          tenant_id: string;
+          tenant_slug: string;
+          tenant_name: string;
+          tenant_status: TenantStatus;
+          role: TenantRole;
+          status: MembershipStatus;
+        }[];
+      };
     };
     Enums: {
       tenant_status: TenantStatus;
       tenant_domain_type: TenantDomainType;
       domain_verification_status: DomainVerificationStatus;
+      tenant_role: TenantRole;
+      membership_status: MembershipStatus;
     };
     CompositeTypes: Record<string, never>;
   };

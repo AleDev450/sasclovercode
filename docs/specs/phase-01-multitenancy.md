@@ -6,13 +6,13 @@
 Phase:                01
 Nombre:               Multi-Tenancy Core
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-24
-Última actualización: 2026-08-24
+Última actualización: 2026-08-25 (auditoría final)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
-Documento maestro: [`CLOVERCODE_MASTER.md`](../../CLOVERCODE_MASTER.md) — §5, §6, §7, §8, §10, §22, §27, §33 (Fase 1), §42, §43.
+Documento maestro: [`CLOVERCODE_MASTER.md`](../../CLOVERCODE_MASTER.md) — §5, §6, §7, §8, §9, §10, §13, §14, §22, §24, §27, §33 (Fase 1), §42, §43.
 Fase previa: [`phase-00-foundation.md`](./phase-00-foundation.md) (COMPLETED).
 
 ---
@@ -830,6 +830,7 @@ Resultado real, verificado el 2026-08-24:
 - [x] README actualizado (migraciones y tenant model)
 - [x] ADRs registrados (006, 007)
 - [x] SPEC actualizado con el resultado real
+- [x] Auditoría final contra CLOVERCODE_MASTER.md ejecutada (2026-08-25)
 ```
 
 ### Resultado de las validaciones
@@ -975,8 +976,93 @@ KL-109  Las migraciones nunca se han ejecutado contra una instancia real de
         Supabase, solo contra PostgreSQL embebido. Antes de cualquier
         despliegue debe correrse `supabase start` con Docker.
 
-KL-110  Los cambios de esta fase están sin commitear.
+KL-110  Un dominio con `type = 'system'` no está obligado por la base de datos
+        a ser `{slug}.clovercodeapp.com`: nada impide registrar
+        `cualquier-cosa.com` como `system`. Un CHECK no puede referenciar otra
+        tabla, así que la invariante requiere un trigger o que la creación pase
+        siempre por provisioning. Owner: Fase 04. Detectado en la auditoría
+        final de la Fase 01.
 ```
+
+---
+
+## 24.1 Auditoría final (2026-08-25)
+
+Revisión de la fase completa contra `CLOVERCODE_MASTER.md` §5, §6, §7, §8, §9,
+§10, §13, §14, §22, §24, §25, §27, §33 (Fase 1), §42 y §43, con las cinco
+validaciones re-ejecutadas sobre un checkout limpio.
+
+### Conformidad
+
+```text
+§5   Multi-tenant, una sola BD, tenant_id + RLS          CUMPLE
+§6   UUID en entidades principales                       CUMPLE
+§7   PK, FK, NOT NULL, UNIQUE, CHECK, timestamps, cascade CUMPLE
+§8   Índice sobre `domain` y sobre `tenant_id`; sin sobreindexar CUMPLE
+§9   Mínimo privilegio, sin secretos, entrada validada    CUMPLE (tras AUD-01)
+§10  RLS habilitada, sin políticas `using (true)`         CUMPLE
+§13  Estructura modular src/lib/tenant                    CUMPLE
+§14  TypeScript estricto, sin `any`                       CUMPLE
+§22  Migraciones versionadas y reproducibles              CUMPLE
+§24  .env.example sin secretos                            CUMPLE
+§27  Modelo de dominios y cadena de resolución            CUMPLE
+§33  Fase 1: tenants, tenant_domains, resolver, 3 formas
+     de host, estrategia local, índices, constraints, tests CUMPLE
+§42  Tenant desde contexto seguro de servidor             CUMPLE
+§43  getCurrentTenant() como abstracción única            CUMPLE
+```
+
+### Hallazgos y disposición
+
+```text
+AUD-01  ALTA-MEDIA  resolve_tenant_by_domain tenía EXECUTE para PUBLIC.
+        PostgreSQL lo concede por defecto; la migración solo añadía anon y
+        authenticated encima, sin revocar. En una función SECURITY DEFINER eso
+        significa que cualquier rol futuro hereda el privilegio sin decisión
+        explícita, contra §9.
+        CORREGIDO: `revoke execute ... from public` antes del grant.
+        Cubierto por dos tests nuevos en database/isolation.test.ts.
+
+AUD-02  MEDIA  normalizeHostname() devolvía fragmentos que no son hostnames
+        para IPv6 sin corchetes: `::1` -> `":"`, `fe80::1` -> `"fe80:"`. El
+        cálculo del puerto usa el ÚLTIMO `:`. Sin impacto hoy porque
+        DOMAIN_PATTERN los rechaza después, pero rompe el contrato de la
+        función justo antes de que la Fase 02 añada middleware que la usará.
+        CORREGIDO: se rechaza cualquier host con más de un `:`, y ningún
+        valor con `:` puede sobrevivir al retorno. 7 tests nuevos.
+
+AUD-03  BAJA  La entrada `"::1"` de LOOPBACK_HOSTS era código muerto:
+        normalizeHostname nunca produce ese valor.
+        CORREGIDO: eliminada, con nota de por qué no debe volver.
+
+AUD-04  BAJA  El docstring de toLookupDomain afirmaba `127.0.0.1 -> null` sin
+        matices, mientras que en desarrollo devuelve
+        `{DEV_TENANT_SLUG}.clovercodeapp.com` (comportamiento correcto y ya
+        probado). Documentación engañosa en la función más sensible de la fase.
+        CORREGIDO: tabla del docstring ampliada.
+
+AUD-05  BAJA  KL-110 declaraba los cambios «sin commitear»; ya estaban en
+        `b44610e`.
+        CORREGIDO: KL-110 reasignada a la invariante de dominio `system`.
+
+AUD-06  INFO  Un dominio `type = 'system'` puede ser cualquier dominio; nada lo
+        ata al slug del tenant. No es corregible con un CHECK.
+        REGISTRADO como KL-110, owner Fase 04 (provisioning).
+```
+
+### Validaciones re-ejecutadas
+
+```text
+Format   PASS   prettier --check .
+Lint     PASS   eslint --max-warnings=0        0 errores, 0 warnings
+Types    PASS   next typegen && tsc --noEmit   0 errores
+Tests    PASS   vitest run                     305/305 en 13 archivos
+Build    PASS   next build                     3 rutas
+Audit    PASS   npm audit --omit=dev           0 vulnerabilidades
+```
+
+Veredicto: **Fase 01 APROBADA**. Ningún hallazgo bloqueante; los cuatro
+corregidos son de endurecimiento y contrato, no de funcionalidad.
 
 ---
 

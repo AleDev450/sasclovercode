@@ -60,5 +60,11 @@ comment on function public.resolve_tenant_by_domain(text) is
   'Resolves a hostname to its owning tenant. Returns at most one row. The only '
   'read path into tenants/tenant_domains for non-privileged roles.';
 
+-- PostgreSQL grants EXECUTE on a new function to PUBLIC by default. On a
+-- SECURITY DEFINER function that means every present AND future role inherits
+-- the privilege without anyone deciding so, which contradicts the least
+-- privilege rule of master section 9. Revoke first, then name the roles.
+revoke execute on function public.resolve_tenant_by_domain(text) from public;
+
 -- The resolver runs before authentication, so `anon` must be able to call it.
 grant execute on function public.resolve_tenant_by_domain(text) to anon, authenticated;

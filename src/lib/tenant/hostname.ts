@@ -31,8 +31,14 @@ function hasIllegalCharacters(value: string): boolean {
   return false;
 }
 
-/** Hosts that only mean anything on a developer machine. */
-const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0", "::1"]);
+/**
+ * Hosts that only mean anything on a developer machine.
+ *
+ * No IPv6 literal here on purpose: `normalizeHostname()` rejects every IPv6
+ * form (bracketed or bare) before this set is consulted, so an entry for `::1`
+ * would be unreachable.
+ */
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
 
 const LOCAL_SUFFIX = ".localhost";
 
@@ -63,6 +69,13 @@ export function normalizeHostname(raw: string | null | undefined): string | null
   // Bracketed IPv6 (`[::1]:3000`). Never a tenant host.
   if (host.startsWith("[")) return null;
 
+  // Bare IPv6 (`::1`, `fe80::1`). A hostname carries at most one colon, and
+  // that one separates the port. Without this guard the port logic below would
+  // treat the last group as a port and return a fragment such as `":"` or
+  // `"fe80:"` - a value that is not a hostname, breaking the contract this
+  // function promises to every later caller.
+  if (host.indexOf(":") !== host.lastIndexOf(":")) return null;
+
   // Drop the port, but only when what follows really is a port.
   const colonIndex = host.lastIndexOf(":");
   if (colonIndex !== -1) {
@@ -70,6 +83,10 @@ export function normalizeHostname(raw: string | null | undefined): string | null
     if (!/^\d{1,5}$/.test(port)) return null;
     host = host.slice(0, colonIndex);
   }
+
+  // A single colon that was not a port separator (`::1` is caught above, but
+  // `host:` is not) must not survive as part of the returned name.
+  if (host.includes(":")) return null;
 
   // A trailing dot is a legal FQDN, but it is not how the domain is stored.
   if (host.endsWith(".")) host = host.slice(0, -1);
@@ -104,7 +121,10 @@ function isIpLike(host: string): boolean {
  * localhost:3000               -> {DEV_TENANT_SLUG}.clovercodeapp.com  (dev only)
  * clovercodeapp.com            -> null   (platform host, no tenant)
  * a.b.clovercodeapp.com        -> null   (nested subdomain)
- * 127.0.0.1                    -> null
+ * 127.0.0.1:3000               -> {DEV_TENANT_SLUG}.clovercodeapp.com  (dev only)
+ * 127.0.0.1                    -> null   (in production; a loopback host is
+ *                                         never a tenant once deployed)
+ * 8.8.8.8                      -> null   (any non-loopback IP, always)
  * ```
  *
  * Returns `null` when the host cannot belong to a tenant, so the caller can
