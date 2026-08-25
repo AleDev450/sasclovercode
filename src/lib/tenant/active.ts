@@ -13,8 +13,8 @@ import "server-only";
  * caller does not belong to simply finds nothing.
  */
 
+import { notFound } from "next/navigation";
 import { cache } from "react";
-import { NotFoundError } from "@/lib/errors";
 import { getMyMemberships } from "@/lib/auth/membership";
 import type { Membership } from "@/lib/auth/types";
 import { logger } from "@/lib/logger";
@@ -62,16 +62,28 @@ export const getActiveTenant = cache(async (slug: string): Promise<ActiveTenant 
 /**
  * Same, but ends the request when there is no access.
  *
- * Throws `NotFoundError`, never `AuthorizationError`. A 403 would distinguish
- * "this business does not exist" from "it exists and is not yours", and that
- * distinction lets anyone enumerate CloverCode's customers by trying slugs.
+ * Calls Next's `notFound()` rather than throwing our own `NotFoundError`.
+ *
+ * `notFound()` is the documented way for a Server Component to produce a 404;
+ * it throws a sentinel the framework recognises. Throwing a domain error and
+ * expecting Next to infer HTTP semantics from the class name would be relying
+ * on behaviour nobody promised - it might work today and stop working on the
+ * next minor. The Phase 05 audit could not establish what the current
+ * behaviour actually was, which is itself the argument for being explicit.
+ *
+ * 404 and never 403: a 403 separates "this business does not exist" from "it
+ * exists and is not yours", and that distinction lets anyone enumerate
+ * CloverCode's customers by trying slugs.
+ *
+ * `NotFoundError` is still the right thing for Route Handlers and Server
+ * Actions, where `toErrorResponse()` maps it to a status.
  */
 export async function requireActiveTenant(slug: string): Promise<ActiveTenant> {
   const tenant = await getActiveTenant(slug);
 
   if (tenant === null) {
     logger.warn("dashboard.tenant.access_denied", { slug });
-    throw new NotFoundError("Empresa");
+    notFound();
   }
 
   return tenant;

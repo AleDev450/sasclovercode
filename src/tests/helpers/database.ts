@@ -75,6 +75,60 @@ const SUPABASE_AUTH_SCHEMA_SQL = `
   $$;
 
   grant execute on function auth.uid() to anon, authenticated, service_role;
+
+  -- ---------------------------------------------------------------------
+  -- Supabase Storage shim (Phase 06)
+  -- ---------------------------------------------------------------------
+  --
+  -- Enough of the storage schema for the migrations to apply and for the object
+  -- policies to be exercised: the bucket registry, the object table, and
+  -- storage.foldername, which the policies use to read the tenant out of an
+  -- object path.
+  --
+  -- Not a reimplementation of Storage. Uploads, signed URLs and the resumable
+  -- protocol are the real service's job. What IS faithful here is the part
+  -- that decides who may touch which row - which is the part worth testing.
+  create schema storage;
+  grant usage on schema storage to anon, authenticated, service_role;
+
+  create table storage.buckets (
+    id                 text        not null,
+    name               text        not null,
+    public             boolean     not null default false,
+    file_size_limit    bigint,
+    allowed_mime_types text[],
+    created_at         timestamptz not null default now(),
+
+    constraint buckets_pkey primary key (id)
+  );
+
+  create table storage.objects (
+    id         uuid        not null default gen_random_uuid(),
+    bucket_id  text        not null,
+    name       text        not null,
+    owner      uuid,
+    metadata   jsonb       not null default '{}'::jsonb,
+    created_at timestamptz not null default now(),
+
+    constraint objects_pkey primary key (id),
+    constraint objects_bucket_fkey foreign key (bucket_id) references storage.buckets (id),
+    constraint objects_bucket_name_key unique (bucket_id, name)
+  );
+
+  alter table storage.objects enable row level security;
+
+  -- Splits an object path into its segments, as the real service does.
+  create function storage.foldername(name text)
+  returns text[]
+  language sql
+  immutable
+  as $$
+    select string_to_array(name, '/');
+  $$;
+
+  grant select, insert, update, delete on storage.objects to anon, authenticated;
+  grant select on storage.buckets to anon, authenticated;
+  grant execute on function storage.foldername(text) to anon, authenticated, service_role;
 `;
 
 /**

@@ -29,6 +29,7 @@ export type TenantRole =
 
 export type MembershipStatus = "active" | "invited" | "suspended";
 export type PlatformAdminStatus = "active" | "revoked";
+export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "x" | "youtube" | "linkedin";
 
 export type Database = {
   public: {
@@ -204,6 +205,68 @@ export type Database = {
           },
         ];
       };
+      tenant_settings: {
+        Row: {
+          tenant_id: string;
+          legal_name: string | null;
+          trade_name: string | null;
+          tax_id: string | null;
+          contact_email: string | null;
+          phone: string | null;
+          whatsapp: string | null;
+          address_line: string | null;
+          district: string | null;
+          city: string | null;
+          currency: string;
+          timezone: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string } & Partial<
+          Omit<Database["public"]["Tables"]["tenant_settings"]["Row"], "tenant_id">
+        >;
+        Update: Partial<Database["public"]["Tables"]["tenant_settings"]["Row"]>;
+        Relationships: [];
+      };
+      tenant_themes: {
+        Row: {
+          tenant_id: string;
+          primary_color: string;
+          accent_color: string;
+          background_color: string;
+          font_family: string;
+          border_radius: string;
+          logo_path: string | null;
+          favicon_path: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string } & Partial<
+          Omit<Database["public"]["Tables"]["tenant_themes"]["Row"], "tenant_id">
+        >;
+        Update: Partial<Database["public"]["Tables"]["tenant_themes"]["Row"]>;
+        Relationships: [];
+      };
+      tenant_social_links: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          platform: SocialPlatform;
+          url: string;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          platform: SocialPlatform;
+          url: string;
+          position?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["tenant_social_links"]["Row"]>;
+        Relationships: [];
+      };
       roles: {
         Row: {
           code: TenantRole;
@@ -315,6 +378,10 @@ export type Database = {
         Args: { p_tenant_id: string; p_permission: string };
         Returns: boolean;
       };
+      storage_path_tenant_id: {
+        Args: { p_name: string };
+        Returns: string | null;
+      };
       is_platform_admin: {
         Args: Record<string, never>;
         Returns: boolean;
@@ -360,6 +427,7 @@ export type Database = {
       tenant_role: TenantRole;
       membership_status: MembershipStatus;
       platform_admin_status: PlatformAdminStatus;
+      social_platform: SocialPlatform;
     };
     CompositeTypes: Record<string, never>;
   };

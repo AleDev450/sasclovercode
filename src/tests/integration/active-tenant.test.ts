@@ -1,5 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { NotFoundError } from "@/lib/errors";
+
+/**
+ * `requireActiveTenant` ends the request with Next's `notFound()`, which throws
+ * a sentinel the framework recognises and turns into a real 404. Asserting on
+ * that sentinel is what proves the guard produces a 404 rather than merely
+ * intending one - the Phase 05 audit changed the guard precisely because a
+ * custom error class carried no such guarantee.
+ */
+const NEXT_NOT_FOUND = "NEXT_HTTP_ERROR_FALLBACK;404";
+
+function isNextNotFound(error: unknown): boolean {
+  return (error as { digest?: string } | null)?.digest === NEXT_NOT_FOUND;
+}
 
 /**
  * The URL segment is client input, and it decides which business a dashboard
@@ -26,19 +38,10 @@ const ACTIVE = {
 /**
  * Loads the module under test with a fresh registry, so React's `cache()` does
  * not carry an answer from one case into the next.
- *
- * The error class comes back from the SAME registry on purpose: after
- * `resetModules`, a class imported at the top of this file is a different
- * object from the one the reloaded module throws, and `instanceof` would fail
- * on an error that is otherwise perfectly correct.
  */
 async function load() {
   vi.resetModules();
-  const [active, errors] = await Promise.all([
-    import("@/lib/tenant/active"),
-    import("@/lib/errors"),
-  ]);
-  return { ...active, NotFoundError: errors.NotFoundError };
+  return import("@/lib/tenant/active");
 }
 
 afterEach(() => {
@@ -83,36 +86,34 @@ describe("requireActiveTenant (TEST-504)", () => {
 describe("requireActiveTenant refuses (TEST-505, TEST-506)", () => {
   it("throws NotFound for a tenant the user does not belong to", async () => {
     memberships.current = [ACTIVE];
-    const { requireActiveTenant, NotFoundError } = await load();
+    const { requireActiveTenant } = await load();
 
-    await expect(requireActiveTenant("polleria-el-rey")).rejects.toThrow(NotFoundError);
+    await expect(requireActiveTenant("polleria-el-rey")).rejects.toSatisfy(isNextNotFound);
   });
 
   it.each(["invited", "suspended"] as const)(
     "throws NotFound for a %s membership",
     async (status) => {
       memberships.current = [{ ...ACTIVE, status }];
-      const { requireActiveTenant, NotFoundError } = await load();
+      const { requireActiveTenant } = await load();
 
-      await expect(requireActiveTenant("sugurolls")).rejects.toThrow(NotFoundError);
+      await expect(requireActiveTenant("sugurolls")).rejects.toSatisfy(isNextNotFound);
     },
   );
 
   it("throws NotFound when the user belongs to nothing", async () => {
     memberships.current = [];
-    const { requireActiveTenant, NotFoundError } = await load();
-    await expect(requireActiveTenant("sugurolls")).rejects.toThrow(NotFoundError);
+    const { requireActiveTenant } = await load();
+    await expect(requireActiveTenant("sugurolls")).rejects.toSatisfy(isNextNotFound);
   });
 
   it.each(["", "   "])("throws NotFound for the empty slug %j", async (slug) => {
     memberships.current = [ACTIVE];
-    const { requireActiveTenant, NotFoundError } = await load();
-    await expect(requireActiveTenant(slug)).rejects.toThrow(NotFoundError);
+    const { requireActiveTenant } = await load();
+    await expect(requireActiveTenant(slug)).rejects.toSatisfy(isNextNotFound);
   });
 
-  it("answers 404, never 403 (AB-502)", async () => {
-    // A 403 would separate "does not exist" from "exists but is not yours",
-    // which is an oracle for enumerating CloverCode's customers.
+  it("produces a real 404, not merely an error meaning 404 (AB-502)", async () => {
     memberships.current = [ACTIVE];
     const { requireActiveTenant } = await load();
 
@@ -120,19 +121,21 @@ describe("requireActiveTenant refuses (TEST-505, TEST-506)", () => {
       await requireActiveTenant("polleria-el-rey");
       expect.unreachable("should have thrown");
     } catch (error) {
-      expect((error as NotFoundError).httpStatus).toBe(404);
+      expect((error as { digest?: string }).digest).toBe(NEXT_NOT_FOUND);
     }
   });
 
-  it("gives the same answer for a foreign tenant and one that does not exist", async () => {
+  it("gives the identical answer for a foreign tenant and one that does not exist", async () => {
+    // Any difference between the two is an oracle for enumerating CloverCode's
+    // customers by trying slugs.
     memberships.current = [ACTIVE];
     const { requireActiveTenant } = await load();
 
-    const foreign = await requireActiveTenant("polleria-el-rey").catch((e: NotFoundError) => e);
-    const missing = await requireActiveTenant("no-existe-jamas").catch((e: NotFoundError) => e);
+    const foreign = await requireActiveTenant("polleria-el-rey").catch((e: unknown) => e);
+    const missing = await requireActiveTenant("no-existe-jamas").catch((e: unknown) => e);
 
-    expect((foreign as NotFoundError).publicMessage).toBe((missing as NotFoundError).publicMessage);
-    expect((foreign as NotFoundError).httpStatus).toBe((missing as NotFoundError).httpStatus);
+    expect((foreign as { digest?: string }).digest).toBe((missing as { digest?: string }).digest);
+    expect((foreign as Error).message).toBe((missing as Error).message);
   });
 });
 

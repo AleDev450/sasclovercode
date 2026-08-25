@@ -28,6 +28,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     segment: "/miembros",
     permission: PERMISSIONS.MEMBERS_VIEW,
   },
+  {
+    key: "settings",
+    label: "Configuracion",
+    segment: "/configuracion",
+    permission: PERMISSIONS.SETTINGS_MANAGE,
+  },
 ];
 
 /** The entries a holder of `permissions` may see. */

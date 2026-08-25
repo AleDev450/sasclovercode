@@ -9,8 +9,8 @@ import "server-only";
  * them apart in the schema.
  */
 
+import { notFound } from "next/navigation";
 import { cache } from "react";
-import { NotFoundError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -41,15 +41,18 @@ export const getIsPlatformAdmin = cache(async (): Promise<boolean> => isPlatform
 /**
  * Guards the platform area.
  *
- * Throws `NotFoundError`, not `AuthorizationError`, on purpose. A 403 would
- * confirm to a signed-in stranger that `/super-admin` exists and that they
- * merely lack the key. A 404 says nothing (SPEC AB-403).
+ * 404, not 403, on purpose: a 403 would confirm to a signed-in stranger that
+ * `/super-admin` exists and that they merely lack the key (SPEC AB-403).
+ *
+ * Uses Next's `notFound()` rather than our own `NotFoundError` - see the note
+ * on `requireActiveTenant`: producing a 404 from a Server Component is
+ * `notFound()`'s job, and inferring it from a custom class is undocumented.
  */
 export async function requirePlatformAdmin(): Promise<void> {
   const user = await getCurrentUser();
 
   if (user === null || !(await getIsPlatformAdmin())) {
     logger.warn("platform.access.denied", { userId: user?.id ?? null });
-    throw new NotFoundError("Page");
+    notFound();
   }
 }

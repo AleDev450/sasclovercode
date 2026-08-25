@@ -217,7 +217,15 @@ describe("TEST-141: declared types match the real schema", () => {
     // `authorization-schema.test.ts`, against the TypeScript constants that
     // mirror them, so they are listed here rather than duplicated column by
     // column.
-    const catalogueTables = ["roles", "permissions", "role_permissions", "platform_admins"];
+    const catalogueTables = [
+      "roles",
+      "permissions",
+      "role_permissions",
+      "platform_admins",
+      "tenant_settings",
+      "tenant_themes",
+      "tenant_social_links",
+    ];
     expect(rows.map((r) => r.tablename).sort()).toEqual(
       [...Object.keys(EXPECTED_COLUMNS), ...catalogueTables].sort(),
     );

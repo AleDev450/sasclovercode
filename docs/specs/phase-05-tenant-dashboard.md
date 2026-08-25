@@ -6,9 +6,9 @@
 Phase:                05
 Nombre:               Tenant Dashboard
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-25 (auditoría de fase, §26)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -547,6 +547,10 @@ KL-506  `getMyPermissions` se llama en el layout y otra vez en cada página que
         pero la duplicación es deliberada y no accidental (§45).
 
 KL-507  Los cambios de esta fase están sin commitear.
+
+KL-508  No se verificó de forma empírica qué status devolvía el guard ANTES de
+        la corrección de A5-1. Se corrigió por diseño, no por medición. Una
+        prueba E2E real cerraría esa duda. Owner: Fase 28.
 ```
 
 ---
@@ -563,4 +567,70 @@ KL-507  Los cambios de esta fase están sin commitear.
   permiso, y su página vuelve a comprobarlo. El patrón ya está establecido.
 - Si el número de empresas por usuario creciera, el selector necesita búsqueda
   y paginación.
+```
+
+---
+
+## 26. Auditoría de la fase
+
+Dos hallazgos, ambos corregidos. Y una hipótesis mía que resultó falsa y que
+conviene dejar escrita.
+
+### A5-1 — El guard confiaba en que Next interpretara una clase propia (corregido)
+
+`requireActiveTenant` y `requirePlatformAdmin` lanzaban **nuestro**
+`NotFoundError` y daban por hecho que Next.js lo convertiría en un 404. Next
+documenta exactamente una forma de producir un 404 desde un Server Component:
+llamar a `notFound()`.
+
+Intenté medir el comportamiento real levantando el build y sondeando rutas.
+**El sondeo falló y no logré establecerlo**: primero medí sin credenciales (todo
+daba 500 por el proxy), después coloqué la sonda en `src/app/_probe404/` sin
+recordar que en Next una carpeta con guion bajo es privada y no genera ruta —de
+modo que los cuatro 404 que obtuve eran simplemente «esa ruta no existe» y la
+página nunca llegó a ejecutarse—, y el tercer intento devolvió 200 en todos los
+casos. Detuve la investigación ahí.
+
+Que no pudiera medirlo **es el argumento**, no una excusa: depender de que un
+framework infiera semántica HTTP del nombre de una clase es apoyarse en algo que
+nadie prometió, y que puede dejar de funcionar en cualquier versión menor.
+
+Corregido: ambos guards llaman a `notFound()`. `NotFoundError` sigue siendo lo
+correcto en Route Handlers y Server Actions, donde `toErrorResponse()` sí lo
+traduce a un status. Los tests ahora afirman sobre el centinela real
+(`digest === "NEXT_HTTP_ERROR_FALLBACK;404"`), es decir prueban que se produce
+un 404, no que se pretendía uno.
+
+### A5-2 — Una ruta del panel eclipsaba un slug de tenant (corregido)
+
+`/dashboard/{slug}` resuelve la empresa desde un segmento, y Next resuelve un
+segmento **estático** antes que uno dinámico. `/dashboard/perfil` es estático,
+así que una empresa con slug `perfil` habría sido inalcanzable para siempre — y
+habría parecido un fallo de enrutado, no un choque de nombres.
+
+`perfil` no estaba en la lista de slugs reservados de la Fase 01.
+
+Corregido con la migración `20260825150000_reserve_dashboard_segments.sql`
+(nueva, no una edición: la de la Fase 01 ya está commiteada, §22).
+
+Lo importante no es la palabra añadida sino el test que la acompaña:
+`reserved-slugs.test.ts` **lee las carpetas del disco** y falla si algún
+segmento estático vecino de `[tenantSlug]` sigue siendo un slug permitido. No
+depende de que alguien recuerde la regla al añadir la siguiente ruta.
+
+### Revisado sin hallazgos
+
+```text
+- El slug de la URL nunca autoriza: se contrasta con las membresías que la base
+  de datos resolvió desde auth.uid(). Probado con membresías ajenas,
+  invited y suspended.
+- Foreign tenant y tenant inexistente dan respuesta idéntica: sin oráculo.
+- La navegación oculta lo que no corresponde Y la página lo vuelve a comprobar.
+- El perfil no acepta un id de usuario; la política de la Fase 02 lo impone.
+```
+
+### Resultado
+
+```text
+Format PASS · Lint PASS · Types PASS · Tests 570/570 · Build PASS
 ```

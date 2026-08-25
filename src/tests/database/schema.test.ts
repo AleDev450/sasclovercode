@@ -60,6 +60,12 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825140000_create_platform_admins.sql",
       "20260825140100_create_platform_policies.sql",
       "20260825140200_create_tenant_provisioning.sql",
+      // Phase 05
+      "20260825150000_reserve_dashboard_segments.sql",
+      // Phase 06
+      "20260825160000_create_tenant_settings.sql",
+      "20260825160100_create_tenant_storage.sql",
+      "20260825160200_extend_provisioning.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -78,6 +84,9 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "roles",
       "tenant_domains",
       "tenant_members",
+      "tenant_settings",
+      "tenant_social_links",
+      "tenant_themes",
       "tenants",
     ]);
 
@@ -90,6 +99,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "domain_verification_status",
       "membership_status",
       "platform_admin_status",
+      "social_platform",
       "tenant_domain_type",
       "tenant_role",
       "tenant_status",
