@@ -26,6 +26,8 @@ type Expect<T extends true> = T;
 
 type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
 type TenantDomainRow = Database["public"]["Tables"]["tenant_domains"]["Row"];
+type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
+type TenantMemberRow = Database["public"]["Tables"]["tenant_members"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -47,9 +49,31 @@ export type _TenantDomainKeys = Expect<
   >
 >;
 
+export type _ProfileKeys = Expect<
+  Equal<keyof ProfileRow, "id" | "email" | "full_name" | "avatar_url" | "created_at" | "updated_at">
+>;
+export type _TenantMemberKeys = Expect<
+  Equal<
+    keyof TenantMemberRow,
+    "id" | "tenant_id" | "user_id" | "role" | "status" | "created_at" | "updated_at"
+  >
+>;
+
 // Nullability must match too: `verified_at` is the only nullable column.
 export type _VerifiedAtIsNullable = Expect<Equal<TenantDomainRow["verified_at"], string | null>>;
 export type _TenantIdIsNotNullable = Expect<Equal<TenantDomainRow["tenant_id"], string>>;
+export type _FullNameIsNullable = Expect<Equal<ProfileRow["full_name"], string | null>>;
+export type _ProfileEmailIsNotNullable = Expect<Equal<ProfileRow["email"], string>>;
+
+/**
+ * A profile must never gain a credential column. This is not a style
+ * preference: master section 33 (Phase 2) states that a password is never
+ * stored outside Supabase Auth, and a type-level assertion is the cheapest
+ * place to catch somebody adding one.
+ */
+export type _ProfileHasNoCredentials = Expect<
+  Equal<Extract<keyof ProfileRow, "password" | "password_hash" | "encrypted_password">, never>
+>;
 
 // --- Run-time half ----------------------------------------------------------
 
@@ -75,6 +99,23 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     is_primary: { dataType: "boolean", nullable: false },
     verification_status: { dataType: "USER-DEFINED", nullable: false },
     verified_at: { dataType: "timestamp with time zone", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  profiles: {
+    id: { dataType: "uuid", nullable: false },
+    email: { dataType: "text", nullable: false },
+    full_name: { dataType: "text", nullable: true },
+    avatar_url: { dataType: "text", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  tenant_members: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    user_id: { dataType: "uuid", nullable: false },
+    role: { dataType: "USER-DEFINED", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },

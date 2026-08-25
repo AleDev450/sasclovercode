@@ -43,18 +43,30 @@ describe("migrations (TEST-117, TEST-118)", () => {
   it("apply cleanly and in lexicographic order", async () => {
     const files = await listMigrationFiles();
     expect(files).toEqual([
+      // Phase 01
       "20260824120000_create_tenants.sql",
       "20260824120100_create_tenant_domains.sql",
       "20260824120200_create_tenant_resolution.sql",
+      // Phase 02
+      "20260825120000_create_profiles.sql",
+      "20260825120100_create_tenant_members.sql",
+      "20260825120200_create_membership_access.sql",
     ]);
+    // The timestamp prefix must order the files the same way PostgreSQL will
+    // see them. A migration that sorts before one it depends on fails to apply.
     expect([...files].sort()).toEqual(files);
   });
 
-  it("create both tables and all three enums", async () => {
+  it("creates every table and enum of the phases applied so far", async () => {
     const tables = await db.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
-    expect(tables.map((t) => t.tablename)).toEqual(["tenant_domains", "tenants"]);
+    expect(tables.map((t) => t.tablename)).toEqual([
+      "profiles",
+      "tenant_domains",
+      "tenant_members",
+      "tenants",
+    ]);
 
     const enums = await db.query<{ typname: string }>(
       `select t.typname from pg_type t
@@ -63,7 +75,9 @@ describe("migrations (TEST-117, TEST-118)", () => {
     );
     expect(enums.map((e) => e.typname)).toEqual([
       "domain_verification_status",
+      "membership_status",
       "tenant_domain_type",
+      "tenant_role",
       "tenant_status",
     ]);
   });
@@ -87,6 +101,20 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "active",
       "failed",
     ]);
+    // Master section 12. Order is part of the contract: enum sort order decides
+    // how `order by role` behaves, and renumbering it would silently reorder
+    // every listing built on it.
+    expect(grouped.tenant_role).toEqual([
+      "owner",
+      "admin",
+      "manager",
+      "cashier",
+      "waiter",
+      "kitchen",
+      "delivery",
+      "accountant",
+    ]);
+    expect(grouped.membership_status).toEqual(["active", "invited", "suspended"]);
   });
 });
 

@@ -4,11 +4,12 @@ Plataforma SaaS multi-tenant para administrar negocios: sitio web público,
 catálogo, pedidos, punto de venta, inventario y facturación electrónica — desde
 una sola codebase y una sola base de datos.
 
-> **Estado: Fase 01 — Multi-Tenancy Core (COMPLETED).**
-> Existen los cimientos técnicos y el núcleo multi-tenant: `tenants`,
-> `tenant_domains` y resolución `hostname → tenant`. Todavía **no** hay
-> autenticación, autorización por usuario ni módulos de negocio. Ver
-> [`docs/specs/`](docs/specs/) para el plan por fases.
+> **Estado: Fase 02 — Authentication (COMPLETED).**
+> Existen los cimientos técnicos, el núcleo multi-tenant (`tenants`,
+> `tenant_domains`, resolución `hostname → tenant`) y la autenticación
+> (`profiles`, `tenant_members`, sesión SSR verificada, rutas privadas
+> protegidas). Todavía **no** hay autorización por permisos ni módulos de
+> negocio. Ver [`docs/specs/`](docs/specs/) para el plan por fases.
 
 La especificación maestra del proyecto es
 [`CLOVERCODE_MASTER.md`](CLOVERCODE_MASTER.md). Ante cualquier discrepancia, el
@@ -134,13 +135,16 @@ npm run db:reset    # reaplica todas las migraciones desde cero
 npm run db:types    # regenera src/types/database.ts
 ```
 
-Historial actual (Fase 01):
+Historial actual:
 
-| Archivo                                       | Crea                                                |
-| --------------------------------------------- | --------------------------------------------------- |
-| `20260824120000_create_tenants.sql`           | `tenant_status`, `set_updated_at()`, `tenants`, RLS |
-| `20260824120100_create_tenant_domains.sql`    | enums de dominio, `tenant_domains`, índices, RLS    |
-| `20260824120200_create_tenant_resolution.sql` | `resolve_tenant_by_domain()` SECURITY DEFINER       |
+| Archivo                                       | Fase | Crea                                                 |
+| --------------------------------------------- | ---- | ---------------------------------------------------- |
+| `20260824120000_create_tenants.sql`           | 01   | `tenant_status`, `set_updated_at()`, `tenants`, RLS  |
+| `20260824120100_create_tenant_domains.sql`    | 01   | enums de dominio, `tenant_domains`, índices, RLS     |
+| `20260824120200_create_tenant_resolution.sql` | 01   | `resolve_tenant_by_domain()` SECURITY DEFINER        |
+| `20260825120000_create_profiles.sql`          | 02   | `profiles`, triggers de sync con `auth.users`, RLS   |
+| `20260825120100_create_tenant_members.sql`    | 02   | `tenant_role`, `membership_status`, `tenant_members` |
+| `20260825120200_create_membership_access.sql` | 02   | `get_my_memberships()` SECURITY DEFINER              |
 
 Reglas (`CLOVERCODE_MASTER.md` §22):
 
@@ -165,18 +169,22 @@ npm run test -- --project dom    # solo componentes
 Dos proyectos de Vitest, porque el código de servidor debe demostrar que
 funciona sin DOM:
 
-| Proyecto | Entorno | Ubicación                                   |
-| -------- | ------- | ------------------------------------------- |
-| `node`   | node    | `src/tests/unit/`, `src/tests/integration/` |
-| `dom`    | jsdom   | `src/tests/components/`                     |
+| Proyecto | Entorno | Ubicación                                                          |
+| -------- | ------- | ------------------------------------------------------------------ |
+| `node`   | node    | `src/tests/unit/`, `src/tests/integration/`, `src/tests/database/` |
+| `dom`    | jsdom   | `src/tests/components/`                                            |
 
-Estado actual: **297 tests en 13 archivos, todos en verde**.
+Las suites de `src/tests/database/` aplican las migraciones del propio proyecto
+sobre un PostgreSQL real embebido en el proceso (PGlite), con un shim de
+`auth.uid()`, de modo que las políticas RLS se ejercen tal cual están escritas.
+
+Estado actual: **426 tests en 19 archivos, todos en verde**.
 
 Pendiente por diseño y **obligatorio** en su fase:
 
-- Políticas RLS por usuario con `tenant_members`. **Fase 03.** El aislamiento
-  cross-tenant a nivel de base de datos ya se prueba desde la Fase 01 en
-  `src/tests/database/isolation.test.ts` (TEST-140).
+- Políticas RLS basadas en permisos. **Fase 03.** El aislamiento cross-tenant ya
+  se prueba desde la Fase 01 (`isolation.test.ts`, TEST-140) y el aislamiento
+  por usuario desde la Fase 02 (`auth-isolation.test.ts`, TEST-211/213).
 - E2E con Playwright — **Fase 05.**
 
 Detalle: [ADR-005](docs/adr/005-testing-strategy.md)
@@ -216,10 +224,10 @@ Request → Host → normalizeHostname() → toLookupDomain() → resolve_tenant
 - Las restricciones de negocio serán tenant-aware: `UNIQUE(tenant_id, slug)`,
   nunca `UNIQUE(slug)`. Las dos excepciones globales deliberadas son
   `tenants.slug` y `tenant_domains.domain`.
-- Un usuario podrá pertenecer a **varios** tenants con distinto rol (Fase 02/03):
+- Un usuario puede pertenecer a **varios** tenants con distinto rol (Fase 02):
 
   ```text
-  auth.users → profiles → tenant_members → tenants + roles
+  auth.users → profiles → tenant_members → tenants + role
   ```
 
 - `SUPER_ADMIN` (CloverCode) **no** es lo mismo que `OWNER` (de un tenant).
@@ -246,6 +254,39 @@ Decisiones: [ADR-001](docs/adr/001-single-database-multitenancy.md) ·
 
 ---
 
+## 7.1 Authentication
+
+```text
+Request → src/proxy.ts → getUser() → profiles → get_my_memberships()
+```
+
+- El servidor verifica la sesión con `getUser()`, que revalida el token contra
+  Supabase Auth. `getSession()` no se usa: lee la cookie sin verificarla, y la
+  cookie la envía el cliente.
+- La sesión se refresca en `src/proxy.ts`. Es el único punto del ciclo que
+  puede leer las cookies entrantes y escribir cookies en la respuesta.
+  En Next.js 16 el archivo se llama `proxy.ts` y la función exportada `proxy`;
+  `middleware.ts` está deprecado.
+- Las rutas están **cerradas por defecto**: solo lo listado en
+  `src/lib/auth/route-access.ts` es público.
+- Ninguna contraseña sale de Supabase Auth. `profiles` no tiene columna de
+  credencial, y un test de contrato falla si alguien añade una.
+- **No hay registro público**, ni ruta ni endpoint: `enable_signup = false`.
+  Las cuentas las crea el operador en la Fase 04.
+
+Uso desde código de servidor:
+
+```ts
+import { getCurrentUser, requireUser } from "@/lib/auth/session";
+import { getMyMemberships, requireMembership } from "@/lib/auth/membership";
+```
+
+Decisiones: [ADR-008](docs/adr/008-session-and-route-protection.md) ·
+[ADR-009](docs/adr/009-profiles-and-membership.md) ·
+[`docs/architecture/authentication.md`](docs/architecture/authentication.md)
+
+---
+
 ## 8. Security model
 
 Dos niveles de defensa, siempre: **la aplicación resuelve y valida el tenant, y
@@ -253,16 +294,22 @@ la base de datos lo impone con RLS.** Nunca se confía solo en el frontend.
 
 ### Activo hoy
 
-| Control                                | Dónde                                         |
-| -------------------------------------- | --------------------------------------------- |
-| Cabeceras de seguridad en toda ruta    | `next.config.ts`                              |
-| `X-Powered-By` desactivado             | `next.config.ts`                              |
-| Sin secretos en el repositorio         | `.gitignore` (`.env*` salvo `.env.example`)   |
-| Sin fuga de detalle interno en errores | `src/lib/errors/http.ts` (`serializeError`)   |
-| Sin credenciales en logs               | `src/lib/logger/redact.ts`                    |
-| Validación de toda entrada con Zod     | `src/lib/validation/`                         |
-| Módulos de servidor no bundleables     | `server-only` en `src/lib/supabase/server.ts` |
-| `any` y `@ts-ignore` prohibidos        | `eslint.config.mjs`                           |
+| Control                                  | Dónde                                           |
+| ---------------------------------------- | ----------------------------------------------- |
+| Cabeceras de seguridad en toda ruta      | `next.config.ts`                                |
+| `X-Powered-By` desactivado               | `next.config.ts`                                |
+| Sin secretos en el repositorio           | `.gitignore` (`.env*` salvo `.env.example`)     |
+| Sin fuga de detalle interno en errores   | `src/lib/errors/http.ts` (`serializeError`)     |
+| Sin credenciales en logs                 | `src/lib/logger/redact.ts`                      |
+| Validación de toda entrada con Zod       | `src/lib/validation/`                           |
+| Módulos de servidor no bundleables       | `server-only` en `src/lib/supabase/server.ts`   |
+| `any` y `@ts-ignore` prohibidos          | `eslint.config.mjs`                             |
+| Sesión verificada con `getUser()`        | `src/lib/auth/session.ts`                       |
+| Rutas privadas cerradas por defecto      | `src/lib/auth/route-access.ts` + `src/proxy.ts` |
+| Anti open redirect en `next`             | `src/lib/auth/redirect.ts`                      |
+| Mensajes no enumerables de usuarios      | `src/modules/auth/server/actions.ts`            |
+| RLS por usuario en perfiles y membresías | migraciones de la Fase 02                       |
+| Registro público desactivado             | `supabase/config.toml`                          |
 
 Cabeceras aplicadas: `Strict-Transport-Security`, `X-Content-Type-Options`,
 `X-Frame-Options: DENY`, `Referrer-Policy`, `X-DNS-Prefetch-Control`,
@@ -270,20 +317,22 @@ Cabeceras aplicadas: `Strict-Transport-Security`, `X-Content-Type-Options`,
 
 ### Pendiente, por fase
 
-| Control                            | Fase    |
-| ---------------------------------- | ------- |
-| Autenticación (Supabase Auth SSR)  | 02      |
-| RBAC + políticas RLS               | 03      |
-| Cliente `service_role` protegido   | 04      |
-| Políticas de Storage por tenant    | 06      |
-| Content Security Policy con nonces | 25      |
-| Rate limiting, CSRF, auditoría     | 24 / 25 |
+| Control                              | Fase    |
+| ------------------------------------ | ------- |
+| RBAC + políticas basadas en permisos | 03      |
+| Cliente `service_role` protegido     | 04      |
+| Políticas de Storage por tenant      | 06      |
+| Content Security Policy con nonces   | 25      |
+| Rate limiting, CSRF, auditoría       | 24 / 25 |
 
 ### Reglas no negociables
 
 - Nunca exponer `service_role` al navegador.
 - Nunca confiar en un `tenant_id` enviado por el cliente sin verificar pertenencia.
-- Nunca confiar en `user_metadata` para decisiones de autorización.
+- Nunca confiar en `user_metadata` para decisiones de autorización ni para
+  valores mostrados: el propio usuario puede escribirlo.
+- Nunca usar `getSession()` en servidor: no revalida el token. Siempre
+  `getUser()`.
 - Nunca crear políticas `using (true)` en tablas privadas.
 - Ocultar un botón **no** es seguridad: el backend siempre valida.
 

@@ -62,11 +62,29 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     ]);
   });
 
-  it("defines no policies in this phase, so the default is deny", async () => {
+  // Phase 02 adds policies to `profiles` and `tenant_members`, so this is no
+  // longer "no policies anywhere". What must not change is the posture of the
+  // two tenant tables: opening those up is an authorization decision that
+  // belongs to Phase 03, and until then nothing but the guarded resolver reads
+  // them.
+  it("defines no policies on the tenant tables, so the default stays deny", async () => {
     const rows = await db.query<{ tablename: string; policyname: string }>(
-      "select tablename, policyname from pg_policies where schemaname = 'public'",
+      `select tablename, policyname from pg_policies
+       where schemaname = 'public' and tablename in ('tenants', 'tenant_domains')`,
     );
     expect(rows).toEqual([]);
+  });
+
+  // Phase-agnostic: this one must hold for every table any phase ever adds.
+  it("has row level security enabled on every table in the public schema", async () => {
+    const rows = await db.query<{ tablename: string }>(
+      `select c.relname as tablename
+       from pg_class c
+       join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
+       order by c.relname`,
+    );
+    expect(rows.map((r) => r.tablename)).toEqual([]);
   });
 
   it("has no policy that would grant blanket access", async () => {

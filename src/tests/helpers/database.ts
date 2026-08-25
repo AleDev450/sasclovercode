@@ -29,8 +29,52 @@ const SUPABASE_ROLES_SQL = `
   create role anon nologin noinherit;
   create role authenticated nologin noinherit;
   create role service_role nologin noinherit bypassrls;
+  create role supabase_auth_admin nologin noinherit;
 
   grant usage on schema public to anon, authenticated, service_role;
+`;
+
+/**
+ * Minimal stand-in for the Supabase `auth` schema (Phase 01 KL-103).
+ *
+ * Only what the migrations and the policies actually touch is recreated:
+ * `auth.users` (the FK target of `profiles` and the table the sync triggers
+ * hang off) and `auth.uid()`.
+ *
+ * `auth.uid()` reads the same GUC that PostgREST sets on a real Supabase
+ * request - `request.jwt.claims` - so a policy written against the real
+ * function is exercised verbatim here. `asUser()` below sets that GUC.
+ *
+ * What is NOT reproduced: password hashing, email confirmation, token issuance,
+ * the rest of the `auth` schema. Those belong to Supabase Auth and are never
+ * asserted on by this project.
+ */
+const SUPABASE_AUTH_SCHEMA_SQL = `
+  create schema auth;
+  grant usage on schema auth to anon, authenticated, service_role, supabase_auth_admin;
+
+  create table auth.users (
+    id                  uuid        not null default gen_random_uuid(),
+    email               text,
+    raw_user_meta_data  jsonb       not null default '{}'::jsonb,
+    created_at          timestamptz not null default now(),
+
+    constraint users_pkey primary key (id),
+    constraint users_email_key unique (email)
+  );
+
+  create function auth.uid()
+  returns uuid
+  language sql
+  stable
+  as $$
+    select nullif(
+      current_setting('request.jwt.claims', true)::jsonb ->> 'sub',
+      ''
+    )::uuid;
+  $$;
+
+  grant execute on function auth.uid() to anon, authenticated, service_role;
 `;
 
 /**
@@ -52,6 +96,13 @@ export interface TestDatabase {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
   /** Runs `fn` with the session role set to `role`, then resets it. */
   asRole<T>(role: string, fn: () => Promise<T>): Promise<T>;
+  /**
+   * Runs `fn` as the `authenticated` role with `auth.uid()` returning `userId`.
+   *
+   * Pass `null` to run as `authenticated` with no identity, which is what a
+   * request carrying a malformed or absent token looks like to the database.
+   */
+  asUser<T>(userId: string | null, fn: () => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -74,6 +125,7 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const pg = new PGlite();
 
   await pg.exec(SUPABASE_ROLES_SQL);
+  await pg.exec(SUPABASE_AUTH_SCHEMA_SQL);
 
   for (const fileName of await listMigrationFiles()) {
     const sql = await readMigration(fileName);
@@ -104,10 +156,67 @@ export async function createTestDatabase(): Promise<TestDatabase> {
         await pg.exec("reset role;");
       }
     },
+    async asUser<T>(userId: string | null, fn: () => Promise<T>) {
+      // `set_config(..., true)` would be transaction-local, and these tests run
+      // outside an explicit transaction; session scope is what survives here.
+      const claims = userId === null ? "{}" : JSON.stringify({ sub: userId });
+      await pg.query("select set_config('request.jwt.claims', $1, false)", [claims]);
+      await pg.exec("set role authenticated;");
+      try {
+        return await fn();
+      } finally {
+        await pg.exec("reset role;");
+        await pg.query("select set_config('request.jwt.claims', '', false)");
+      }
+    },
     async close() {
       await pg.close();
     },
   };
+}
+
+/**
+ * Creates an auth user and returns its id.
+ *
+ * The `on_auth_user_created` trigger creates the matching profile, so this is
+ * also how a profile comes into existence in tests - exactly as in production.
+ */
+export async function insertAuthUser(
+  db: TestDatabase,
+  values: { email: string; fullName?: string },
+): Promise<string> {
+  const rows = await db.query<{ id: string }>(
+    `insert into auth.users (email, raw_user_meta_data)
+     values ($1, jsonb_build_object('full_name', $2::text))
+     returning id`,
+    [values.email, values.fullName ?? null],
+  );
+  const id = rows[0]?.id;
+  if (id === undefined) throw new Error("insertAuthUser returned no id");
+  return id;
+}
+
+/** Grants a user membership of a tenant. Bypasses RLS: runs as the owner. */
+export async function insertMembership(
+  db: TestDatabase,
+  values: {
+    tenantId: string;
+    userId: string;
+    role?:
+      "owner" | "admin" | "manager" | "cashier" | "waiter" | "kitchen" | "delivery" | "accountant";
+    status?: "active" | "invited" | "suspended";
+  },
+): Promise<string> {
+  const rows = await db.query<{ id: string }>(
+    `insert into public.tenant_members (tenant_id, user_id, role, status)
+     values ($1, $2, $3::public.tenant_role,
+             coalesce($4, 'active')::public.membership_status)
+     returning id`,
+    [values.tenantId, values.userId, values.role ?? "owner", values.status ?? null],
+  );
+  const id = rows[0]?.id;
+  if (id === undefined) throw new Error("insertMembership returned no id");
+  return id;
 }
 
 /** Inserts a tenant and returns its id. Bypasses RLS: runs as the owner. */
