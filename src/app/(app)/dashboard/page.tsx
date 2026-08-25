@@ -1,80 +1,82 @@
 import type { Metadata } from "next";
-import {
-  Badge,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-} from "@/components/ui";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState } from "@/components/ui";
 import { getActiveMemberships } from "@/lib/auth/membership";
 import { requireUser } from "@/lib/auth/session";
-import { SignOutButton } from "@/modules/auth";
 
-export const metadata: Metadata = {
-  title: "Panel",
+export const metadata: Metadata = { title: "Mis empresas" };
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Propietario",
+  admin: "Administrador",
+  manager: "Encargado",
+  cashier: "Cajero",
+  waiter: "Mesero",
+  kitchen: "Cocina",
+  delivery: "Repartidor",
+  accountant: "Contador",
 };
 
 /**
- * Placeholder authenticated area for Phase 02.
+ * The entry point of the dashboard.
  *
- * Its purpose is to prove the phase end to end: a session exists, it is
- * verified on the server, and the memberships it grants are readable. The real
- * dashboard - navigation, tenant switcher, modules - is Phase 05.
- *
- * `requireUser()` runs even though `src/proxy.ts` already redirected anonymous
- * traffic. The proxy is a matcher over paths; this is the check that holds if
- * the matcher is ever changed.
+ * Three outcomes, because a user can belong to zero, one or many businesses
+ * (master section 11). With exactly one, showing a chooser of one item is a
+ * step that asks the user to confirm something they have no choice about, so
+ * this redirects instead.
  */
-export default async function DashboardPage() {
-  const user = await requireUser();
+export default async function DashboardEntryPage() {
+  await requireUser();
   const memberships = await getActiveMemberships();
 
+  if (memberships.length === 0) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-2xl items-center px-6 py-12">
+        <EmptyState
+          className="w-full"
+          titleAs="h1"
+          title="Aun no perteneces a ninguna empresa"
+          description="Cuando te asignen a una, aparecera aqui. Si esperabas tener acceso, contacta con quien administra tu negocio."
+        />
+      </main>
+    );
+  }
+
+  if (memberships.length === 1) {
+    redirect(`/dashboard/${memberships[0]!.tenantSlug}`);
+  }
+
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-8 px-6 py-12">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{user.fullName ?? "Bienvenido"}</h1>
-          <p className="text-muted-foreground text-sm">{user.email}</p>
-        </div>
-        <SignOutButton />
-      </header>
+    <main className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col gap-6 px-6 py-12">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Mis empresas</h1>
+        <p className="text-muted-foreground text-sm">Elige con cual quieres trabajar.</p>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle as="h2">Tus negocios</CardTitle>
-          <CardDescription>Empresas en las que tienes acceso activo.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {memberships.length === 0 ? (
-            // Master section 35: never an empty area with no explanation.
-            <EmptyState
-              title="Aun no perteneces a ningun negocio"
-              description="Cuando el administrador de una empresa te agregue como miembro, aparecera aqui."
-            />
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {memberships.map((membership) => (
-                <li
-                  key={membership.id}
-                  className="border-input flex items-center justify-between gap-4 rounded-md border px-4 py-3"
-                >
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium">{membership.tenantName}</span>
-                    <span className="text-muted-foreground text-xs">{membership.tenantSlug}</span>
+      <ul className="flex flex-col gap-3">
+        {memberships.map((membership) => (
+          <li key={membership.tenantId}>
+            <Link href={`/dashboard/${membership.tenantSlug}`} className="block">
+              <Card className="hover:border-primary transition-colors">
+                <CardHeader className="flex-row items-center justify-between gap-4 pb-6">
+                  <div>
+                    <CardTitle as="h2">{membership.tenantName}</CardTitle>
+                    <p className="text-muted-foreground text-sm">{membership.tenantSlug}</p>
                   </div>
-                  <Badge variant="neutral">{membership.role}</Badge>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <p className="text-muted-foreground text-sm">
-        El panel completo (navegacion, selector de negocio y modulos) se implementa en la Fase 05.
-      </p>
+                  <div className="flex items-center gap-2">
+                    {membership.tenantStatus === "suspended" ? (
+                      <Badge variant="warning">Suspendida</Badge>
+                    ) : null}
+                    <Badge>{ROLE_LABEL[membership.role] ?? membership.role}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="sr-only">Entrar a {membership.tenantName}</CardContent>
+              </Card>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }

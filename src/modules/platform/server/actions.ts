@@ -11,12 +11,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { ConflictError, DatabaseError, NotFoundError } from "@/lib/errors";
+import { DatabaseError } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/auth/session";
+import type { FormState } from "@/lib/forms/state";
 import { logger } from "@/lib/logger";
 import { requirePlatformAdmin } from "@/lib/platform/access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { parseOrThrow } from "@/lib/validation";
+import { parseOrThrow, toFieldErrors } from "@/lib/validation";
 
 const RESERVED_SLUGS = new Set([
   "www",
@@ -72,15 +73,32 @@ const setStatusSchema = z.object({
   status: z.enum(["active", "suspended", "archived"]),
 });
 
-export async function createTenantAction(formData: FormData): Promise<never> {
+/**
+ * Returns form state rather than throwing, matching the contract Phase 02
+ * established for every form in the product.
+ *
+ * A thrown ValidationError would land on the error boundary and show a generic
+ * failure page for something as ordinary as a mistyped slug. The audit that
+ * found this also found the divergence: two modules were surfacing form errors
+ * two different ways.
+ */
+export async function createTenantAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   await requirePlatformAdmin();
 
-  const input = parseOrThrow(createTenantSchema, {
+  const parsed = createTenantSchema.safeParse({
     name: formData.get("name"),
     slug: formData.get("slug"),
     ownerEmail: formData.get("ownerEmail"),
   });
 
+  if (!parsed.success) {
+    return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
+  }
+
+  const input = parsed.data;
   const operator = await getCurrentUser();
   const client = await createSupabaseServerClient();
 
@@ -97,15 +115,19 @@ export async function createTenantAction(formData: FormData): Promise<never> {
       error,
     });
 
-    // The function raises a specific SQLSTATE for the case an operator can
-    // actually act on: the owner has no account yet.
+    // The function raises specific SQLSTATEs for the two cases an operator can
+    // actually act on. Anything else is a fault, not a form problem.
     if (error.code === "P0002") {
-      throw new NotFoundError("Cuenta del propietario");
+      return {
+        status: "error",
+        fieldErrors: { ownerEmail: ["No existe una cuenta con ese correo."] },
+      };
     }
     if (error.code === "23505") {
-      throw new ConflictError("El slug ya esta en uso.", {
-        publicMessage: "Ese slug ya esta en uso.",
-      });
+      return {
+        status: "error",
+        fieldErrors: { slug: ["Ese slug ya pertenece a otra empresa."] },
+      };
     }
     throw new DatabaseError("Tenant provisioning failed.", { cause: error });
   }

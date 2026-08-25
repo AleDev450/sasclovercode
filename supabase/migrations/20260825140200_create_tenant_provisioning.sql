@@ -14,9 +14,17 @@
 -- nobody can reach and nobody can fix through the product. Inside a function
 -- the whole thing is one transaction: it either all happens or none of it does.
 --
--- Idempotent by design (master section 37): every step is `on conflict do
--- nothing`, so a retry after a partial failure COMPLETES the provisioning
--- rather than duplicating it or erroring. A double-submitted form is safe.
+-- Idempotent by design (master section 37), but idempotent about the WHOLE
+-- operation, not just the slug.
+--
+-- A retry means "the same request again": same slug, same owner. That completes
+-- a partial provisioning and returns the same id, so a double-submitted form is
+-- safe.
+--
+-- A DIFFERENT request that merely collides on slug is a conflict, and must say
+-- so. Treating it as a retry would quietly add the new email as a second owner
+-- of somebody else's business - an operator mistyping a slug would hand over
+-- ownership of a live tenant and be told it worked.
 create or replace function public.provision_tenant(
   p_name        text,
   p_slug        text,
@@ -52,16 +60,33 @@ begin
       using errcode = 'P0002';
   end if;
 
-  -- 1. The tenant. `on conflict` makes a retry return the existing row instead
-  --    of failing, which is what makes the whole function idempotent.
+  -- 1. The tenant. `returning` tells us whether WE created it: a row comes back
+  --    only on a real insert, and null means the slug was already taken.
   insert into public.tenants (name, slug)
   values (btrim(p_name), v_slug)
-  on conflict (slug) do nothing;
-
-  select t.id into v_tenant_id from public.tenants as t where t.slug = v_slug;
+  on conflict (slug) do nothing
+  returning id into v_tenant_id;
 
   if v_tenant_id is null then
-    raise exception 'Tenant could not be created.' using errcode = 'P0001';
+    select t.id into v_tenant_id from public.tenants as t where t.slug = v_slug;
+
+    if v_tenant_id is null then
+      raise exception 'Tenant could not be created.' using errcode = 'P0001';
+    end if;
+
+    -- The slug exists. This is only a retry if the requested owner is already
+    -- an owner of it. Anything else is a different business asking for a name
+    -- that is taken.
+    if not exists (
+      select 1
+      from public.tenant_members as m
+      where m.tenant_id = v_tenant_id
+        and m.user_id = v_owner_id
+        and m.role = 'owner'
+    ) then
+      raise exception 'A tenant with that slug already exists.'
+        using errcode = '23505';
+    end if;
   end if;
 
   -- 2. The system domain: {slug}.clovercodeapp.com, primary and already

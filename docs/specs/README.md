@@ -13,7 +13,7 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 02    | Authentication          | [phase-02-authentication.md](./phase-02-authentication.md)       | COMPLETED |
 | 03    | Authorization + RLS     | [phase-03-authorization-rls.md](./phase-03-authorization-rls.md) | COMPLETED |
 | 04    | Super Admin             | [phase-04-super-admin.md](./phase-04-super-admin.md)             | COMPLETED |
-| 05    | Tenant Dashboard        | _not written_                                                    | -         |
+| 05    | Tenant Dashboard        | [phase-05-tenant-dashboard.md](./phase-05-tenant-dashboard.md)   | COMPLETED |
 | 06    | Business Settings/Theme | _not written_                                                    | -         |
 | 07    | Navigation + CMS        | _not written_                                                    | -         |
 | 08    | SEO + Metadata          | _not written_                                                    | -         |

@@ -1,6 +1,6 @@
-import type { MembershipStatus, TenantRole } from "@/types/database";
+import type { MembershipStatus, TenantRole, TenantStatus } from "@/types/database";
 
-export type { MembershipStatus, TenantRole };
+export type { MembershipStatus, TenantRole, TenantStatus };
 
 /**
  * The authenticated user, as the application knows them.
@@ -22,6 +22,12 @@ export interface Membership {
   readonly tenantId: string;
   readonly tenantSlug: string;
   readonly tenantName: string;
+  /**
+   * Lifecycle of the tenant itself, distinct from the membership's own status.
+   * Phase 05 needs it to warn inside a suspended business rather than pretend
+   * everything is normal.
+   */
+  readonly tenantStatus: TenantStatus;
   readonly role: TenantRole;
   readonly status: MembershipStatus;
 }

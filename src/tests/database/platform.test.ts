@@ -390,3 +390,74 @@ describe("TEST-421: the section 49 goal, end to end", () => {
     expect(isAdmin[0]?.r).toBe(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Finding of the Phase 04 audit
+// ---------------------------------------------------------------------------
+
+describe("audit: idempotency is about the whole operation, not just the slug", () => {
+  it("rejects a colliding slug requested for a DIFFERENT owner", async () => {
+    // The original implementation treated any slug collision as a retry. That
+    // silently added the new email as a second OWNER of the existing business
+    // and reported success - so an operator mistyping a slug would hand over
+    // ownership of a live tenant and be told it worked.
+    const stranger = await createUser("stranger@elsewhere.com");
+    void stranger;
+
+    await db.asUser(operator, () =>
+      db.query("select public.provision_tenant($1,$2,$3)", [
+        "Primera",
+        "colision-test",
+        "owner@sugurolls.com",
+      ]),
+    );
+
+    await expect(
+      db.asUser(operator, () =>
+        db.query("select public.provision_tenant($1,$2,$3)", [
+          "Otra Empresa",
+          "colision-test",
+          "stranger@elsewhere.com",
+        ]),
+      ),
+    ).rejects.toThrow(/already exists/i);
+  });
+
+  it("leaves the existing tenant untouched after a rejected collision", async () => {
+    const rows = await db.query<{ email: string }>(
+      `select p.email
+       from public.tenant_members m
+       join public.profiles p on p.id = m.user_id
+       join public.tenants t on t.id = m.tenant_id
+       where t.slug = 'colision-test'`,
+    );
+    // Exactly one owner: the legitimate one.
+    expect(rows.map((r) => r.email)).toEqual(["owner@sugurolls.com"]);
+  });
+
+  it("still treats a genuine retry as a retry", async () => {
+    const first = await db.asUser(
+      operator,
+      async () =>
+        (
+          await db.query<{ provision_tenant: string }>("select public.provision_tenant($1,$2,$3)", [
+            "Reintento",
+            "reintento-real",
+            "owner@sugurolls.com",
+          ])
+        )[0]!.provision_tenant,
+    );
+    const second = await db.asUser(
+      operator,
+      async () =>
+        (
+          await db.query<{ provision_tenant: string }>("select public.provision_tenant($1,$2,$3)", [
+            "Reintento",
+            "reintento-real",
+            "owner@sugurolls.com",
+          ])
+        )[0]!.provision_tenant,
+    );
+    expect(second).toBe(first);
+  });
+});

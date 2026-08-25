@@ -50,6 +50,7 @@ export async function loadMyMemberships(
     tenantId: row.tenant_id,
     tenantSlug: row.tenant_slug,
     tenantName: row.tenant_name,
+    tenantStatus: row.tenant_status,
     role: row.role,
     status: row.status,
   }));

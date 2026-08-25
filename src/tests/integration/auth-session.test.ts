@@ -180,6 +180,10 @@ describe("loadMyMemberships", () => {
         tenantId: ROW.tenant_id,
         tenantSlug: "sugurolls",
         tenantName: "Sugu Rolls",
+        // Added in Phase 05: the tenant's own lifecycle already travelled in
+        // the RPC payload and was being dropped. The dashboard needs it to warn
+        // inside a suspended business instead of pretending all is well.
+        tenantStatus: ROW.tenant_status,
         role: "owner",
         status: "active",
       },

@@ -6,9 +6,9 @@
 Phase:                04
 Nombre:               Super Admin
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-25 (auditoría de fase, §26)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -624,6 +624,10 @@ KL-406  Un tenant puede quedarse sin owner si su último owner se retira
 KL-407  Las migraciones siguen sin ejecutarse contra Supabase real.
 
 KL-408  Los cambios de esta fase están sin commitear.
+
+KL-409  `provision_tenant` no permite reasignar el owner de un tenant existente
+        ni corregir un slug tecleado mal: hay que actuar sobre la base de datos.
+        Es la contrapartida deliberada de A4-1. Owner: Fase 05.
 ```
 
 ---
@@ -641,4 +645,82 @@ KL-408  Los cambios de esta fase están sin commitear.
 - Si el soporte necesita ver identidades de miembros, es una decisión de
   exposición de datos personales y merece su propia función guardada, no
   ampliar una existente.
+```
+
+---
+
+## 26. Auditoría de la fase
+
+Dos hallazgos, ambos corregidos. El primero es el más serio encontrado en todo
+el proyecto hasta ahora.
+
+### A4-1 — La «idempotencia» regalaba la propiedad de un negocio (corregido)
+
+`provision_tenant` trataba **cualquier** colisión de slug como un reintento.
+Sonda ejecutada:
+
+```text
+provision_tenant('Sugu Rolls',    'sugurolls', 'owner@sugurolls.com')  -> crea
+provision_tenant('Cualquier Cosa','sugurolls', 'otro@ajeno.com')       -> "exito"
+
+miembros resultantes: [otro@ajeno.com OWNER, owner@sugurolls.com OWNER]
+nombre del tenant:    "Sugu Rolls"   (sin cambios)
+```
+
+Es decir: un operador que teclease mal un slug **añadía a un tercero como
+propietario de una empresa en funcionamiento**, y el sistema le decía que había
+creado una empresa nueva. Silencioso, plausible y difícil de detectar.
+
+La raíz fue conceptual: confundí dos cosas distintas bajo la misma palabra.
+
+```text
+Reintento          misma petición otra vez (mismo slug, mismo owner)
+                   -> completar y devolver el mismo id. Correcto.
+
+Colisión de slug   petición DISTINTA que choca en el nombre
+                   -> es un conflicto y debe decirlo.
+```
+
+Corregido: `insert ... returning` distingue si la fila la creamos nosotros. Si
+el slug ya existía, solo se considera reintento cuando el owner solicitado ya es
+owner de ese tenant; en cualquier otro caso se lanza `23505`. Tres tests de
+regresión cubren los tres caminos.
+
+### A4-2 — Divergencia en cómo se muestran los errores de formulario (corregido)
+
+La Fase 02 estableció un contrato: las Server Actions **devuelven**
+`{ status, fieldErrors }` y los formularios usan `useActionState`. Mi acción de
+Fase 04 **lanzaba**, así que un slug mal escrito mostraba una página de error
+genérica en vez de un mensaje en el campo.
+
+Dos módulos surfaceando errores de dos maneras distintas es exactamente la
+duplicación que §13 previene. Corregido:
+
+```text
+src/lib/forms/state.ts                  contrato promovido desde modules/auth
+modules/auth/server/form-state.ts       ahora reexporta el compartido
+createTenantAction                      devuelve estado, no lanza
+CreateTenantForm                        cliente, con useActionState y
+                                        aria-describedby por campo
+```
+
+Los dos SQLSTATE que la función distingue (`P0002` sin cuenta, `23505` slug
+tomado) se traducen ahora a mensajes de campo accionables.
+
+### Revisado y aceptado sin cambio
+
+```text
+- getPlatformTenant() carga la lista completa y filtra en memoria. Con cientos
+  de tenants es irrelevante y evita duplicar la consulta agregada. Se revisa
+  junto con la paginación de KL-403.
+- setTenantStatusAction sobre un tenant inexistente afecta 0 filas y no falla.
+  Aceptable: el id procede de un enlace del propio listado.
+- Las políticas de plataforma son aditivas y no tocan el aislamiento; los tests
+  de Fase 03 siguen pasando sin modificarse.
+```
+
+### Resultado
+
+```text
+Format PASS · Lint PASS · Types PASS · Tests 544/544 · Build PASS
 ```
