@@ -12,7 +12,7 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 01    | Multi-Tenancy Core      | [phase-01-multitenancy.md](./phase-01-multitenancy.md)           | COMPLETED |
 | 02    | Authentication          | [phase-02-authentication.md](./phase-02-authentication.md)       | COMPLETED |
 | 03    | Authorization + RLS     | [phase-03-authorization-rls.md](./phase-03-authorization-rls.md) | COMPLETED |
-| 04    | Super Admin             | _not written_                                                    | -         |
+| 04    | Super Admin             | [phase-04-super-admin.md](./phase-04-super-admin.md)             | COMPLETED |
 | 05    | Tenant Dashboard        | _not written_                                                    | -         |
 | 06    | Business Settings/Theme | _not written_                                                    | -         |
 | 07    | Navigation + CMS        | _not written_                                                    | -         |

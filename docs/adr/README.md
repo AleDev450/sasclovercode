@@ -18,6 +18,7 @@ Status.
 | 008 | [SSR sessions and route protection](./008-session-and-route-protection.md)   | ACCEPTED | 02    |
 | 009 | [Profiles and membership](./009-profiles-and-membership.md)                  | ACCEPTED | 02    |
 | 010 | [RBAC authorization](./010-rbac-authorization.md)                            | ACCEPTED | 03    |
+| 011 | [Platform identity](./011-platform-identity.md)                              | ACCEPTED | 04    |
 
 ## Planned
 

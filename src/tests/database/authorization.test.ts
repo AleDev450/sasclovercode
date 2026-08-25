@@ -603,3 +603,92 @@ describe("TEST-331: Tenant A != Tenant B at the PostgreSQL level", () => {
     expect(after[0]?.role).toBe("owner");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Findings of the Phase 03 audit
+// ---------------------------------------------------------------------------
+
+describe("audit: moving a membership across tenants", () => {
+  it("rejects an UPDATE that reassigns a row to another tenant", async () => {
+    // A cross-tenant WRITE vector the original suite never exercised: instead
+    // of inserting into B, take a row you legitimately manage in A and change
+    // its tenant_id. USING passes (the row is yours), WITH CHECK must not.
+    const victim = await createUser("relocate-me@x.com");
+    await db.asUser(ownerA, () =>
+      db.query(
+        `insert into public.tenant_members (tenant_id, user_id, role)
+         values ($1, $2, 'waiter')`,
+        [tenantA, victim],
+      ),
+    );
+
+    await expect(
+      db.asUser(adminA, () =>
+        db.query("update public.tenant_members set tenant_id = $1 where user_id = $2", [
+          tenantB,
+          victim,
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security|policy/i);
+
+    const rows = await db.query<{ tenant_id: string }>(
+      "select tenant_id from public.tenant_members where user_id = $1",
+      [victim],
+    );
+    expect(rows[0]?.tenant_id).toBe(tenantA);
+  });
+});
+
+describe("audit: get_tenant_members", () => {
+  it("returns the roster WITH identities for a caller holding members.view", async () => {
+    const rows = await db.asUser(adminA, () =>
+      db.query<{ email: string; role: string }>("select * from public.get_tenant_members($1)", [
+        tenantA,
+      ]),
+    );
+    expect(rows.length).toBeGreaterThan(1);
+    // The whole point of the fix: names, not opaque uuids.
+    expect(rows.every((r) => typeof r.email === "string" && r.email.length > 0)).toBe(true);
+    expect(rows.map((r) => r.email)).toContain("owner-a@sugurolls.com");
+  });
+
+  it("returns nothing to a caller without members.view", async () => {
+    const rows = await db.asUser(cashierA, () =>
+      db.query("select * from public.get_tenant_members($1)", [tenantA]),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("returns nothing for a tenant the caller does not belong to", async () => {
+    const rows = await db.asUser(adminA, () =>
+      db.query("select * from public.get_tenant_members($1)", [tenantB]),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("is hardened like every other SECURITY DEFINER function here", async () => {
+    const rows = await db.query<{
+      prosecdef: boolean;
+      proconfig: string[] | null;
+      acl: string | null;
+    }>(
+      `select prosecdef, proconfig, array_to_string(proacl, ',') as acl
+       from pg_proc where proname = 'get_tenant_members'`,
+    );
+    expect(rows[0]?.prosecdef).toBe(true);
+    expect(rows[0]?.proconfig).toContain('search_path=""');
+    expect(rows[0]?.acl ?? "").not.toMatch(/(^|,)=/);
+  });
+});
+
+describe("audit: profiles stay closed", () => {
+  it("does not expose co-members' profile rows directly", async () => {
+    // The roster comes from the guarded function. `profiles` itself remains
+    // own-row-only, so personal data is not opened up as a side effect.
+    const rows = await db.asUser(adminA, () =>
+      db.query<{ id: string }>("select id from public.profiles"),
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.id).toBe(adminA);
+  });
+});

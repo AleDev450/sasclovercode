@@ -6,9 +6,9 @@
 Phase:                03
 Nombre:               Authorization + RLS
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-25 (auditoría de fase, §26)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -659,7 +659,7 @@ inservible. Riesgo: **MEDIO**; a partir de la Fase 04 habrá membresías reales.
 Format     PASS   prettier --check .            All matched files use Prettier code style
 Lint       PASS   eslint --max-warnings=0       0 errores, 0 warnings
 Types      PASS   next typegen && tsc --noEmit  0 errores
-Tests      PASS   vitest run                    509/509 en 22 archivos
+Tests      PASS   vitest run                    515/515 en 22 archivos
 Build      PASS   next build                    8 rutas + Proxy
 ```
 
@@ -670,9 +670,9 @@ Reparto de los tests añadidos en esta fase:
    8  database/authorization-schema.test.ts   contrato catalogo <-> TypeScript
   18  integration/authorization-layer.test.ts capa RBAC en TypeScript
  ---
-  80  añadidos
+  86  añadidos
  429  heredados
- 509  total
+ 515  total
 ```
 
 ### 23.2 La prueba obligatoria
@@ -751,6 +751,14 @@ KL-307  Las migraciones siguen sin ejecutarse contra Supabase real. Heredado
         de KL-109 y KL-208.
 
 KL-308  Los cambios de esta fase están sin commitear.
+
+KL-309  La política del padrón evalúa `has_permission` una vez por fila (§26 de
+        este SPEC). Aceptado a la escala actual; disparador de revisión
+        documentado en la auditoría.
+
+KL-310  `get_tenant_members` es la única vía a las identidades del padrón. Si
+        la Fase 05 necesita más campos de perfil, deben añadirse ahí y no
+        abriendo `profiles`.
 ```
 
 ---
@@ -769,4 +777,89 @@ KL-308  Los cambios de esta fase están sin commitear.
 - Cada nueva función SECURITY DEFINER necesita las cuatro precauciones:
   search_path fijado, nombres cualificados, revoke de PUBLIC y sin parámetro
   de usuario.
+```
+
+---
+
+## 26. Auditoría de la fase
+
+Ejecutada sobre el código ya validado, con sondas contra PostgreSQL real. Tres
+hallazgos; dos exigieron cambios.
+
+### A3-1 — Vector cross-tenant de ESCRITURA sin probar (corregido)
+
+La suite comprobaba que no se puede insertar en el tenant ajeno, pero no que no
+se pueda **mover** una fila propia al tenant ajeno cambiando su `tenant_id`.
+
+```text
+UPDATE tenant_members SET tenant_id = <B> WHERE user_id = <alguien de A>
+```
+
+La sonda confirmó que la política ya lo **rechaza** (`USING` deja tocar la fila,
+`WITH CHECK` evalúa `has_permission(B, ...)` sobre la fila resultante y falla).
+El código era correcto; el hueco era de cobertura. Test añadido.
+
+### A3-2 — `members.view` devolvía un padrón sin identidades (corregido)
+
+Un admin con `members.view` veía las filas de `tenant_members` de su tenant,
+pero **un solo perfil: el suyo**. La Fase 02 restringe `profiles` a la fila
+propia y esta fase abrió el padrón sin abrir las identidades.
+
+```text
+sonda: perfiles visibles para un admin con members.view -> 1
+```
+
+Un padrón de UUID opacos cumple la letra de UC-303 y ninguna de su intención, y
+habría obligado a la Fase 05 a inventar su propio camino de acceso — justo lo
+que esta fase existe para evitar.
+
+Corregido con `get_tenant_members(tenant_id)`, función guardada que devuelve el
+padrón con email y nombre, condicionada a `members.view` **en ese tenant**. Se
+eligió la función y no una política sobre `profiles` para no abrir datos
+personales como efecto colateral: `profiles` sigue siendo de fila propia, y hay
+un test que lo verifica.
+
+### A3-3 — `has_permission` se evalúa por fila en la política del padrón (documentado)
+
+El plan real de `select * from public.tenant_members` como miembro:
+
+```text
+Seq Scan on tenant_members
+  Filter: (has_permission(tenant_id, 'members.view') OR ((InitPlan 1).col1 = user_id))
+  InitPlan 1 -> Result
+```
+
+Dos lecturas:
+
+1. **La optimización de `auth.uid()` funciona.** Aparece como `InitPlan`, es
+   decir se evalúa **una vez por sentencia**, no una por fila. Envolverlo en
+   `(select auth.uid())` era correcto y está verificado, no supuesto.
+
+2. **`has_permission(tenant_id, ...)` sí está en el `Filter`**, o sea se llama
+   una vez por fila, y cada llamada hace un JOIN. Para un padrón de 50 miembros
+   son 50 llamadas.
+
+No se optimiza ahora, y es una decisión, no un olvido: §26 exige medir antes de
+optimizar, y a la escala prevista (decenas de miembros por tenant) el coste es
+irrelevante. Lo que sí queda es el **disparador**: si un padrón supera unos
+cientos de filas o el perfilado señala esta política, la vía es reescribirla como
+`tenant_id in (select ...)` para que la comprobación se evalúe una sola vez.
+Registrado como KL-309.
+
+### Revisado sin hallazgos
+
+```text
+- Recursión en políticas: descartada; las funciones son SECURITY DEFINER.
+- Escalada a owner por INSERT, UPDATE propio y ajeno, y DELETE: bloqueada.
+- Permiso usado fuera de su tenant: imposible; probado con los 8 roles.
+- search_path, revoke de PUBLIC y ausencia de parámetro de usuario: probados
+  en las cuatro funciones, incluida la nueva.
+- Catálogo: sin rol huérfano, sin permiso sin conceder, solo lectura.
+- `using (true)`: solo en el catálogo, y solo para SELECT.
+```
+
+### Resultado
+
+```text
+Format PASS · Lint PASS · Types PASS · Tests 515/515 · Build PASS
 ```

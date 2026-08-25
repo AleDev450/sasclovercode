@@ -67,26 +67,54 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
   // two tenant tables: opening those up is an authorization decision that
   // belongs to Phase 03, and until then nothing but the guarded resolver reads
   // them.
-  it("keeps tenant_domains with no policies at all", async () => {
-    // Phase 03 opened `tenants` to its members, deliberately. `tenant_domains`
-    // stays fully closed: the only read path remains resolve_tenant_by_domain.
-    const rows = await db.query<{ policyname: string }>(
-      `select policyname from pg_policies
+  it("opens tenant_domains only to the platform, never to tenant users", async () => {
+    // Phase 01 left this table with no policies at all. Phase 04 added the
+    // platform operator, and nobody else: a tenant member still reaches its
+    // domains only through resolve_tenant_by_domain.
+    // An INSERT policy has no `qual`, only `with_check`. Reading just one of
+    // the two columns would silently pass a policy it never inspected.
+    const rows = await db.query<{ policyname: string; predicate: string | null }>(
+      `select policyname, coalesce(qual, with_check) as predicate
+       from pg_policies
        where schemaname = 'public' and tablename = 'tenant_domains'`,
     );
-    expect(rows).toEqual([]);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(
+        (row.predicate ?? "").includes("is_platform_admin"),
+        `${row.policyname} is not predicated on platform authority`,
+      ).toBe(true);
+    }
   });
 
-  it("exposes tenants through exactly one member-scoped SELECT policy", async () => {
-    const rows = await db.query<{ policyname: string; cmd: string; qual: string | null }>(
-      `select policyname, cmd, qual from pg_policies
+  it("predicates every tenants policy on membership or on platform authority", async () => {
+    const rows = await db.query<{ policyname: string; cmd: string; predicate: string | null }>(
+      `select policyname, cmd, coalesce(qual, with_check) as predicate
+       from pg_policies
        where schemaname = 'public' and tablename = 'tenants'`,
     );
-    expect(rows).toHaveLength(1);
-    expect(rows[0]?.policyname).toBe("tenants_select_member");
-    expect(rows[0]?.cmd).toBe("SELECT");
-    // The predicate must be the membership check, never an unconditional true.
-    expect(rows[0]?.qual).toContain("is_tenant_member");
+
+    // The member-scoped SELECT from Phase 03 must still be there and unchanged.
+    const memberPolicy = rows.find((r) => r.policyname === "tenants_select_member");
+    expect(memberPolicy?.cmd).toBe("SELECT");
+    expect(memberPolicy?.predicate).toContain("is_tenant_member");
+
+    // And nothing may be predicated on anything looser than those two checks.
+    for (const row of rows) {
+      const predicate = row.predicate ?? "";
+      expect(
+        predicate.includes("is_tenant_member") || predicate.includes("is_platform_admin"),
+        `${row.policyname} is predicated on neither membership nor platform authority`,
+      ).toBe(true);
+    }
+  });
+
+  it("has no DELETE policy on tenants for anybody, so they are archived", async () => {
+    const rows = await db.query<{ policyname: string }>(
+      `select policyname from pg_policies
+       where schemaname = 'public' and tablename = 'tenants' and cmd = 'DELETE'`,
+    );
+    expect(rows).toEqual([]);
   });
 
   // Phase-agnostic: this one must hold for every table any phase ever adds.

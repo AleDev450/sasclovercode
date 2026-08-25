@@ -55,6 +55,11 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825130000_create_authorization_catalog.sql",
       "20260825130100_create_authorization_functions.sql",
       "20260825130200_create_authorization_policies.sql",
+      "20260825130300_create_tenant_roster.sql",
+      // Phase 04
+      "20260825140000_create_platform_admins.sql",
+      "20260825140100_create_platform_policies.sql",
+      "20260825140200_create_tenant_provisioning.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -67,6 +72,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
     );
     expect(tables.map((t) => t.tablename)).toEqual([
       "permissions",
+      "platform_admins",
       "profiles",
       "role_permissions",
       "roles",
@@ -83,6 +89,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
     expect(enums.map((e) => e.typname)).toEqual([
       "domain_verification_status",
       "membership_status",
+      "platform_admin_status",
       "tenant_domain_type",
       "tenant_role",
       "tenant_status",

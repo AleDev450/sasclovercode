@@ -28,6 +28,7 @@ export type TenantRole =
   "owner" | "admin" | "manager" | "cashier" | "waiter" | "kitchen" | "delivery" | "accountant";
 
 export type MembershipStatus = "active" | "invited" | "suspended";
+export type PlatformAdminStatus = "active" | "revoked";
 
 export type Database = {
   public: {
@@ -172,6 +173,37 @@ export type Database = {
           },
         ];
       };
+      platform_admins: {
+        Row: {
+          user_id: string;
+          status: PlatformAdminStatus;
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          status?: PlatformAdminStatus;
+          note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          status?: PlatformAdminStatus;
+          note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "platform_admins_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       roles: {
         Row: {
           code: TenantRole;
@@ -283,6 +315,39 @@ export type Database = {
         Args: { p_tenant_id: string; p_permission: string };
         Returns: boolean;
       };
+      is_platform_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      provision_tenant: {
+        Args: { p_name: string; p_slug: string; p_owner_email: string };
+        Returns: string;
+      };
+      list_platform_tenants: {
+        Args: Record<string, never>;
+        Returns: {
+          id: string;
+          name: string;
+          slug: string;
+          status: TenantStatus;
+          primary_domain: string | null;
+          member_count: number;
+          created_at: string;
+        }[];
+      };
+      get_tenant_members: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          membership_id: string;
+          user_id: string;
+          email: string;
+          full_name: string | null;
+          avatar_url: string | null;
+          role: TenantRole;
+          status: MembershipStatus;
+          created_at: string;
+        }[];
+      };
       my_permissions: {
         Args: { p_tenant_id: string };
         Returns: { permission: string }[];
@@ -294,6 +359,7 @@ export type Database = {
       domain_verification_status: DomainVerificationStatus;
       tenant_role: TenantRole;
       membership_status: MembershipStatus;
+      platform_admin_status: PlatformAdminStatus;
     };
     CompositeTypes: Record<string, never>;
   };
