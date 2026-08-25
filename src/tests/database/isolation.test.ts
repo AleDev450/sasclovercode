@@ -263,6 +263,38 @@ describe("resolve_tenant_by_domain (TEST-136 to TEST-139)", () => {
     }
   });
 
+  // Audit finding: PostgreSQL grants EXECUTE to PUBLIC by default, so every
+  // role created later - including one added by a future phase for a narrower
+  // purpose - silently inherited the right to call a SECURITY DEFINER function.
+  // The migration now revokes from PUBLIC and names the two roles explicitly.
+  it("is executable only by the roles it was granted to (least privilege)", async () => {
+    const [row] = await db.query<{ acl: string | null }>(
+      `select proacl::text as acl from pg_proc
+       where proname = 'resolve_tenant_by_domain'`,
+    );
+    const acl = row?.acl ?? "";
+
+    // A leading `=X/` entry is the PUBLIC grant. It must be gone.
+    expect(acl).not.toMatch(/(^|[{,])=X\//);
+    expect(acl).toContain("anon=X/");
+    expect(acl).toContain("authenticated=X/");
+  });
+
+  it("denies a role that was never granted execute", async () => {
+    await db.exec(`
+      create role audit_probe nologin noinherit;
+      grant usage on schema public to audit_probe;
+    `);
+
+    await expect(
+      db.asRole("audit_probe", async () =>
+        db.query("select * from public.resolve_tenant_by_domain($1)", [
+          "sugurolls.clovercodeapp.com",
+        ]),
+      ),
+    ).rejects.toThrow(/permission denied/i);
+  });
+
   it("pins search_path, so it cannot be hijacked (AB-103)", async () => {
     const rows = await db.query<{ proconfig: string[] | null; prosecdef: boolean }>(
       `select proconfig, prosecdef from pg_proc
