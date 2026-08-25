@@ -5,8 +5,8 @@
 ```text
 Phase:                00
 Nombre:               Foundation
-Estado:               IN_PROGRESS
-Versión:              1.0.0
+Estado:               COMPLETED
+Versión:              1.1.0
 Fecha creación:       2026-08-24
 Última actualización: 2026-08-24
 Responsable:          alejandro.avendano@masuno.pe
@@ -67,7 +67,7 @@ FND-09  Jerarquía de errores de dominio + mapeo a respuesta HTTP
 FND-10  Logging estructurado con redacción y request_id
 FND-11  Capa de validación (Zod) reutilizable
 FND-12  Cabeceras de seguridad base en next.config
-FND-13  CI (GitHub Actions): lint + typecheck + test + build
+FND-13  CI (GitHub Actions): format + lint + typecheck + test + build
 FND-14  Documentación: README técnico, SPEC, ADRs, architecture/overview
 FND-15  Repositorio Git inicializado con .gitignore correcto
 ```
@@ -133,7 +133,8 @@ Errores posibles: Cualquier fallo aborta la cadena con código de salida != 0
 
 ```text
 Actor:            Código de servidor
-Precondiciones:   NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY definidas
+Precondiciones:   NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+                  definidas
 Acción:           Invoca createSupabaseServerClient()
 Resultado:        Recibe un SupabaseClient<Database> ligado a las cookies del request
 Errores posibles: Variable ausente o inválida -> ConfigurationError con la lista
@@ -772,34 +773,242 @@ Riesgo de rollback: **BAJO**. La fase es puramente local y reversible con Git.
 
 ## 22. Definition of Done
 
+Resultado real, verificado el 2026-08-24:
+
 ```text
-- [ ] Estructura de carpetas implementada según §13 del documento maestro
-- [ ] TypeScript estricto reforzado configurado
-- [ ] Tailwind v4 + tokens de diseño implementados
-- [ ] Primitivas de UI implementadas y accesibles
-- [ ] Clientes Supabase browser/server implementados y tipados
-- [ ] Validación de entorno implementada (perezosa, con Zod)
-- [ ] Jerarquía de errores implementada (§15 del documento maestro)
-- [ ] Logger estructurado con redacción implementado
-- [ ] Capa de validación (parseOrThrow) implementada
-- [ ] Cabeceras de seguridad configuradas
-- [ ] .env.example creado, sin secretos
-- [ ] .gitignore ignora .env* y permite .env.example
-- [ ] CI configurada (lint + typecheck + test + build)
-- [ ] README técnico con las 8 secciones exigidas por §46
-- [ ] ADRs de las decisiones de la fase registrados
-- [ ] docs/architecture/overview.md creado
-- [ ] Unit tests PASS
-- [ ] Integration tests PASS
-- [ ] Cross-tenant tests: N/A DOCUMENTADO (sin tablas en esta fase)
-- [ ] Typecheck PASS
-- [ ] Lint PASS
-- [ ] Build PASS
-- [ ] SPEC actualizado con el resultado real
+- [x] Estructura de carpetas implementada según §13 del documento maestro
+- [x] TypeScript estricto reforzado configurado
+- [x] Tailwind v4 + tokens de diseño implementados
+- [x] Primitivas de UI implementadas y accesibles
+- [x] Clientes Supabase browser/server implementados y tipados
+- [x] Validación de entorno implementada (perezosa, con Zod)
+- [x] Jerarquía de errores implementada (§15 del documento maestro)
+- [x] Logger estructurado con redacción implementado
+- [x] Capa de validación (parseOrThrow) implementada
+- [x] Cabeceras de seguridad configuradas y verificadas en runtime
+- [x] .env.example creado, sin secretos
+- [x] .gitignore ignora .env* y permite .env.example
+- [x] CI configurada (format + lint + typecheck + test + build)
+- [x] README técnico con las 8 secciones exigidas por §46
+- [x] ADRs de las decisiones de la fase registrados (001-005)
+- [x] docs/architecture/overview.md creado
+- [x] Unit tests PASS         (85 tests)
+- [x] Integration tests PASS  (7 tests)
+- [x] Component tests PASS    (14 tests)
+- [x] Cross-tenant tests: N/A DOCUMENTADO (sin tablas en esta fase, §10 y §17)
+- [x] Typecheck PASS
+- [x] Lint PASS               (0 errores, 0 warnings)
+- [x] Build PASS
+- [x] SPEC actualizado con el resultado real
 ```
+
+### Resultado de las validaciones
+
+```text
+Format     PASS   prettier --check .            All matched files use Prettier code style
+Lint       PASS   eslint --max-warnings=0       0 errores, 0 warnings
+Types      PASS   next typegen && tsc --noEmit  0 errores
+Tests      PASS   vitest run                    106/106 en 7 archivos (~1.2 s)
+Build      PASS   next build                    3 rutas compiladas, sin credenciales
+Audit      PASS   npm audit --omit=dev          0 vulnerabilidades
+Peers      PASS   npm ls eslint typescript      0 peers inválidos
+```
+
+Salida real del build:
+
+```text
+Route (app)
+┌ ○ /              (Static)
+├ ○ /_not-found    (Static)
+└ ƒ /api/health    (Dynamic)
+```
+
+`/` estática confirma el presupuesto de NFR-002. `/api/health` dinámica es
+intencional (§19).
 
 ---
 
 ## 23. Implementation notes
 
-_(Se completa al finalizar la implementación.)_
+### 23.1 Verificación en runtime
+
+Más allá de los tests, se levantó el build de producción y se comprobó el
+comportamiento real del servidor:
+
+```text
+GET /api/health  con cabecera x-request-id: trace-abc-123
+  -> 200
+  -> {"status":"ok","service":"clovercode","version":"0.1.0",
+      "environment":"production","uptimeSeconds":0,
+      "timestamp":"...","requestId":"trace-abc-123"}
+  -> cache-control: no-store
+  -> x-request-id: trace-abc-123        (FR-024 / TEST-013 verificado end-to-end)
+
+Log emitido por ese request (stdout, formato JSON de producción):
+  {"level":"info","event":"app.request.completed","timestamp":"...",
+   "requestId":"trace-abc-123","route":"/api/health","status":200,"durationMs":0}
+
+Cabeceras presentes tanto en / como en /api/health:
+  Strict-Transport-Security, X-Content-Type-Options, X-Frame-Options,
+  Referrer-Policy, X-DNS-Prefetch-Control, Permissions-Policy
+X-Powered-By: AUSENTE
+```
+
+### 23.2 Documentación oficial consultada (§4)
+
+| Tema                             | Fuente                                                      | Hallazgo aplicado                                                            |
+| -------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Baseline de Next.js 16           | `create-next-app@16.3.2` (plantilla oficial)                | Fija `typescript: ^5` y `eslint: ^9`, no `latest`                            |
+| Eliminación de `next lint`       | `node_modules/next/dist/docs/.../upgrading/version-16.md`   | `next build` ya no ejecuta ESLint; lint pasa a ser paso obligatorio aparte   |
+| Generación de tipos de rutas     | `npx next --help`                                           | Existe `next typegen`, que resuelve EC-01                                    |
+| API de `@supabase/ssr`           | Tipos instalados en `node_modules/@supabase/ssr/dist/main/` | `getAll`/`setAll` vigente, `get`/`set`/`remove` deprecado; `setAll` opcional |
+| Nombres de variables de Supabase | https://supabase.com/docs/guides/auth/server-side/nextjs    | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, no `ANON_KEY`                        |
+| Compatibilidad typescript-eslint | `npm view typescript-eslint peerDependencies`               | `typescript >=4.8.4 <6.1.0`, por lo que TS 7 queda descartado                |
+
+### 23.3 Contratos finales
+
+**Rutas**
+
+```text
+/               Server Component estático
+/api/health     Route Handler dinámico, público, sin acceso a datos
+```
+
+**Permisos:** ninguno. No existe capa de autorización en esta fase (Fase 03).
+
+**Políticas RLS:** ninguna. No existen tablas (Fase 01).
+
+**Esquema final:** sin cambios en base de datos. `src/types/database.ts` es un
+contrato vacío que será reemplazado por tipos generados desde la Fase 01.
+
+**Superficie pública de `src/lib` y `src/config`**
+
+```text
+@/lib/errors            AppError + 8 subclases, ERROR_CODES, isAppError,
+                        serializeError, toErrorResponse, toError
+@/lib/logger            createLogger, logger, resolveLogLevel, redact,
+                        isSensitiveKey, getRequestId, generateRequestId
+@/lib/validation        parseOrThrow, toFieldErrors
+@/lib/supabase/client   createSupabaseBrowserClient
+@/lib/supabase/server   createSupabaseServerClient, createNextCookieAdapter
+@/lib/utils             cn
+@/config                getPublicEnv, getServerEnv, assertEnvIsValid,
+                        resetEnvCache + constantes de aplicación
+```
+
+### 23.4 Tests implementados
+
+106 tests en 7 archivos, todos en verde:
+
+| Archivo                                          | Tests | Cubre                         |
+| ------------------------------------------------ | ----- | ----------------------------- |
+| `src/tests/unit/errors.test.ts`                  | 17    | TEST-001 a TEST-005           |
+| `src/tests/unit/logger.test.ts`                  | 43    | TEST-008 a TEST-014           |
+| `src/tests/unit/validation.test.ts`              | 8     | TEST-005 a TEST-007           |
+| `src/tests/unit/env.test.ts`                     | 12    | TEST-015 a TEST-017, EC-02/03 |
+| `src/tests/unit/cn.test.ts`                      | 5     | TEST-018                      |
+| `src/tests/integration/supabase-clients.test.ts` | 7     | TEST-019 a TEST-021, EC-05    |
+| `src/tests/components/ui.test.tsx`               | 14    | TEST-022 a TEST-025, NFR-005  |
+
+Todos los tests del plan (§17) se implementaron. No se omitió ninguno ni se
+sustituyó por otro distinto al especificado.
+
+### 23.5 Desviaciones respecto al diseño original
+
+| #   | Diseño original                                                                        | Implementación real                                                                        | Motivo                                                                                                                                                                                                           |
+| --- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | El primer borrador del SPEC usaba `NEXT_PUBLIC_SUPABASE_ANON_KEY`                      | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`                                                     | La documentación oficial vigente de Supabase usa `PUBLISHABLE_KEY`. Corregido en UC-003 y en el código; la clave `anon` heredada sigue siendo válida en la misma variable.                                       |
+| 2   | FR-019: "`toErrorResponse()` devuelve una respuesta JSON"                              | Dividido en `serializeError()` (puro) + `toErrorResponse()` (loguea y devuelve `Response`) | La parte pura es aserible sin framework: es la frontera que impide fugas y se prueba directamente.                                                                                                               |
+| 3   | `next.config` iba a fijar `eslint.ignoreDuringBuilds: false`                           | Clave eliminada                                                                            | Next.js 16 eliminó esa opción. Se compensa con lint obligatorio en `verify` y en CI.                                                                                                                             |
+| 4   | `vitest.config.ts`                                                                     | `vitest.config.mts`                                                                        | Vite advertía por sintaxis ESM en archivo cargado como CommonJS. La extensión `.mts` lo resuelve.                                                                                                                |
+| 5   | El plan no incluía `format:check`                                                      | Añadido a `verify` y a CI                                                                  | Prettier sin verificación automatizada produce diffs ruidosos desde la primera semana.                                                                                                                           |
+| 6   | Lint sin umbral explícito                                                              | `eslint --max-warnings=0`                                                                  | Un warning que nadie corrige es una regla que nadie aplica.                                                                                                                                                      |
+| 7   | El plan no contemplaba `.prettierignore` para el documento maestro ni `.gitattributes` | Añadidos ambos                                                                             | `prettier --write .` reescribió las viñetas de `CLOVERCODE_MASTER.md`. Se revirtió el archivo desde HEAD, se excluyó de Prettier, y `.gitattributes` fija `eol=lf` para evitar ruido de fin de línea en Windows. |
+
+Ninguna desviación altera el alcance ni introduce funcionalidad de fases
+posteriores.
+
+### 23.6 Decisiones arquitectónicas registradas
+
+```text
+docs/adr/001-single-database-multitenancy.md   Una BD, tenant_id + RLS, monolito modular
+docs/adr/002-toolchain-version-pinning.md      Seguir la ventana de Next.js, no `latest`
+docs/adr/003-error-handling-and-logging.md     Errores, frontera de serialización, redacción
+docs/adr/004-environment-validation.md         Validación de entorno perezosa y memoizada
+docs/adr/005-testing-strategy.md               Vitest con dos proyectos
+```
+
+---
+
+## 24. Known limitations
+
+Limitaciones conocidas al cerrar la fase. §61 exige documentarlas para poder
+declarar la fase COMPLETED.
+
+```text
+KL-01  No hay Content-Security-Policy. Requiere nonces por request y una
+       superficie de aplicación estabilizada. Owner: Fase 25.
+
+KL-02  No hay autenticación, autorización ni RLS. Es correcto para esta fase,
+       pero implica que hoy NO existe aislamiento entre tenants, porque tampoco
+       existen tenants ni datos. Owner: Fases 01-03.
+
+KL-03  `src/types/database.ts` es un placeholder vacío escrito a mano. Debe
+       reemplazarse por tipos generados en cuanto exista la primera migración.
+       Owner: Fase 01.
+
+KL-04  El error boundary de cliente (`app/error.tsx`) escribe a `console.error`
+       porque todavía no hay error tracker. Owner: Fase 24.
+
+KL-05  `/api/health` no verifica dependencias (base de datos, storage). Es
+       liveness, no readiness. Owner: Fase 24.
+
+KL-06  Sin tests E2E. El sustituto verificable es el build completo más los
+       tests de componente. Owner: Fase 05.
+
+KL-07  Sin umbral de cobertura. Se mide pero no se exige. El gate que realmente
+       importa (aislamiento cross-tenant) llega en la Fase 03.
+
+KL-08  Sin hooks de pre-commit. La verificación depende de CI y de ejecutar
+       `npm run verify` en local.
+
+KL-09  TypeScript 5.9 y ESLint 9 en lugar de las últimas mayores publicadas,
+       por compatibilidad de la cadena de lint. Disparadores de actualización
+       documentados en ADR-002.
+
+KL-10  El repositorio Git fue inicializado durante esta fase. Existe un commit
+       parcial `2d12b44 feat: initial CloverCode project` creado externamente
+       durante la sesión, que contiene solo CLOVERCODE_MASTER.md, una versión
+       intermedia del SPEC y package.json. El resto del árbol de la Fase 00
+       está sin commitear. La autoría de los commits queda a criterio del
+       responsable del proyecto.
+```
+
+---
+
+## 25. Future considerations
+
+```text
+- Fase 01 debe reemplazar `src/types/database.ts` por tipos generados y añadir
+  `supabase/migrations/` junto con el CLI (OUT-01, OUT-02).
+
+- Fase 02 debe añadir middleware de refresco de sesión. Mientras no exista, el
+  adaptador de cookies descarta escrituras hechas desde Server Components
+  (EC-05). Eso es correcto hoy y deja de serlo en cuanto haya sesiones reales.
+
+- Fase 03 debe crear `src/tests/authorization/` contra PostgreSQL real con RLS
+  activo, demostrando `Tenant A != Tenant B`. Es el gate del que depende la
+  credibilidad de todo el producto.
+
+- Fase 04 introduce el cliente `service_role`. Debe ir detrás de `server-only` y
+  no ser reexportado desde ningún barrel, para que no pueda entrar al bundle
+  del navegador.
+
+- Cualquier variable `NEXT_PUBLIC_*` nueva debe añadirse literalmente a
+  `readPublicEnv()` en `src/config/env.ts`, o quedará `undefined` en el
+  navegador sin que nada lo advierta.
+
+- `src/lib/tenant`, `src/lib/auth` y `src/lib/permissions` aparecen en la
+  estructura de referencia pero están deliberadamente no creados: los crea la
+  fase que primero los necesita.
+```

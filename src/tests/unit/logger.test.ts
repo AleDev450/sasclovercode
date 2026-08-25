@@ -1,0 +1,194 @@
+import { describe, expect, it } from "vitest";
+import {
+  REDACTED,
+  createLogger,
+  generateRequestId,
+  getRequestId,
+  isSensitiveKey,
+  redact,
+  resolveLogLevel,
+  type LogRecord,
+} from "@/lib/logger";
+
+function collector() {
+  const records: LogRecord[] = [];
+  return { records, transport: (record: LogRecord) => records.push(record) };
+}
+
+describe("redaction (TEST-008)", () => {
+  it.each([
+    "password",
+    "Password",
+    "user_password",
+    "passwd",
+    "accessToken",
+    "refresh_token",
+    "apiKey",
+    "API_KEY",
+    "authorization",
+    "Cookie",
+    "set-cookie",
+    "service_role",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "clientSecret",
+    "privateKey",
+    "signature",
+    "cvv",
+  ])("treats %s as sensitive", (key) => {
+    expect(isSensitiveKey(key)).toBe(true);
+  });
+
+  it.each(["tenantId", "tenant_id", "userId", "email", "slug", "orderId", "keyword", "status"])(
+    "leaves %s alone",
+    (key) => {
+      expect(isSensitiveKey(key)).toBe(false);
+    },
+  );
+
+  it("redacts sensitive values in an emitted record", () => {
+    const { records, transport } = collector();
+    const log = createLogger({ level: "debug", transport });
+
+    log.info("auth.signin.attempted", {
+      email: "owner@sugurolls.com",
+      password: "hunter2",
+      accessToken: "eyJhbGciOi...",
+    });
+
+    const record = records[0];
+    expect(record?.email).toBe("owner@sugurolls.com");
+    expect(record?.password).toBe(REDACTED);
+    expect(record?.accessToken).toBe(REDACTED);
+    expect(JSON.stringify(record)).not.toContain("hunter2");
+  });
+});
+
+describe("redaction depth (TEST-009)", () => {
+  it("descends into nested objects and arrays", () => {
+    const result = redact({
+      tenant: { name: "Sugu Rolls", credentials: { sunatPassword: "secreto" } },
+      users: [{ email: "a@b.c", token: "abc123" }],
+    }) as Record<string, never>;
+
+    const serialised = JSON.stringify(result);
+    expect(serialised).not.toContain("secreto");
+    expect(serialised).not.toContain("abc123");
+    expect(serialised).toContain("Sugu Rolls");
+    expect(serialised).toContain("a@b.c");
+  });
+
+  it("serialises Error values with name, message and stack", () => {
+    const result = redact({ error: new Error("boom") }) as { error: { name: string } };
+    expect(result.error.name).toBe("Error");
+    expect(JSON.stringify(result)).toContain("boom");
+  });
+});
+
+describe("child loggers (TEST-010)", () => {
+  it("merges parent context into every record", () => {
+    const { records, transport } = collector();
+    const base = createLogger({ level: "debug", transport, context: { service: "clovercode" } });
+    const scoped = base.child({ requestId: "req-1", tenantId: "tenant-a" });
+
+    scoped.info("order.created", { orderId: "o-1" });
+
+    expect(records[0]).toMatchObject({
+      service: "clovercode",
+      requestId: "req-1",
+      tenantId: "tenant-a",
+      orderId: "o-1",
+      event: "order.created",
+    });
+  });
+
+  it("lets the call site override inherited context", () => {
+    const { records, transport } = collector();
+    const scoped = createLogger({ level: "debug", transport }).child({ tenantId: "tenant-a" });
+    scoped.info("tenant.switched", { tenantId: "tenant-b" });
+    expect(records[0]?.tenantId).toBe("tenant-b");
+  });
+});
+
+describe("level filtering (TEST-011)", () => {
+  it("drops records below the configured level", () => {
+    const { records, transport } = collector();
+    const log = createLogger({ level: "warn", transport });
+
+    log.debug("a");
+    log.info("b");
+    log.warn("c");
+    log.error("d");
+
+    expect(records.map((record) => record.event)).toEqual(["c", "d"]);
+  });
+
+  it("resolves the level from LOG_LEVEL, then NODE_ENV", () => {
+    expect(resolveLogLevel({ LOG_LEVEL: "error" })).toBe("error");
+    expect(resolveLogLevel({ LOG_LEVEL: " WARN " })).toBe("warn");
+    expect(resolveLogLevel({ LOG_LEVEL: "nonsense", NODE_ENV: "production" })).toBe("info");
+    expect(resolveLogLevel({ NODE_ENV: "production" })).toBe("info");
+    expect(resolveLogLevel({ NODE_ENV: "test" })).toBe("warn");
+    expect(resolveLogLevel({})).toBe("debug");
+  });
+});
+
+describe("robustness (TEST-012)", () => {
+  it("does not throw on a circular context", () => {
+    const { records, transport } = collector();
+    const log = createLogger({ level: "debug", transport });
+
+    const circular: Record<string, unknown> = { name: "loop" };
+    circular.self = circular;
+
+    expect(() => log.info("weird.context", { circular })).not.toThrow();
+    expect(JSON.stringify(records[0])).toContain("[Circular]");
+  });
+
+  it("does not throw on BigInt values", () => {
+    const { records, transport } = collector();
+    const log = createLogger({ level: "debug", transport });
+
+    expect(() => log.info("bigint.context", { amount: 10n })).not.toThrow();
+    expect(records[0]?.amount).toBe("10n");
+  });
+
+  it("does not propagate a transport failure to the caller", () => {
+    const log = createLogger({
+      level: "debug",
+      transport: () => {
+        throw new Error("transport is down");
+      },
+    });
+
+    expect(() => log.error("app.error.unhandled", { requestId: "x" })).not.toThrow();
+  });
+
+  it("always stamps level, event and an ISO timestamp", () => {
+    const { records, transport } = collector();
+    createLogger({ level: "debug", transport }).info("app.request.completed");
+
+    expect(records[0]?.level).toBe("info");
+    expect(records[0]?.event).toBe("app.request.completed");
+    expect(new Date(String(records[0]?.timestamp)).toISOString()).toBe(records[0]?.timestamp);
+  });
+});
+
+describe("request id (TEST-013, TEST-014)", () => {
+  it("reuses an inbound x-request-id", () => {
+    const headers = new Headers({ "x-request-id": "edge-abc-123" });
+    expect(getRequestId(headers)).toBe("edge-abc-123");
+  });
+
+  it("generates one when the header is absent, blank or oversized", () => {
+    expect(getRequestId(new Headers())).toMatch(/.+/);
+    expect(getRequestId(new Headers({ "x-request-id": "   " }))).not.toBe("   ");
+
+    const oversized = "x".repeat(500);
+    expect(getRequestId(new Headers({ "x-request-id": oversized }))).not.toBe(oversized);
+  });
+
+  it("generates distinct identifiers", () => {
+    const ids = new Set(Array.from({ length: 50 }, () => generateRequestId()));
+    expect(ids.size).toBe(50);
+  });
+});

@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+build
+coverage
+package-lock.json
+next-env.d.ts
+
+# The master specification is the immutable source of truth for the project.
+# Prettier must never rewrite it (it rewrites `*` bullets to `-`).
+CLOVERCODE_MASTER.md

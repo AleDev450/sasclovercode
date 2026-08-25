@@ -1,0 +1,5 @@
+# Normalise line endings so a Windows checkout does not produce noisy diffs.
+* text=auto eol=lf
+
+# Never normalise or diff the lockfile as text the developer edits by hand.
+package-lock.json -diff linguist-generated=true

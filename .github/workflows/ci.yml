@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# A newer push on the same branch cancels the previous run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        # Next.js 16 removed `next lint`, and `next build` no longer runs
+        # ESLint. This step is the only thing enforcing the lint rules.
+        run: npm run lint
+
+      - name: Typecheck
+        # `next typegen` first: `next-env.d.ts` and `.next/types` are gitignored,
+        # so a clean checkout has no generated route types yet (SPEC EC-01).
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        # Intentionally run WITHOUT Supabase credentials. Environment validation
+        # is lazy, so a build must never require secrets (SPEC EC-02). If this
+        # step starts needing an env var, that is a regression.
+        run: npm run build

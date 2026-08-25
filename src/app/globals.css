@@ -1,0 +1,167 @@
+@import "tailwindcss";
+
+/*
+ * CloverCode design tokens.
+ *
+ * CLOVERCODE_MASTER.md section 34: the product must feel like a professional
+ * SaaS - clean, consistent, with clear hierarchy and uniform spacing.
+ *
+ * Structure:
+ *   :root / .dark   raw semantic values, the single source of truth
+ *   @theme inline   exposes them to Tailwind as `bg-background`, `text-muted-
+ *                   foreground`, `border-border`, ...
+ *
+ * Never hard-code a hex value in a component. Add a token here instead, so a
+ * tenant theme (Phase 06) can override the palette in one place.
+ */
+
+/* Class-based dark mode, so the dashboard can offer an explicit toggle while
+   still honouring the OS preference through a class set on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --radius: 0.625rem;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.52 0 0);
+
+  /* Clover green: the brand accent. */
+  --primary: oklch(0.52 0.13 155);
+  --primary-foreground: oklch(0.985 0 0);
+
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+
+  --accent: oklch(0.96 0.02 155);
+  --accent-foreground: oklch(0.205 0 0);
+
+  --destructive: oklch(0.55 0.22 27);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --success: oklch(0.52 0.13 155);
+  --success-foreground: oklch(0.985 0 0);
+
+  --warning: oklch(0.62 0.14 70);
+  --warning-foreground: oklch(0.985 0 0);
+
+  --info: oklch(0.52 0.14 250);
+  --info-foreground: oklch(0.985 0 0);
+
+  --border: oklch(0.91 0 0);
+  --input: oklch(0.91 0 0);
+  --ring: oklch(0.52 0.13 155);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+
+  --card: oklch(0.19 0 0);
+  --card-foreground: oklch(0.985 0 0);
+
+  --muted: oklch(0.24 0 0);
+  --muted-foreground: oklch(0.72 0 0);
+
+  --primary: oklch(0.72 0.15 155);
+  --primary-foreground: oklch(0.16 0 0);
+
+  --secondary: oklch(0.26 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+
+  --accent: oklch(0.28 0.03 155);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.68 0.19 25);
+  --destructive-foreground: oklch(0.16 0 0);
+
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.16 0 0);
+
+  --warning: oklch(0.78 0.15 75);
+  --warning-foreground: oklch(0.16 0 0);
+
+  --info: oklch(0.7 0.13 250);
+  --info-foreground: oklch(0.16 0 0);
+
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.32 0 0);
+  --ring: oklch(0.72 0.15 155);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /*
+   * Section 19 (accessibility): focus must always be visible for keyboard
+   * users. Never remove this without providing an equivalent indicator.
+   */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
