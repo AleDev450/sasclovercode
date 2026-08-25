@@ -1,5 +1,6 @@
 import type * as React from "react";
 import { cn } from "@/lib/utils";
+import type { HeadingLevel } from "./card";
 
 export interface EmptyStateProps {
   /** What is missing, stated plainly. */
@@ -10,13 +11,25 @@ export interface EmptyStateProps {
   action?: React.ReactNode;
   icon?: React.ReactNode;
   className?: string;
+  /**
+   * Heading level for the title. Defaults to `h3` for an empty state sitting
+   * inside a section; use `h1` when it is the page's only heading.
+   */
+  titleAs?: HeadingLevel;
 }
 
 /**
  * CLOVERCODE_MASTER.md section 35: never leave a table simply empty. Every
  * listing that can be empty must render this instead.
  */
-export function EmptyState({ title, description, action, icon, className }: EmptyStateProps) {
+export function EmptyState({
+  title,
+  description,
+  action,
+  icon,
+  className,
+  titleAs: Heading = "h3",
+}: EmptyStateProps) {
   return (
     <div
       className={cn(
@@ -25,7 +38,7 @@ export function EmptyState({ title, description, action, icon, className }: Empt
       )}
     >
       {icon ? <div className="text-muted-foreground mb-4">{icon}</div> : null}
-      <h3 className="text-base font-semibold">{title}</h3>
+      <Heading className="text-base font-semibold">{title}</Heading>
       {description ? (
         <p className="text-muted-foreground mt-2 max-w-sm text-sm">{description}</p>
       ) : null}

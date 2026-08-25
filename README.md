@@ -4,9 +4,10 @@ Plataforma SaaS multi-tenant para administrar negocios: sitio web público,
 catálogo, pedidos, punto de venta, inventario y facturación electrónica — desde
 una sola codebase y una sola base de datos.
 
-> **Estado: Fase 00 — Foundation (COMPLETED).**
-> Existen los cimientos técnicos. Todavía **no** hay multi-tenancy,
-> autenticación, autorización ni módulos de negocio. Ver
+> **Estado: Fase 01 — Multi-Tenancy Core (COMPLETED).**
+> Existen los cimientos técnicos y el núcleo multi-tenant: `tenants`,
+> `tenant_domains` y resolución `hostname → tenant`. Todavía **no** hay
+> autenticación, autorización por usuario ni módulos de negocio. Ver
 > [`docs/specs/`](docs/specs/) para el plan por fases.
 
 La especificación maestra del proyecto es
@@ -25,12 +26,13 @@ Monolito modular sobre Next.js (App Router) y Supabase, desplegado en Vercel.
 src/
 ├── app/          rutas, layouts y route handlers
 ├── components/   UI compartida (ui/ = primitivas del sistema de diseño)
-├── modules/      dominios de negocio (vacío hasta Fase 01)
+├── modules/      dominios de negocio (vacío hasta Fase 04)
 ├── lib/          capas transversales
 │   ├── errors/       jerarquía de errores + frontera de serialización
 │   ├── logger/       logging estructurado + redacción + requestId
 │   ├── validation/   Zod en el límite de entrada
 │   ├── supabase/     clientes browser y server
+│   ├── tenant/       resolución hostname → tenant
 │   └── utils/        utilidades sin dominio (cn)
 ├── config/       entorno validado y constantes
 ├── types/        contratos de tipos (incluye database.ts)
@@ -102,12 +104,13 @@ Contrato completo en [`.env.example`](.env.example). Nunca se commitea un
 archivo con credenciales reales: `.gitignore` ignora `.env*` salvo
 `.env.example`.
 
-| Variable                               | Requerida | Ámbito    | Descripción                                         |
-| -------------------------------------- | --------- | --------- | --------------------------------------------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`             | Sí        | navegador | URL del proyecto Supabase                           |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Sí        | navegador | Publishable key (`sb_publishable_...`) o `anon` key |
-| `NEXT_PUBLIC_APP_URL`                  | No        | navegador | Origen canónico. Default `http://localhost:3000`    |
-| `LOG_LEVEL`                            | No        | servidor  | `debug \| info \| warn \| error`                    |
+| Variable                               | Requerida | Ámbito    | Descripción                                                |
+| -------------------------------------- | --------- | --------- | ---------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Sí        | navegador | URL del proyecto Supabase                                  |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Sí        | navegador | Publishable key (`sb_publishable_...`) o `anon` key        |
+| `NEXT_PUBLIC_APP_URL`                  | No        | navegador | Origen canónico. Default `http://localhost:3000`           |
+| `LOG_LEVEL`                            | No        | servidor  | `debug \| info \| warn \| error`                           |
+| `DEV_TENANT_SLUG`                      | No        | servidor  | Tenant servido en `localhost` puro. Ignorado en producción |
 
 Las dos primeras se exponen al navegador **a propósito**: en Supabase el control
 de acceso lo da RLS, no el secreto de la clave. La clave `service_role` es otra
@@ -122,21 +125,32 @@ exactamente qué claves fallaron —
 
 ## 4. Migraciones
 
-**La Fase 00 no crea, modifica ni elimina ningún objeto de base de datos.** No
-hay migraciones todavía; la numeración empieza en la Fase 01 con `tenants` y
-`tenant_domains`.
+Todo cambio de esquema es un archivo versionado en `supabase/migrations/`, que
+se aplica en orden lexicográfico.
 
-Reglas que regirán desde la Fase 01 (`CLOVERCODE_MASTER.md` sección 22):
+```bash
+npm run db:start    # Supabase local (requiere Docker)
+npm run db:reset    # reaplica todas las migraciones desde cero
+npm run db:types    # regenera src/types/database.ts
+```
 
-- Todo cambio de esquema ocurre mediante migraciones versionadas en Git.
-- Las migraciones se ejecutan de forma idéntica en local, staging y producción.
-- Una migración ya usada en producción **nunca** se edita: se crea otra.
+Historial actual (Fase 01):
+
+| Archivo                                       | Crea                                                |
+| --------------------------------------------- | --------------------------------------------------- |
+| `20260824120000_create_tenants.sql`           | `tenant_status`, `set_updated_at()`, `tenants`, RLS |
+| `20260824120100_create_tenant_domains.sql`    | enums de dominio, `tenant_domains`, índices, RLS    |
+| `20260824120200_create_tenant_resolution.sql` | `resolve_tenant_by_domain()` SECURITY DEFINER       |
+
+Reglas (`CLOVERCODE_MASTER.md` §22):
+
+- Una migración ya aplicada en producción **nunca** se edita: se crea otra.
 - Cada migración documenta qué políticas RLS creó.
-- `src/types/database.ts` es **generado**, no se edita a mano:
+- Se ejecutan de forma idéntica en local, staging y producción.
+- `src/types/database.ts` se mantiene sincronizado y un test de contrato lo
+  verifica contra el esquema real.
 
-  ```bash
-  npx supabase gen types typescript --project-id <ref> > src/types/database.ts
-  ```
+Detalle: [`docs/architecture/database.md`](docs/architecture/database.md)
 
 ---
 
@@ -156,13 +170,13 @@ funciona sin DOM:
 | `node`   | node    | `src/tests/unit/`, `src/tests/integration/` |
 | `dom`    | jsdom   | `src/tests/components/`                     |
 
-Estado actual: **106 tests, todos en verde**.
+Estado actual: **297 tests en 13 archivos, todos en verde**.
 
 Pendiente por diseño y **obligatorio** en su fase:
 
-- `src/tests/authorization/` — aislamiento cross-tenant contra PostgreSQL real
-  con RLS activo. **Fase 03.** Ninguna funcionalidad crítica se considera
-  terminada sin pruebas de autorización (sección 21).
+- Políticas RLS por usuario con `tenant_members`. **Fase 03.** El aislamiento
+  cross-tenant a nivel de base de datos ya se prueba desde la Fase 01 en
+  `src/tests/database/isolation.test.ts` (TEST-140).
 - E2E con Playwright — **Fase 05.**
 
 Detalle: [ADR-005](docs/adr/005-testing-strategy.md)
@@ -186,29 +200,49 @@ regresión.
 
 ## 7. Tenant model
 
-> Se implementa desde la Fase 01. Se documenta aquí porque condiciona todo el
-> código que se escriba antes.
-
 ```text
-Request -> hostname -> tenant_domains -> tenant
+Request → Host → normalizeHostname() → toLookupDomain() → resolve_tenant_by_domain() → tenant
 ```
 
-- Cada tenant recibe `{slug}.clovercodeapp.com` y puede conectar un dominio
-  propio. Un dominio pertenece a un solo tenant.
-- Toda tabla de negocio lleva `tenant_id UUID NOT NULL`.
-- Las restricciones son tenant-aware: `UNIQUE(tenant_id, slug)`, nunca
-  `UNIQUE(slug)`.
-- Un usuario puede pertenecer a **varios** tenants con distinto rol en cada uno:
+- Cada tenant recibe `{slug}.clovercodeapp.com` y puede conectar dominios
+  propios. **Un dominio pertenece a un solo tenant**, garantizado por
+  `UNIQUE(domain)` en la base de datos.
+- Solo resuelven los dominios con `verification_status = 'active'`: registrar un
+  dominio no es poseerlo.
+- Un tenant `suspended` **sí** resuelve, con su estado, para poder mostrar un
+  aviso. Uno `archived` no resuelve.
+- El slug es una etiqueta DNS válida y no puede ser un nombre reservado
+  (`www`, `api`, `admin`, …). Ambas reglas las aplica la base de datos.
+- Las restricciones de negocio serán tenant-aware: `UNIQUE(tenant_id, slug)`,
+  nunca `UNIQUE(slug)`. Las dos excepciones globales deliberadas son
+  `tenants.slug` y `tenant_domains.domain`.
+- Un usuario podrá pertenecer a **varios** tenants con distinto rol (Fase 02/03):
 
   ```text
-  auth.users -> profiles -> tenant_members -> tenants + roles
+  auth.users → profiles → tenant_members → tenants + roles
   ```
 
 - `SUPER_ADMIN` (CloverCode) **no** es lo mismo que `OWNER` (de un tenant).
-- Nada en la Fase 00 asume un único tenant, y ningún módulo guarda estado de
-  tenant en variables de módulo (se filtraría entre requests).
 
-Decisión: [ADR-001](docs/adr/001-single-database-multitenancy.md)
+Uso desde código de servidor:
+
+```ts
+import { getCurrentTenant, requireCurrentTenant } from "@/lib/tenant/context";
+```
+
+Nunca se acepta un `tenant_id` enviado por el cliente (§42), ni se vuelve a
+parsear el hostname en cada sitio (§43).
+
+### Desarrollo local
+
+Abre `http://{slug}.localhost:3000` — funciona en Chrome y Firefox sin
+configurar nada, y ejerce exactamente la misma consulta que producción. Para
+herramientas que no pueden usar subdominios, `DEV_TENANT_SLUG` sirve un tenant
+en `localhost` a secas. Ambos mecanismos se ignoran si `NODE_ENV=production`.
+
+Decisiones: [ADR-001](docs/adr/001-single-database-multitenancy.md) ·
+[ADR-006](docs/adr/006-tenant-resolution.md) ·
+[`docs/architecture/multitenancy.md`](docs/architecture/multitenancy.md)
 
 ---
 
@@ -269,4 +303,3 @@ Cabeceras aplicadas: `Strict-Transport-Security`, `X-Content-Type-Options`,
 
 4. Una fase no está terminada si `lint`, `typecheck`, `test` o `build` fallan, o
    si su SPEC quedó desactualizado.
-# sasclovercode

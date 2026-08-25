@@ -1,0 +1,177 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { Database } from "@/types/database";
+import { createTestDatabase, type TestDatabase } from "../helpers/database";
+
+/**
+ * TEST-141 - keeps `src/types/database.ts` honest.
+ *
+ * `src/types/database.ts` is hand-maintained, because generating it needs a
+ * running Supabase stack and therefore Docker, which CI does not have. That is
+ * only acceptable if drift is impossible to miss, which is what this file does,
+ * in two directions that meet in the middle:
+ *
+ *   real schema  <->  EXPECTED_COLUMNS   checked at run time, against PostgreSQL
+ *   EXPECTED_COLUMNS  <->  Database      checked at compile time, by tsc
+ *
+ * Change the schema without updating the types (or the reverse) and one of the
+ * two halves fails.
+ */
+
+// --- Compile-time half ------------------------------------------------------
+
+type Equal<X, Y> =
+  (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y ? 1 : 2 ? true : false;
+
+type Expect<T extends true> = T;
+
+type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
+type TenantDomainRow = Database["public"]["Tables"]["tenant_domains"]["Row"];
+
+// If a column is added to or removed from the declared types without updating
+// EXPECTED_COLUMNS below, `npm run typecheck` fails here.
+export type _TenantKeys = Expect<
+  Equal<keyof TenantRow, "id" | "name" | "slug" | "status" | "created_at" | "updated_at">
+>;
+export type _TenantDomainKeys = Expect<
+  Equal<
+    keyof TenantDomainRow,
+    | "id"
+    | "tenant_id"
+    | "domain"
+    | "type"
+    | "is_primary"
+    | "verification_status"
+    | "verified_at"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+// Nullability must match too: `verified_at` is the only nullable column.
+export type _VerifiedAtIsNullable = Expect<Equal<TenantDomainRow["verified_at"], string | null>>;
+export type _TenantIdIsNotNullable = Expect<Equal<TenantDomainRow["tenant_id"], string>>;
+
+// --- Run-time half ----------------------------------------------------------
+
+interface ColumnSpec {
+  readonly dataType: string;
+  readonly nullable: boolean;
+}
+
+const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
+  tenants: {
+    id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    slug: { dataType: "text", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  tenant_domains: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    domain: { dataType: "text", nullable: false },
+    type: { dataType: "USER-DEFINED", nullable: false },
+    is_primary: { dataType: "boolean", nullable: false },
+    verification_status: { dataType: "USER-DEFINED", nullable: false },
+    verified_at: { dataType: "timestamp with time zone", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+};
+
+let db: TestDatabase;
+
+beforeAll(async () => {
+  db = await createTestDatabase();
+});
+
+afterAll(async () => {
+  await db.close();
+});
+
+describe("TEST-141: declared types match the real schema", () => {
+  it.each(Object.keys(EXPECTED_COLUMNS))("%s has exactly the declared columns", async (table) => {
+    const rows = await db.query<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+    }>(
+      `select column_name, data_type, is_nullable
+       from information_schema.columns
+       where table_schema = 'public' and table_name = $1
+       order by column_name`,
+      [table],
+    );
+
+    const actual = Object.fromEntries(
+      rows.map((row) => [
+        row.column_name,
+        { dataType: row.data_type, nullable: row.is_nullable === "YES" },
+      ]),
+    );
+
+    const expected = EXPECTED_COLUMNS[table];
+    expect(Object.keys(actual).sort()).toEqual(Object.keys(expected ?? {}).sort());
+    expect(actual).toEqual(expected);
+  });
+
+  it("declares the same enum values as the database", async () => {
+    const rows = await db.query<{ typname: string; label: string }>(
+      `select t.typname, e.enumlabel as label
+       from pg_enum e join pg_type t on t.oid = e.enumtypid
+       order by t.typname, e.enumsortorder`,
+    );
+    const grouped = rows.reduce<Record<string, string[]>>((acc, row) => {
+      (acc[row.typname] ??= []).push(row.label);
+      return acc;
+    }, {});
+
+    // These literals mirror the union types exported from src/types/database.ts.
+    const declared: Record<string, string[]> = {
+      tenant_status: ["active", "suspended", "archived"],
+      tenant_domain_type: ["system", "custom"],
+      domain_verification_status: ["pending", "verifying", "active", "failed"],
+    };
+
+    for (const [name, values] of Object.entries(declared)) {
+      expect([...(grouped[name] ?? [])].sort()).toEqual([...values].sort());
+    }
+  });
+
+  it("declares the resolve_tenant_by_domain return shape correctly", async () => {
+    const rows = await db.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+       where table_schema = 'public' and table_name = 'tenants' limit 0`,
+    );
+    expect(rows).toEqual([]);
+
+    // The function's output columns, straight from the catalog.
+    const args = await db.query<{ proargnames: string[] | null }>(
+      "select proargnames from pg_proc where proname = 'resolve_tenant_by_domain'",
+    );
+
+    type FunctionReturn =
+      Database["public"]["Functions"]["resolve_tenant_by_domain"]["Returns"][number];
+    const declaredKeys: (keyof FunctionReturn)[] = [
+      "tenant_id",
+      "slug",
+      "name",
+      "status",
+      "domain",
+      "domain_type",
+      "is_primary",
+    ];
+
+    // proargnames holds the input argument followed by the OUT columns.
+    const actual = (args[0]?.proargnames ?? []).filter((n) => !n.startsWith("p_"));
+    expect(actual.sort()).toEqual([...declaredKeys].sort());
+  });
+
+  it("has no table outside the declared contract", async () => {
+    const rows = await db.query<{ tablename: string }>(
+      "select tablename from pg_tables where schemaname = 'public' order by tablename",
+    );
+    expect(rows.map((r) => r.tablename).sort()).toEqual(Object.keys(EXPECTED_COLUMNS).sort());
+  });
+});

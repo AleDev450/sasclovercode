@@ -13,6 +13,8 @@ Status.
 | 003 | [Error handling and structured logging](./003-error-handling-and-logging.md) | ACCEPTED | 00    |
 | 004 | [Lazy environment validation](./004-environment-validation.md)               | ACCEPTED | 00    |
 | 005 | [Testing strategy](./005-testing-strategy.md)                                | ACCEPTED | 00    |
+| 006 | [Tenant resolution](./006-tenant-resolution.md)                              | ACCEPTED | 01    |
+| 007 | [SQL testing without Docker](./007-sql-testing-without-docker.md)            | ACCEPTED | 01    |
 
 ## Planned
 
@@ -20,7 +22,6 @@ Decisions the master document calls out that belong to a later phase:
 
 | Topic                        | Phase |
 | ---------------------------- | ----- |
-| Tenant resolution strategy   | 01    |
 | RBAC authorization strategy  | 03    |
 | RLS policy shape             | 03    |
 | Vercel multi-domain handling | 09    |

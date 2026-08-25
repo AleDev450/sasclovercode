@@ -192,3 +192,103 @@ describe("request id (TEST-013, TEST-014)", () => {
     expect(ids.size).toBe(50);
   });
 });
+
+/**
+ * Regression suite for two defects found in the Phase 00 audit.
+ */
+describe("redaction of repeated references (audit regression)", () => {
+  it("does not report a repeated but acyclic reference as circular", () => {
+    // The same tenant object attached to two orders is ordinary in a log
+    // record. Tracking every visited object - rather than only the current
+    // path - used to flag the second occurrence as "[Circular]" and silently
+    // drop it, losing the tenant from the audit trail.
+    const tenant = { id: "t-1", name: "Sugu Rolls" };
+    const result = redact({
+      orders: [
+        { id: "o-1", tenant },
+        { id: "o-2", tenant },
+      ],
+    }) as { orders: { id: string; tenant: unknown }[] };
+
+    expect(result.orders[0]?.tenant).toEqual({ id: "t-1", name: "Sugu Rolls" });
+    expect(result.orders[1]?.tenant).toEqual({ id: "t-1", name: "Sugu Rolls" });
+    expect(JSON.stringify(result)).not.toContain("[Circular]");
+  });
+
+  it("still detects a genuine cycle", () => {
+    const node: Record<string, unknown> = { id: "n-1" };
+    node.self = node;
+    expect(JSON.stringify(redact(node))).toContain("[Circular]");
+  });
+
+  it("detects a cycle that closes through several levels", () => {
+    const a: Record<string, unknown> = { name: "a" };
+    const b: Record<string, unknown> = { name: "b", a };
+    a.b = b;
+    expect(JSON.stringify(redact(a))).toContain("[Circular]");
+  });
+
+  it("handles a diamond-shaped object graph without data loss", () => {
+    const shared = { value: 42 };
+    const result = redact({ left: shared, right: shared }) as Record<string, unknown>;
+    expect(result.left).toEqual({ value: 42 });
+    expect(result.right).toEqual({ value: 42 });
+  });
+});
+
+describe("request id validation (audit regression)", () => {
+  /*
+   * Scope note from the audit: CR/LF cannot actually reach us through
+   * `request.headers` - both Node's HTTP parser and the `Headers` constructor
+   * reject those characters, so this is NOT a remotely triggerable crash. What
+   * a client CAN do is send any header-legal string, which is then echoed into
+   * the response header and into every log line for that request.
+   *
+   * Validating at the boundary keeps that under control and makes the value
+   * safe for any caller that builds a requestId itself (middleware, tests).
+   */
+
+  it.each([
+    ["a space", "has space"],
+    ["a tab", "has	tab"],
+    ["a quote", 'quote"inside'],
+    ["a semicolon", "semi;colon"],
+    ["an empty value", ""],
+    ["only whitespace", "   "],
+  ])("rejects %s and generates a fresh id", (_label, value) => {
+    const id = getRequestId(new Headers([["x-request-id", value]]));
+    expect(id).not.toBe(value);
+    expect(id).toMatch(/^[A-Za-z0-9_.:@-]+$/);
+  });
+
+  it("rejects an oversized id", () => {
+    const oversized = "a".repeat(201);
+    expect(getRequestId(new Headers([["x-request-id", oversized]]))).not.toBe(oversized);
+  });
+
+  it.each([
+    "0bafc224-60b2-4be2-8092-d1baf4454d63",
+    "edge-abc-123",
+    "trace:1234@vercel",
+    "req_abc.def",
+  ])("accepts the well-formed id %j", (value) => {
+    expect(getRequestId(new Headers([["x-request-id", value]]))).toBe(value);
+  });
+
+  it("always returns a value usable as an HTTP header", () => {
+    const candidates = ["a b", " ", "ok-123", "", "x".repeat(300)];
+    for (const candidate of candidates) {
+      const headers = new Headers();
+      // Some candidates are not valid header values; feed those directly to
+      // the validator instead of through Headers.
+      try {
+        headers.set("x-request-id", candidate);
+      } catch {
+        continue;
+      }
+      const id = getRequestId(headers);
+      expect(() => new Headers({ "X-Request-Id": id })).not.toThrow();
+      expect(id).toMatch(/^[A-Za-z0-9_.:@-]{1,200}$/);
+    }
+  });
+});

@@ -25,6 +25,17 @@ accidentally if every module invents its own error shape.
 Every error carries `message` (technical, logs only), `publicMessage` (safe for
 an end user) and `code` (stable identifier). They are never conflated.
 
+**`publicMessage` must never default to `message`.** When no explicit public
+wording is given the caller receives `GENERIC_PUBLIC_MESSAGE`. Surfacing text to
+a user is an opt-in decision, because the technical message is exactly where
+constraint names, SQL and connection details live.
+
+> Amended 2026-08-24 after the Phase 00 audit. The original implementation
+> defaulted `publicMessage` to `message`, and `ConflictError` set it explicitly
+> to its technical message — so a unique-constraint violation returned
+> `tenants_slug_key` and another tenant's slug to the caller, contradicting this
+> very decision. See SPEC phase-00 §26.2.
+
 ### 2. A closed hierarchy rooted at `AppError`
 
 The eight subclasses named in section 15, plus `ConfigurationError`. Each fixes

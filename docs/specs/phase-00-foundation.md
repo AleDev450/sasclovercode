@@ -6,9 +6,9 @@
 Phase:                00
 Nombre:               Foundation
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-24
-Última actualización: 2026-08-24
+Última actualización: 2026-08-24 (auditoría final, §26)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -675,6 +675,22 @@ TEST-024  EmptyState renderiza título, descripción y acción opcional.
 TEST-025  Alert expone role="alert".
 ```
 
+Añadidos tras la auditoría final de la fase (§26):
+
+```text
+TEST-026  NINGÚN tipo de error filtra su mensaje técnico, su cause ni su
+          contexto al serializarse. Se prueban los 9 tipos con la misma carga
+          hostil, no solo DatabaseError.
+TEST-027  redact() no marca como [Circular] una referencia repetida pero
+          acíclica, y sigue detectando ciclos reales y ciclos indirectos.
+TEST-028  getRequestId() rechaza identificadores mal formados y siempre
+          devuelve un valor válido como cabecera HTTP.
+TEST-029  assertEnvIsValid() valida el ámbito público y el de servidor.
+TEST-030  Badge, Card, Skeleton y Spinner renderizan correctamente; los
+          niveles de encabezado de CardTitle y EmptyState son configurables y
+          AlertTitle no inyecta encabezados en el esquema del documento.
+```
+
 ---
 
 ## 18. Edge Cases
@@ -792,9 +808,9 @@ Resultado real, verificado el 2026-08-24:
 - [x] README técnico con las 8 secciones exigidas por §46
 - [x] ADRs de las decisiones de la fase registrados (001-005)
 - [x] docs/architecture/overview.md creado
-- [x] Unit tests PASS         (85 tests)
-- [x] Integration tests PASS  (7 tests)
-- [x] Component tests PASS    (14 tests)
+- [x] Unit tests PASS         (119 tests)
+- [x] Integration tests PASS  (8 tests)
+- [x] Component tests PASS    (28 tests)
 - [x] Cross-tenant tests: N/A DOCUMENTADO (sin tablas en esta fase, §10 y §17)
 - [x] Typecheck PASS
 - [x] Lint PASS               (0 errores, 0 warnings)
@@ -808,7 +824,7 @@ Resultado real, verificado el 2026-08-24:
 Format     PASS   prettier --check .            All matched files use Prettier code style
 Lint       PASS   eslint --max-warnings=0       0 errores, 0 warnings
 Types      PASS   next typegen && tsc --noEmit  0 errores
-Tests      PASS   vitest run                    106/106 en 7 archivos (~1.2 s)
+Tests      PASS   vitest run                    155/155 en 8 archivos
 Build      PASS   next build                    3 rutas compiladas, sin credenciales
 Audit      PASS   npm audit --omit=dev          0 vulnerabilidades
 Peers      PASS   npm ls eslint typescript      0 peers inválidos
@@ -898,17 +914,20 @@ contrato vacío que será reemplazado por tipos generados desde la Fase 01.
 
 ### 23.4 Tests implementados
 
-106 tests en 7 archivos, todos en verde:
+155 tests en 8 archivos, todos en verde:
 
-| Archivo                                          | Tests | Cubre                         |
-| ------------------------------------------------ | ----- | ----------------------------- |
-| `src/tests/unit/errors.test.ts`                  | 17    | TEST-001 a TEST-005           |
-| `src/tests/unit/logger.test.ts`                  | 43    | TEST-008 a TEST-014           |
-| `src/tests/unit/validation.test.ts`              | 8     | TEST-005 a TEST-007           |
-| `src/tests/unit/env.test.ts`                     | 12    | TEST-015 a TEST-017, EC-02/03 |
-| `src/tests/unit/cn.test.ts`                      | 5     | TEST-018                      |
-| `src/tests/integration/supabase-clients.test.ts` | 7     | TEST-019 a TEST-021, EC-05    |
-| `src/tests/components/ui.test.tsx`               | 14    | TEST-022 a TEST-025, NFR-005  |
+| Archivo                                          | Tests | Cubre                             |
+| ------------------------------------------------ | ----- | --------------------------------- |
+| `src/tests/unit/errors.test.ts`                  | 22    | TEST-001 a TEST-005               |
+| `src/tests/unit/error-leakage.test.ts`           | 15    | TEST-026 (auditoria)              |
+| `src/tests/unit/logger.test.ts`                  | 55    | TEST-008 a TEST-014, TEST-027/028 |
+| `src/tests/unit/validation.test.ts`              | 8     | TEST-005 a TEST-007               |
+| `src/tests/unit/env.test.ts`                     | 14    | TEST-015 a TEST-017, TEST-029     |
+| `src/tests/unit/cn.test.ts`                      | 5     | TEST-018                          |
+| `src/tests/integration/supabase-clients.test.ts` | 8     | TEST-019 a TEST-021, EC-05        |
+| `src/tests/components/ui.test.tsx`               | 28    | TEST-022 a TEST-025, TEST-030     |
+
+Reparto: 119 unit, 8 integration, 28 de componente.
 
 Todos los tests del plan (§17) se implementaron. No se omitió ninguno ni se
 sustituyó por otro distinto al especificado.
@@ -976,12 +995,12 @@ KL-09  TypeScript 5.9 y ESLint 9 en lugar de las últimas mayores publicadas,
        por compatibilidad de la cadena de lint. Disparadores de actualización
        documentados en ADR-002.
 
-KL-10  El repositorio Git fue inicializado durante esta fase. Existe un commit
-       parcial `2d12b44 feat: initial CloverCode project` creado externamente
-       durante la sesión, que contiene solo CLOVERCODE_MASTER.md, una versión
-       intermedia del SPEC y package.json. El resto del árbol de la Fase 00
-       está sin commitear. La autoría de los commits queda a criterio del
-       responsable del proyecto.
+KL-10  El repositorio Git fue inicializado durante esta fase y posteriormente
+       conectado por el responsable del proyecto a
+       `github.com/AleDev450/sasclovercode`, con 4 commits en `main`. El merge
+       del commit inicial de GitHub concatenó su README stub al README del
+       proyecto; el encabezado huérfano `# sasclovercode` se eliminó durante la
+       auditoría. Los cambios de la auditoría están sin commitear.
 ```
 
 ---
@@ -1012,3 +1031,107 @@ KL-10  El repositorio Git fue inicializado durante esta fase. Existe un commit
   estructura de referencia pero están deliberadamente no creados: los crea la
   fase que primero los necesita.
 ```
+
+---
+
+## 26. Auditoría final de la fase
+
+Auditoría ejecutada el 2026-08-24 sobre el código ya validado, contrastándolo
+con `CLOVERCODE_MASTER.md` y con este SPEC. Los hallazgos se comprobaron
+**empíricamente** (ejecutando el código), no por inspección visual.
+
+### 26.1 Hallazgos y resolución
+
+| #    | Categoría      | Hallazgo                                                                                                                                                                                                    | Severidad | Estado    |
+| ---- | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | --------- |
+| A-1  | Seguridad      | `ConflictError` asignaba `publicMessage = message`, y el `AppError` base lo hacía por defecto. Un `ConflictError` con texto de constraint devolvía `tenants_slug_key` y el slug de otro tenant al llamante. | **Alta**  | CORREGIDO |
+| A-2  | Corrección     | `redact()` marcaba como `[Circular]` cualquier objeto repetido aunque no hubiera ciclo (grafo en diamante). El mismo `tenant` en dos pedidos desaparecía del log.                                           | **Media** | CORREGIDO |
+| A-3  | Tests          | La suite solo comprobaba fugas en `DatabaseError`, cuyo default era seguro por casualidad. Por eso A-1 sobrevivió a 106 tests en verde.                                                                     | **Alta**  | CORREGIDO |
+| A-4  | CI             | `format:check` fallaba: el merge del commit inicial de GitHub concatenó `# sasclovercode` al final del README, sin salto de línea final. CI estaba en rojo.                                                 | **Alta**  | CORREGIDO |
+| A-5  | Tests          | 4 de las 9 primitivas (`Badge`, `Card`, `Skeleton`, `Spinner`) no tenían ningún test, pese a usarse en `/` y en `loading.tsx`.                                                                              | Media     | CORREGIDO |
+| A-6  | Accesibilidad  | Salto de nivel de encabezado: `h1` en `page.tsx` seguido de `h3` en `CardTitle`. `AlertTitle` emitía un `h5` arbitrario. `not-found.tsx` no tenía `h1`.                                                     | Media     | CORREGIDO |
+| A-7  | SPEC vs código | Los conteos por archivo de §23.4 eran estimaciones, no medidas: decían 17/43/12/7/14 donde había 22/39/11/8/13.                                                                                             | Media     | CORREGIDO |
+| A-8  | Deuda técnica  | `assertEnvIsValid()` estaba exportado y documentado, con cero referencias y cero tests.                                                                                                                     | Baja      | CORREGIDO |
+| A-9  | Duplicación    | `vitest.config.mts` repetía el bloque `resolve.alias` tres veces. `http.ts` tenía su propia copia del mensaje genérico.                                                                                     | Baja      | CORREGIDO |
+| A-10 | Robustez       | `getRequestId()` aceptaba cualquier texto de hasta 200 caracteres del cliente y lo reflejaba en la cabecera de respuesta y en cada línea de log.                                                            | Baja      | CORREGIDO |
+
+### 26.2 Detalle de A-1 (el hallazgo importante)
+
+```text
+Antes:
+  new ConflictError('duplicate key ... constraint "tenants_slug_key" (slug=sugurolls)')
+  -> respuesta al cliente: el mensaje completo, con el slug de otro tenant.
+
+Ahora:
+  -> respuesta al cliente: "The request conflicts with the current state of the resource."
+  -> log del servidor: el mensaje técnico íntegro.
+```
+
+Cambio de diseño: `publicMessage` ya **nunca** cae por defecto en `message`.
+Sin `publicMessage` explícito se usa `GENERIC_PUBLIC_MESSAGE`. Exponer texto al
+usuario pasa a ser una decisión deliberada del llamante, que es lo correcto para
+una frontera de seguridad.
+
+Esto alinea el código con lo que ADR-003 §1 ya afirmaba ("nunca se confunden") y
+con FR-018 y §15 de este SPEC, que hasta ahora describían una intención que el
+código no cumplía.
+
+### 26.3 Corrección de una afirmación de la auditoría
+
+Durante la auditoría se planteó que un `x-request-id` con CR/LF podía hacer
+lanzar a `toErrorResponse()` y tumbar la ruta de manejo de errores de forma
+remota. **La comprobación demostró que no es alcanzable**: tanto el parser HTTP
+de Node como el constructor `Headers` rechazan CR/LF, de modo que ese valor
+nunca llega a `getRequestId()`. La validación se mantiene por dos razones
+legítimas y menores —acotar lo que un cliente puede inyectar en los logs y
+proteger a llamantes que construyan el identificador ellos mismos— pero la
+severidad real es **baja**, no crítica. Queda registrado para no dejar en el
+expediente una afirmación de seguridad exagerada.
+
+### 26.4 Revisado y aceptado sin cambio
+
+```text
+- `src/lib/utils/` con un único `cn.ts`. §13 del documento maestro advierte
+  contra carpetas `utils/` "sin una responsabilidad clara"; esta la tiene
+  (composición de clases CSS) y es la ruta que espera el ecosistema de
+  shadcn/ui. Se acepta; si crece con funciones sin relación, debe partirse.
+
+- `/api/health` importa `package.json` para leer la versión. Solo se ejecuta en
+  servidor, así que no entra en el bundle del navegador, y evita duplicar el
+  número de versión.
+
+- `resetEnvCache()` se exporta desde `@/config` aunque sea de uso exclusivo en
+  tests. Aislarlo exigiría un subpath de test sin beneficio real en esta fase.
+
+- Ausencia de `middleware.ts`. Es correcto: no hay sesiones que refrescar hasta
+  la Fase 02.
+```
+
+### 26.5 Verificado y sin hallazgos
+
+```text
+- Aislamiento multi-tenant:     N/A, sin tablas ni consultas (§10).
+- Secretos en el repositorio:   ninguno; solo .env.example está versionado.
+- `service_role`:               no aparece en el código, solo en comentarios
+                                que prohíben su uso.
+- Vulnerabilidades:             npm audit --omit=dev -> 0.
+- Peers inválidos:              npm ls eslint typescript -> 0.
+- Errores de TypeScript:        0 con la configuración estricta reforzada.
+- ESLint:                       0 errores, 0 warnings (--max-warnings=0).
+- Cabeceras de seguridad:       6 de 6 presentes; X-Powered-By ausente.
+- Dirección de dependencias:    `lib` no importa de `modules` ni de `app`.
+- Requerimientos FR-001..FR-034: todos implementados y verificables.
+```
+
+### 26.6 Resultado
+
+```text
+Format     PASS   All matched files use Prettier code style
+Lint       PASS   0 errores, 0 warnings
+Types      PASS   0 errores
+Tests      PASS   155/155 en 8 archivos
+Build      PASS   3 rutas, / estática, sin credenciales
+```
+
+Los 10 hallazgos están corregidos y cubiertos por tests de regresión
+(TEST-026 a TEST-030). La fase se mantiene **COMPLETED**.

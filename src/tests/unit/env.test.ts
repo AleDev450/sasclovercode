@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { getPublicEnv, getServerEnv, resetEnvCache } from "@/config/env";
+import { assertEnvIsValid, getPublicEnv, getServerEnv, resetEnvCache } from "@/config/env";
 import { ConfigurationError, isAppError } from "@/lib/errors";
 
 const KEYS = [
@@ -142,5 +142,27 @@ describe("lazy evaluation (EC-02)", () => {
 
     // A fresh import with no configuration present must not throw.
     await expect(import("@/config/env")).resolves.toBeDefined();
+  });
+});
+
+describe("assertEnvIsValid (audit: exported API was untested)", () => {
+  it("returns without throwing on a complete configuration", () => {
+    setValidEnv();
+    resetEnvCache();
+    expect(() => assertEnvIsValid()).not.toThrow();
+  });
+
+  it("throws a ConfigurationError when a required variable is missing", () => {
+    setValidEnv();
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    resetEnvCache();
+    expect(() => assertEnvIsValid()).toThrow(ConfigurationError);
+  });
+
+  it("validates the server scope as well as the public one", () => {
+    setValidEnv();
+    process.env.LOG_LEVEL = "verbose";
+    resetEnvCache();
+    expect(() => assertEnvIsValid()).toThrow(ConfigurationError);
   });
 });

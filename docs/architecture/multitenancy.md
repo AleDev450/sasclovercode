@@ -1,0 +1,128 @@
+# Multi-tenancy
+
+> Current as of Phase 01. Sections marked with a phase describe intent, not
+> implemented behaviour.
+
+## The rule
+
+Every business row in CloverCode belongs to exactly one tenant, and no tenant
+can ever reach another tenant's data. Protection exists at **two** levels
+(master section 5):
+
+```text
+Application   resolves and validates the tenant from secure server context
+Database      Row Level Security refuses cross-tenant rows regardless
+```
+
+Neither level is allowed to be the only one.
+
+## Entities
+
+```mermaid
+erDiagram
+    TENANTS ||--o{ TENANT_DOMAINS : "owns"
+    TENANTS {
+        uuid id PK
+        text slug UK
+        tenant_status status
+    }
+    TENANT_DOMAINS {
+        uuid id PK
+        uuid tenant_id FK
+        text domain UK
+        tenant_domain_type type
+        domain_verification_status verification_status
+    }
+```
+
+`tenants` is the root. From Phase 10 onward every business table carries
+`tenant_id uuid not null`.
+
+## Two globally unique namespaces
+
+Almost everything in CloverCode is unique _per tenant_
+(`UNIQUE(tenant_id, slug)`, never `UNIQUE(slug)` — master section 11). Two things
+are deliberately global, because they are public identities:
+
+| Value                   | Scope  | Why                                                  |
+| ----------------------- | ------ | ---------------------------------------------------- |
+| `tenants.slug`          | global | It becomes the DNS label `{slug}.clovercodeapp.com`. |
+| `tenant_domains.domain` | global | A domain belongs to one site on the internet (§27).  |
+
+The domain constraint is what makes host takeover impossible: a second tenant
+simply cannot insert a row for a domain another tenant already holds.
+
+## Resolution
+
+```text
+Request
+   |
+Host header                      (never x-forwarded-host - client-settable)
+   |
+normalizeHostname()              lowercase, drop port, drop trailing dot
+   |
+toLookupDomain()                 map every supported shape to one domain
+   |
+resolve_tenant_by_domain()       SECURITY DEFINER, at most one row
+   |
+ResolvedTenant | null
+```
+
+Supported host shapes:
+
+| Host                          | Looks up                              | Where    |
+| ----------------------------- | ------------------------------------- | -------- |
+| `sugurolls.clovercodeapp.com` | itself                                | anywhere |
+| `sugurolls.com`               | itself                                | anywhere |
+| `sugurolls.localhost:3000`    | `sugurolls.clovercodeapp.com`         | dev only |
+| `localhost:3000`              | `{DEV_TENANT_SLUG}.clovercodeapp.com` | dev only |
+| `clovercodeapp.com`           | nothing                               | —        |
+| `a.b.clovercodeapp.com`       | nothing                               | —        |
+| `127.0.0.1`                   | nothing                               | —        |
+
+Local development maps onto the production domain on purpose: there is one
+query and one code path, so local work exercises what production runs.
+
+Full rationale: [ADR-006](../adr/006-tenant-resolution.md).
+
+## Why a function instead of an RLS policy
+
+A public tenant site must resolve before any session exists, so the reader is
+anonymous. Any policy permissive enough to let an anonymous client find its own
+tenant would also let it read every other row — the customer list of the whole
+platform.
+
+So `tenants` and `tenant_domains` have RLS **enabled with no policies** (denied
+for `anon` and `authenticated`), and the single read path is a SECURITY DEFINER
+function that takes one hostname and returns at most one row.
+
+## Using it
+
+```ts
+import { getCurrentTenant, requireCurrentTenant } from "@/lib/tenant/context";
+
+const tenant = await getCurrentTenant(); // ResolvedTenant | null
+const tenant = await requireCurrentTenant(); // throws AuthorizationError if none
+```
+
+Never accept a `tenant_id` from the client and never re-parse the hostname at a
+call site (master sections 42 and 43).
+
+## Status by phase
+
+| Capability                          | Phase | State           |
+| ----------------------------------- | ----- | --------------- |
+| `tenants`, `tenant_domains`         | 01    | Implemented     |
+| Hostname resolution                 | 01    | Implemented     |
+| RLS deny-by-default                 | 01    | Implemented     |
+| `tenant_members`, per-user policies | 03    | Not implemented |
+| Tenant provisioning                 | 04    | Not implemented |
+| Domain verification, Vercel API     | 09    | Not implemented |
+| `tenant_id` on business tables      | 10+   | Not implemented |
+
+## The proof
+
+`src/tests/database/isolation.test.ts` runs the project's migrations against a
+real PostgreSQL and asserts, among other things, that no hostname ever returns
+another tenant's data (TEST-140). It is the suite the product rests on, and it
+grows in Phase 03.

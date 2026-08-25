@@ -1,6 +1,6 @@
 # CloverCode — Architecture overview
 
-> Scope note: this document reflects what exists **today** (end of Phase 00).
+> Scope note: this document reflects what exists **today** (end of Phase 01).
 > Sections describing later phases are marked as such and are stated as intent,
 > not as implemented behaviour. It is updated at the end of every phase.
 
@@ -30,7 +30,7 @@ inventory and electronic invoicing — on one codebase and one database.
 
 ```text
 src/app/         routes, layouts, route handlers      (Next.js App Router)
-src/modules/     business domains                     (empty until Phase 01)
+src/modules/     business domains                     (empty until Phase 04)
 src/components/  shared UI
 src/lib/         cross-cutting capabilities
 src/config/      environment and constants
@@ -47,7 +47,7 @@ app  ->  modules  ->  lib  ->  config / types
 `lib` never imports from `modules` or `app`. A module never reaches into another
 module's internals — only its `index.ts`.
 
-## What exists after Phase 00
+## What exists after Phase 01
 
 | Capability         | Module               | Notes                                             |
 | ------------------ | -------------------- | ------------------------------------------------- |
@@ -59,13 +59,13 @@ module's internals — only its `index.ts`.
 | UI primitives      | `src/components/ui`  | 9 accessible components with explicit states      |
 | Health probe       | `src/app/api/health` | liveness only; dependency checks are Phase 24     |
 
-## Multi-tenancy (implemented from Phase 01)
+## Multi-tenancy (implemented in Phase 01)
 
 The decision is recorded in [ADR-001](../adr/001-single-database-multitenancy.md):
 one database, one schema, `tenant_id` on every business row, isolation enforced
 by Row Level Security.
 
-Intended request flow once Phase 01 lands:
+Implemented request flow:
 
 ```text
 Request
@@ -102,7 +102,7 @@ is never designed as one user = one tenant.
 `SUPER_ADMIN` (CloverCode staff) is a different concept from `OWNER` (a tenant's
 owner) and must never be conflated.
 
-## Security posture after Phase 00
+## Security posture after Phase 01
 
 | Control                        | Status                                                             |
 | ------------------------------ | ------------------------------------------------------------------ |
@@ -141,8 +141,6 @@ empty now:
 
 | Document            | Written in phase |
 | ------------------- | ---------------- |
-| `database.md`       | 01               |
-| `multitenancy.md`   | 01               |
 | `authentication.md` | 02               |
 | `authorization.md`  | 03               |
 | `domains.md`        | 09               |

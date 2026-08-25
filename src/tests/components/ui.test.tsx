@@ -6,10 +6,19 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
+  Badge,
   Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
   EmptyState,
   Input,
   Label,
+  Skeleton,
+  Spinner,
 } from "@/components/ui";
 
 describe("Button (TEST-022)", () => {
@@ -136,5 +145,104 @@ describe("Input and Label accessibility (NFR-005)", () => {
   it("does not set aria-invalid when valid", () => {
     render(<Input aria-label="RUC" />);
     expect(screen.getByLabelText("RUC")).not.toHaveAttribute("aria-invalid");
+  });
+});
+
+/**
+ * Coverage added after the Phase 00 audit.
+ *
+ * Badge, Card and Skeleton ship inside `/` and `/loading` but had no test at
+ * all, and Spinner was only exercised indirectly through Button.
+ */
+describe("Badge", () => {
+  it("renders its content", () => {
+    render(<Badge>Fase 00</Badge>);
+    expect(screen.getByText("Fase 00")).toBeInTheDocument();
+  });
+
+  it.each(["neutral", "success", "warning", "destructive", "outline"] as const)(
+    "supports the %s variant",
+    (variant) => {
+      render(<Badge variant={variant}>x</Badge>);
+      expect(screen.getByText("x")).toBeInTheDocument();
+    },
+  );
+});
+
+describe("Card", () => {
+  it("composes header, title, description, content and footer", () => {
+    render(
+      <Card>
+        <CardHeader>
+          <CardTitle>Productos</CardTitle>
+          <CardDescription>Catalogo del tenant</CardDescription>
+        </CardHeader>
+        <CardContent>contenido</CardContent>
+        <CardFooter>pie</CardFooter>
+      </Card>,
+    );
+
+    expect(screen.getByRole("heading", { name: "Productos" })).toBeInTheDocument();
+    expect(screen.getByText("Catalogo del tenant")).toBeInTheDocument();
+    expect(screen.getByText("contenido")).toBeInTheDocument();
+    expect(screen.getByText("pie")).toBeInTheDocument();
+  });
+
+  it("defaults the title to h3", () => {
+    render(<CardTitle>Titulo</CardTitle>);
+    expect(screen.getByRole("heading", { level: 3, name: "Titulo" })).toBeInTheDocument();
+  });
+
+  it("honours an explicit heading level so pages keep a valid outline", () => {
+    render(<CardTitle as="h2">Titulo</CardTitle>);
+    expect(screen.getByRole("heading", { level: 2, name: "Titulo" })).toBeInTheDocument();
+  });
+});
+
+describe("Skeleton", () => {
+  it("is hidden from assistive technology", () => {
+    const { container } = render(<Skeleton className="h-4 w-20" />);
+    const node = container.firstElementChild;
+    expect(node).toHaveAttribute("aria-hidden", "true");
+    expect(node?.className).toContain("animate-pulse");
+  });
+});
+
+describe("Spinner", () => {
+  it("exposes a status role with an accessible label", () => {
+    render(<Spinner />);
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Loading")).toBeInTheDocument();
+  });
+
+  it("accepts a custom label", () => {
+    render(<Spinner label="Guardando cambios" />);
+    expect(screen.getByText("Guardando cambios")).toBeInTheDocument();
+  });
+});
+
+describe("EmptyState heading level", () => {
+  it("defaults to h3", () => {
+    render(<EmptyState title="Sin datos" />);
+    expect(screen.getByRole("heading", { level: 3, name: "Sin datos" })).toBeInTheDocument();
+  });
+
+  it("can be promoted to h1 when it is the page's only heading", () => {
+    render(<EmptyState titleAs="h1" title="Pagina no encontrada" />);
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Pagina no encontrada" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("AlertTitle", () => {
+  it("does not inject a heading into the document outline", () => {
+    render(
+      <Alert>
+        <AlertTitle>Aviso</AlertTitle>
+      </Alert>,
+    );
+    expect(screen.getByText("Aviso")).toBeInTheDocument();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 });

@@ -7,6 +7,7 @@ export {
   DatabaseError,
   ERROR_CODES,
   ExternalServiceError,
+  GENERIC_PUBLIC_MESSAGE,
   NotFoundError,
   ValidationError,
   isAppError,

@@ -6,6 +6,7 @@ export default function NotFound() {
     <main className="mx-auto flex min-h-dvh max-w-2xl items-center px-6 py-16">
       <EmptyState
         className="w-full"
+        titleAs="h1"
         title="Pagina no encontrada"
         description="El enlace que seguiste no existe o fue movido."
         action={

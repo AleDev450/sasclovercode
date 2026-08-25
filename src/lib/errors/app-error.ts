@@ -30,8 +30,21 @@ export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 /** Structured context attached to an error for logging purposes only. */
 export type ErrorContext = Readonly<Record<string, unknown>>;
 
+/**
+ * Fallback shown to a caller when no explicit `publicMessage` was provided.
+ *
+ * Deliberately generic. `publicMessage` must NEVER default to `message`: the
+ * technical message is where constraint names, SQL fragments and connection
+ * details live, and defaulting to it would leak them the moment somebody
+ * constructs an error without thinking about the public wording.
+ */
+export const GENERIC_PUBLIC_MESSAGE = "An unexpected error occurred. Please try again.";
+
 export interface AppErrorOptions {
-  /** Safe to show to an end user. Falls back to a generic per-type message. */
+  /**
+   * Safe to show to an end user. Opting in is explicit: if it is omitted the
+   * caller gets `GENERIC_PUBLIC_MESSAGE`, never the technical `message`.
+   */
   readonly publicMessage?: string;
   /** Logged, never serialised into an HTTP response. */
   readonly context?: ErrorContext;
@@ -66,7 +79,7 @@ export class AppError extends Error {
     this.code = code;
     this.httpStatus = httpStatus;
     this.isOperational = isOperational;
-    this.publicMessage = options.publicMessage ?? message;
+    this.publicMessage = options.publicMessage ?? GENERIC_PUBLIC_MESSAGE;
     this.context = options.context;
 
     // Keep the subclass prototype chain intact when compiled down.
@@ -139,14 +152,22 @@ export class NotFoundError extends AppError {
   }
 }
 
-/** Uniqueness violation or an operation invalid for the current state. */
+/**
+ * Uniqueness violation or an operation invalid for the current state.
+ *
+ * `message` is technical and stays in the logs. A conflict is usually the
+ * result of a database constraint, and constraint text is exactly what must not
+ * reach the caller: `tenants_slug_key` would confirm that another tenant owns a
+ * given slug. To show something specific to the user, pass `publicMessage`
+ * explicitly with wording that reveals nothing about other tenants' data.
+ */
 export class ConflictError extends AppError {
   constructor(
     message = "The request conflicts with the current state.",
     options: AppErrorOptions = {},
   ) {
     super(message, ERROR_CODES.CONFLICT, 409, {
-      publicMessage: message,
+      publicMessage: "The request conflicts with the current state of the resource.",
       ...options,
     });
   }

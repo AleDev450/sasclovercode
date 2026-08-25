@@ -18,13 +18,28 @@ export function generateRequestId(): string {
 }
 
 /**
- * Reuses an inbound request id when the proxy supplied one, so a single trace
- * spans the edge and the application. Generates one otherwise.
+ * Character set accepted from an inbound request id.
+ *
+ * This value is client-controlled: anyone can set `x-request-id`. It is echoed
+ * back in the `X-Request-Id` response header and written to every log line for
+ * the request, so it is validated rather than merely length-checked.
+ *
+ * Scope note: CR/LF cannot reach here through `request.headers` - Node's HTTP
+ * parser and the `Headers` constructor both reject them - so this is not
+ * guarding against header injection. It bounds what a client can inject into
+ * the logs, and it keeps the value safe for callers that build a requestId
+ * themselves (middleware, tests), where `Response` would otherwise throw on a
+ * malformed value from inside the error path.
+ */
+const REQUEST_ID_PATTERN = /^[A-Za-z0-9_.:@-]{1,200}$/;
+
+/**
+ * Reuses an inbound request id when the proxy supplied a well-formed one, so a
+ * single trace spans the edge and the application. Generates one otherwise.
  */
 export function getRequestId(headers: Headers): string {
   const inbound = headers.get(REQUEST_ID_HEADER)?.trim();
-  // Bound the length: this value is echoed back and written to logs.
-  if (inbound && inbound.length > 0 && inbound.length <= 200) {
+  if (inbound !== undefined && REQUEST_ID_PATTERN.test(inbound)) {
     return inbound;
   }
   return generateRequestId();

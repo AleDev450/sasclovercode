@@ -51,6 +51,22 @@ const publicEnvSchema = z.object({
 const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   LOG_LEVEL: optionalText.pipe(z.enum(["debug", "info", "warn", "error"]).optional()).optional(),
+
+  /**
+   * Tenant served when a developer browses plain `localhost`.
+   *
+   * Development convenience only: `toLookupDomain()` ignores it whenever
+   * NODE_ENV is production, so it can never select a tenant in a deployed
+   * environment (SPEC phase-01 AB-105).
+   */
+  DEV_TENANT_SLUG: optionalText
+    .pipe(
+      z
+        .string()
+        .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "DEV_TENANT_SLUG must be a valid tenant slug.")
+        .optional(),
+    )
+    .optional(),
 });
 
 export type PublicEnv = z.output<typeof publicEnvSchema>;
@@ -112,6 +128,7 @@ export function getServerEnv(): ServerEnv {
   const result = serverEnvSchema.safeParse({
     NODE_ENV: process.env.NODE_ENV,
     LOG_LEVEL: process.env.LOG_LEVEL,
+    DEV_TENANT_SLUG: process.env.DEV_TENANT_SLUG,
   });
   if (!result.success) fail("server", result.error);
 

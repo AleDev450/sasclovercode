@@ -30,7 +30,7 @@ export default function HomePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Cimientos tecnicos activos</CardTitle>
+          <CardTitle as="h2">Cimientos tecnicos activos</CardTitle>
           <CardDescription>
             Capas transversales disponibles para todas las fases siguientes.
           </CardDescription>

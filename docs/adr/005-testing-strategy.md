@@ -76,7 +76,7 @@ Playwright arrives with them.
 
 **Positive**
 
-- Fast feedback: the full suite runs in ~1.3s.
+- Fast feedback: the full suite (155 tests) runs in roughly 2 s.
 - Server code is proven to work without a DOM.
 - Adding Phase 03's `src/tests/authorization/` is one entry in the config.
 - Swappable transports and cookie adapters make the logger and the Supabase

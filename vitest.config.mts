@@ -13,17 +13,25 @@ import { defineConfig } from "vitest/config";
  * authorization / e2e. Authorization and e2e suites arrive with the phases
  * that introduce data (03) and screens (05).
  */
-export default defineConfig({
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-      // `server-only` throws under Node's default export condition; Next
-      // resolves it through the `react-server` condition instead. Tests get an
-      // inert stub so a server module can be imported directly.
-      "server-only": fileURLToPath(new URL("./src/tests/stubs/server-only.ts", import.meta.url)),
-    },
+
+const resolveConfig = {
+  alias: {
+    "@": fileURLToPath(new URL("./src", import.meta.url)),
+    // `server-only` throws under Node's default export condition; Next resolves
+    // it through the `react-server` condition instead. Tests get an inert stub
+    // so a server module can be imported directly.
+    "server-only": fileURLToPath(new URL("./src/tests/stubs/server-only.ts", import.meta.url)),
   },
+};
+
+/** Shared by every project, so the resolution rules cannot drift apart. */
+const sharedProjectConfig = {
+  plugins: [react()],
+  resolve: resolveConfig,
+};
+
+export default defineConfig({
+  ...sharedProjectConfig,
   test: {
     globals: false,
     passWithNoTests: false,
@@ -35,31 +43,22 @@ export default defineConfig({
     },
     projects: [
       {
-        plugins: [react()],
-        resolve: {
-          alias: {
-            "@": fileURLToPath(new URL("./src", import.meta.url)),
-            "server-only": fileURLToPath(
-              new URL("./src/tests/stubs/server-only.ts", import.meta.url),
-            ),
-          },
-        },
+        ...sharedProjectConfig,
         test: {
           name: "node",
           environment: "node",
-          include: ["src/tests/unit/**/*.test.ts", "src/tests/integration/**/*.test.ts"],
+          include: [
+            "src/tests/unit/**/*.test.ts",
+            "src/tests/integration/**/*.test.ts",
+            "src/tests/database/**/*.test.ts",
+          ],
+          // Booting PostgreSQL in WebAssembly is slower than a unit test.
+          testTimeout: 30_000,
+          hookTimeout: 30_000,
         },
       },
       {
-        plugins: [react()],
-        resolve: {
-          alias: {
-            "@": fileURLToPath(new URL("./src", import.meta.url)),
-            "server-only": fileURLToPath(
-              new URL("./src/tests/stubs/server-only.ts", import.meta.url),
-            ),
-          },
-        },
+        ...sharedProjectConfig,
         test: {
           name: "dom",
           environment: "jsdom",

@@ -27,8 +27,13 @@ export function Alert({ className, variant, ...props }: AlertProps) {
   return <div role="alert" className={cn(alertVariants({ variant }), className)} {...props} />;
 }
 
-export function AlertTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h5 className={cn("mb-1 font-medium tracking-tight", className)} {...props} />;
+/**
+ * Rendered as a `div`, not a heading. An alert is not a document section, and
+ * emitting an arbitrary `h5` would inject a bogus level into the page outline.
+ * `role="alert"` on the container already conveys the semantics.
+ */
+export function AlertTitle({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return <div className={cn("mb-1 font-medium tracking-tight", className)} {...props} />;
 }
 
 export function AlertDescription({

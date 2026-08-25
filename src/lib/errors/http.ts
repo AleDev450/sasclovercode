@@ -8,7 +8,13 @@
  */
 
 import { logger as defaultLogger, type Logger } from "@/lib/logger";
-import { AppError, ERROR_CODES, ValidationError, isAppError } from "./app-error";
+import {
+  AppError,
+  ERROR_CODES,
+  GENERIC_PUBLIC_MESSAGE,
+  ValidationError,
+  isAppError,
+} from "./app-error";
 
 /** The single error shape returned by every CloverCode endpoint. */
 export interface ErrorResponseBody {
@@ -20,8 +26,6 @@ export interface ErrorResponseBody {
     readonly requestId: string;
   };
 }
-
-const GENERIC_MESSAGE = "An unexpected error occurred. Please try again.";
 
 export interface SerializeErrorResult {
   readonly status: number;
@@ -54,7 +58,7 @@ export function serializeError(error: unknown, requestId: string): SerializeErro
     body: {
       error: {
         code: ERROR_CODES.INTERNAL_ERROR,
-        message: GENERIC_MESSAGE,
+        message: GENERIC_PUBLIC_MESSAGE,
         requestId,
       },
     },
