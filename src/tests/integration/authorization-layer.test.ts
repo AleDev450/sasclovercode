@@ -28,9 +28,9 @@ function stub(result: { data?: unknown; error?: unknown }) {
 }
 
 describe("permission catalogue (TEST-301)", () => {
-  it("exposes 20 permissions with no duplicates", () => {
-    expect(ALL_PERMISSIONS).toHaveLength(20);
-    expect(new Set(ALL_PERMISSIONS).size).toBe(20);
+  it("exposes 22 permissions with no duplicates", () => {
+    expect(ALL_PERMISSIONS).toHaveLength(22);
+    expect(new Set(ALL_PERMISSIONS).size).toBe(22);
   });
 
   it("uses the resource.action shape the database validates", () => {

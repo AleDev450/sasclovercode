@@ -85,11 +85,11 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe("catalogue (TEST-309, TEST-310, TEST-311)", () => {
-  it("loads 8 roles and 20 permissions", async () => {
+  it("loads 8 roles and 22 permissions", async () => {
     const roles = await db.query<{ c: string }>("select count(*)::text c from public.roles");
     const perms = await db.query<{ c: string }>("select count(*)::text c from public.permissions");
     expect(Number(roles[0]?.c)).toBe(8);
-    expect(Number(perms[0]?.c)).toBe(20);
+    expect(Number(perms[0]?.c)).toBe(22);
   });
 
   it("gives owner every permission and admin all but settings.manage", async () => {
@@ -99,8 +99,8 @@ describe("catalogue (TEST-309, TEST-310, TEST-311)", () => {
     const admin = await db.query<{ permission: string }>(
       "select permission from public.role_permissions where role = 'admin'",
     );
-    expect(Number(owner[0]?.c)).toBe(20);
-    expect(admin).toHaveLength(19);
+    expect(Number(owner[0]?.c)).toBe(22);
+    expect(admin).toHaveLength(21);
     expect(admin.map((r) => r.permission)).not.toContain("settings.manage");
   });
 
@@ -130,7 +130,7 @@ describe("catalogue (TEST-309, TEST-310, TEST-311)", () => {
     const rows = await db.asUser(outsider, () =>
       db.query<{ c: string }>("select count(*)::text c from public.permissions"),
     );
-    expect(Number(rows[0]?.c)).toBe(20);
+    expect(Number(rows[0]?.c)).toBe(22);
   });
 
   it("is not writable by an authenticated user", async () => {

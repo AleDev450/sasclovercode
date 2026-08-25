@@ -66,6 +66,11 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825160000_create_tenant_settings.sql",
       "20260825160100_create_tenant_storage.sql",
       "20260825160200_extend_provisioning.sql",
+      // Phase 07
+      "20260825170000_create_cms_permissions.sql",
+      "20260825170100_create_pages.sql",
+      "20260825170200_create_navigation.sql",
+      "20260825170300_create_public_read.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -77,6 +82,9 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.map((t) => t.tablename)).toEqual([
+      "navigation_items",
+      "page_sections",
+      "pages",
       "permissions",
       "platform_admins",
       "profiles",
@@ -98,7 +106,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
     expect(enums.map((e) => e.typname)).toEqual([
       "domain_verification_status",
       "membership_status",
+      "nav_link_type",
+      "page_status",
       "platform_admin_status",
+      "section_type",
       "social_platform",
       "tenant_domain_type",
       "tenant_role",

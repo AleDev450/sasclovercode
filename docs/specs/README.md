@@ -15,7 +15,7 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 04    | Super Admin             | [phase-04-super-admin.md](./phase-04-super-admin.md)                         | COMPLETED |
 | 05    | Tenant Dashboard        | [phase-05-tenant-dashboard.md](./phase-05-tenant-dashboard.md)               | COMPLETED |
 | 06    | Business Settings/Theme | [phase-06-business-settings-theme.md](./phase-06-business-settings-theme.md) | COMPLETED |
-| 07    | Navigation + CMS        | _not written_                                                                | -         |
+| 07    | Navigation + CMS        | [phase-07-navigation-cms.md](./phase-07-navigation-cms.md)                   | COMPLETED |
 | 08    | SEO + Metadata          | _not written_                                                                | -         |
 | 09    | Custom Domains          | _not written_                                                                | -         |
 | 10-28 | see master document     | _not written_                                                                | -         |

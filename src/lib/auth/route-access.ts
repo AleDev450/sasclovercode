@@ -28,6 +28,9 @@ const PUBLIC_PREFIXES = [
   "/auth",
   // Liveness probe. Returns no tenant or user data.
   "/api/health",
+  // The tenant public website. Anonymous by definition: this is the site a
+  // customer visits, and requiring a session would defeat its purpose.
+  "/sitio",
 ] as const;
 
 /**

@@ -37,6 +37,9 @@ export const PERMISSIONS = {
 
   SETTINGS_MANAGE: "settings.manage",
 
+  CONTENT_VIEW: "content.view",
+  CONTENT_MANAGE: "content.manage",
+
   MEMBERS_VIEW: "members.view",
   MEMBERS_MANAGE: "members.manage",
 } as const;

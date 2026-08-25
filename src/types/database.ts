@@ -29,6 +29,10 @@ export type TenantRole =
 
 export type MembershipStatus = "active" | "invited" | "suspended";
 export type PlatformAdminStatus = "active" | "revoked";
+export type PageStatus = "draft" | "published";
+export type SectionTypeName =
+  "hero" | "text" | "image" | "banner" | "cta" | "gallery" | "products" | "faq";
+export type NavLinkType = "page" | "external";
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "x" | "youtube" | "linkedin";
 
 export type Database = {
@@ -201,6 +205,117 @@ export type Database = {
             foreignKeyName: "platform_admins_user_id_fkey";
             columns: ["user_id"];
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      pages: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          slug: string;
+          title: string;
+          status: PageStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          slug: string;
+          title: string;
+          status?: PageStatus;
+        };
+        Update: Partial<Database["public"]["Tables"]["pages"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "pages_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      page_sections: {
+        Row: {
+          id: string;
+          page_id: string;
+          tenant_id: string;
+          type: SectionTypeName;
+          content: Json;
+          position: number;
+          is_visible: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          page_id: string;
+          tenant_id: string;
+          type: SectionTypeName;
+          content?: Json;
+          position?: number;
+          is_visible?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["page_sections"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "page_sections_page_id_fkey";
+            columns: ["page_id"];
+            referencedRelation: "pages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "page_sections_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      navigation_items: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          parent_id: string | null;
+          label: string;
+          link_type: NavLinkType;
+          page_id: string | null;
+          external_url: string | null;
+          position: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          parent_id?: string | null;
+          label: string;
+          link_type: NavLinkType;
+          page_id?: string | null;
+          external_url?: string | null;
+          position?: number;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["navigation_items"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "navigation_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "navigation_items_parent_id_fkey";
+            columns: ["parent_id"];
+            referencedRelation: "navigation_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "navigation_items_page_id_fkey";
+            columns: ["page_id"];
+            referencedRelation: "pages";
             referencedColumns: ["id"];
           },
         ];
@@ -382,6 +497,10 @@ export type Database = {
         Args: { p_name: string };
         Returns: string | null;
       };
+      is_tenant_public: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
       is_platform_admin: {
         Args: Record<string, never>;
         Returns: boolean;
@@ -428,6 +547,9 @@ export type Database = {
       membership_status: MembershipStatus;
       platform_admin_status: PlatformAdminStatus;
       social_platform: SocialPlatform;
+      page_status: PageStatus;
+      section_type: SectionTypeName;
+      nav_link_type: NavLinkType;
     };
     CompositeTypes: Record<string, never>;
   };

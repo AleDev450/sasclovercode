@@ -29,6 +29,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.MEMBERS_VIEW,
   },
   {
+    key: "content",
+    label: "Contenido",
+    segment: "/contenido",
+    permission: PERMISSIONS.CONTENT_MANAGE,
+  },
+  {
+    key: "navigation",
+    label: "Navegacion",
+    segment: "/navegacion",
+    permission: PERMISSIONS.CONTENT_MANAGE,
+  },
+  {
     key: "settings",
     label: "Configuracion",
     segment: "/configuracion",
