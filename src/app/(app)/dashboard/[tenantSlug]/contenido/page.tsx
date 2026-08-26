@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Card,
@@ -29,9 +30,21 @@ export default async function ContentPage({ params }: { params: Promise<{ tenant
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Contenido</h1>
-        <p className="text-muted-foreground text-sm">Paginas del sitio publico de {tenant.name}.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Contenido</h1>
+          <p className="text-muted-foreground text-sm">
+            Paginas del sitio publico de {tenant.name}.
+          </p>
+        </div>
+        {/* Static segment, so it never collides with `/contenido/[pageId]`:
+            page ids are uuids and Next.js matches a literal segment first. */}
+        <Link
+          href={`/dashboard/${tenant.slug}/contenido/seo`}
+          className="text-muted-foreground hover:text-foreground text-sm"
+        >
+          SEO del sitio
+        </Link>
       </div>
 
       <Card>

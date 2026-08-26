@@ -28,6 +28,7 @@ type TenantRow = Database["public"]["Tables"]["tenants"]["Row"];
 type TenantDomainRow = Database["public"]["Tables"]["tenant_domains"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type TenantMemberRow = Database["public"]["Tables"]["tenant_members"]["Row"];
+type TenantSeoRow = Database["public"]["Tables"]["tenant_seo"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -58,6 +59,28 @@ export type _TenantMemberKeys = Expect<
     "id" | "tenant_id" | "user_id" | "role" | "status" | "created_at" | "updated_at"
   >
 >;
+
+export type _TenantSeoKeys = Expect<
+  Equal<
+    keyof TenantSeoRow,
+    | "tenant_id"
+    | "site_title"
+    | "site_description"
+    | "og_title"
+    | "og_description"
+    | "og_image_path"
+    | "twitter_image_path"
+    | "robots_index"
+    | "google_verification"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+// Every SEO text is optional and null means "inherit", which is a value the
+// application reads. A non-nullable declaration here would let it stop checking.
+export type _SeoTitleIsNullable = Expect<Equal<TenantSeoRow["site_title"], string | null>>;
+export type _RobotsIndexIsNotNullable = Expect<Equal<TenantSeoRow["robots_index"], boolean>>;
 
 // Nullability must match too: `verified_at` is the only nullable column.
 export type _VerifiedAtIsNullable = Expect<Equal<TenantDomainRow["verified_at"], string | null>>;
@@ -116,6 +139,19 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     user_id: { dataType: "uuid", nullable: false },
     role: { dataType: "USER-DEFINED", nullable: false },
     status: { dataType: "USER-DEFINED", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  tenant_seo: {
+    tenant_id: { dataType: "uuid", nullable: false },
+    site_title: { dataType: "text", nullable: true },
+    site_description: { dataType: "text", nullable: true },
+    og_title: { dataType: "text", nullable: true },
+    og_description: { dataType: "text", nullable: true },
+    og_image_path: { dataType: "text", nullable: true },
+    twitter_image_path: { dataType: "text", nullable: true },
+    robots_index: { dataType: "boolean", nullable: false },
+    google_verification: { dataType: "text", nullable: true },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },

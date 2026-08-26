@@ -304,24 +304,45 @@ describe("navigation schema (TEST-703 to TEST-705)", () => {
 });
 
 describe("member RLS (TEST-713 to TEST-716)", () => {
-  it("shows nothing to a member without content.view", async () => {
-    const rows = await db.asUser(cashierA, () => db.query("select * from public.pages"));
-    expect(rows).toEqual([]);
+  // The audit widened what `authenticated` may read: a published page is public
+  // to the whole internet, so hiding it from a signed-in reader was a bug, not
+  // a protection. What these assert now is the sharper line - DRAFTS are what
+  // `content.view` gates, and drafts are what must never cross a tenant.
+
+  it("shows a member without content.view only what is already public", async () => {
+    const rows = await db.asUser(cashierA, () =>
+      db.query<{ status: string }>("select status from public.pages"),
+    );
+    // A cashier has no content.view, so anything they see they see as a member
+    // of the public - never a draft.
+    expect(rows.every((r) => r.status === "published")).toBe(true);
   });
 
-  it("shows the tenant's pages to a member with content.view", async () => {
+  it("shows drafts of their OWN tenant to a member with content.view", async () => {
     const rows = await db.asUser(ownerA, () =>
-      db.query<{ tenant_id: string }>("select tenant_id from public.pages"),
+      db.query<{ tenant_id: string; status: string }>(
+        "select tenant_id, status from public.pages where tenant_id = $1",
+        [tenantA],
+      ),
     );
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows.every((r) => r.tenant_id === tenantA)).toBe(true);
+    expect(rows.some((r) => r.status === "draft")).toBe(true);
   });
 
-  it("never shows another tenant's pages", async () => {
-    const rows = await db.asUser(ownerA, () =>
-      db.query("select * from public.pages where tenant_id = $1", [tenantB]),
+  it("never shows another tenant's DRAFTS, whatever the reader holds here", async () => {
+    await db.query(
+      "insert into public.pages (tenant_id, slug, title, status) values ($1,'draft-de-b','Draft B','draft')",
+      [tenantB],
     );
-    expect(rows).toEqual([]);
+
+    const rows = await db.asUser(ownerA, () =>
+      db.query<{ status: string }>("select status from public.pages where tenant_id = $1", [
+        tenantB,
+      ]),
+    );
+    // Published rows of B are legitimately visible - that is B's website. A
+    // draft of B never is.
+    expect(rows.every((r) => r.status === "published")).toBe(true);
+    expect(rows.some((r) => r.status === "draft")).toBe(false);
   });
 
   it("refuses a write from a member without content.manage", async () => {
@@ -479,5 +500,90 @@ describe("is_tenant_public", () => {
     expect(rows[0]?.prosecdef).toBe(true);
     expect(rows[0]?.proconfig).toContain('search_path=""');
     expect(rows[0]?.acl ?? "").not.toMatch(/(^|,)=/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Findings of the Phase 07 audit
+// ---------------------------------------------------------------------------
+
+describe("audit: the public site works for a SIGNED-IN visitor too", () => {
+  it("shows another tenant's published page to a signed-in stranger", async () => {
+    // The first version granted the public policies to `anon` only. A visitor
+    // with a CloverCode session is `authenticated`, so no policy matched them
+    // and every business's website was invisible in their own browser while
+    // working in a private window.
+    const rows = await db.asUser(ownerA, () =>
+      db.query<{ slug: string }>(
+        "select slug from public.pages where tenant_id = $1 and status = 'published'",
+        [tenantB],
+      ),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it("shows its sections too", async () => {
+    const page = await db.query<{ id: string }>(
+      "select id from public.pages where tenant_id = $1 and status = 'published' limit 1",
+      [tenantB],
+    );
+    await db.query(
+      `insert into public.page_sections (page_id, tenant_id, type, content)
+       values ($1, $2, 'text', '{"paragraphs":["hola"]}'::jsonb)`,
+      [page[0]!.id, tenantB],
+    );
+
+    const rows = await db.asUser(ownerA, () =>
+      db.query("select id from public.page_sections where page_id = $1", [page[0]!.id]),
+    );
+    expect(rows.length).toBeGreaterThan(0);
+  });
+
+  it("still hides another tenant's DRAFT from that same signed-in stranger", async () => {
+    // The fix must widen what is publishable, not what is visible.
+    await db.query(
+      "insert into public.pages (tenant_id, slug, title, status) values ($1,'oculta-b','Oculta','draft')",
+      [tenantB],
+    );
+    const rows = await db.asUser(ownerA, () =>
+      db.query("select slug from public.pages where tenant_id = $1 and slug = 'oculta-b'", [
+        tenantB,
+      ]),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("still hides a suspended tenant's content from a signed-in stranger", async () => {
+    const rows = await db.asUser(ownerA, () =>
+      db.query("select * from public.pages where tenant_id = $1", [suspended]),
+    );
+    expect(rows).toEqual([]);
+  });
+
+  it("grants every public policy to anon AND authenticated", async () => {
+    const rows = await db.query<{ policyname: string; roles: string }>(
+      `select policyname, array_to_string(roles, ',') as roles
+       from pg_policies
+       where schemaname = 'public'
+         and policyname like '%_select_public'`,
+    );
+    /*
+     * Named rather than counted. A bare count told us "there are three", which
+     * a new phase satisfies by adding a fourth and updating the number - the
+     * one moment the rule most needs to be looked at. Listing them means a new
+     * public policy has to be written down here on purpose.
+     */
+    expect(rows.map((r) => r.policyname).sort()).toEqual([
+      "navigation_items_select_public",
+      "page_sections_select_public",
+      "pages_select_public",
+      // Phase 08: what the site looks like, and what it tells search engines.
+      "tenant_seo_select_public",
+      "tenant_themes_select_public",
+    ]);
+    for (const row of rows) {
+      expect(row.roles, row.policyname).toContain("anon");
+      expect(row.roles, row.policyname).toContain("authenticated");
+    }
   });
 });

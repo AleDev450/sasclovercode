@@ -81,7 +81,7 @@ export async function getPublicNavigation(tenantId: string): Promise<PublicNavIt
 
   const { data, error } = await client
     .from("navigation_items")
-    .select("id, label, parent_id, link_type, external_url, position, pages(slug)")
+    .select("id, label, parent_id, link_type, external_url, position, pages(slug, status)")
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .order("position");
@@ -93,10 +93,20 @@ export async function getPublicNavigation(tenantId: string): Promise<PublicNavIt
 
   const rows = data ?? [];
 
+  /**
+   * The target of an entry, or null when it must not be shown.
+   *
+   * The published check is done HERE and not left to the policy. The policy
+   * hides draft-linked entries from `anon`, but a signed-in member reading
+   * their own site matches the MEMBER policy instead, which shows everything -
+   * so without this the public site rendered differently depending on who was
+   * looking, and an owner could not trust it as a preview of what visitors see.
+   */
   const href = (row: (typeof rows)[number]): string | null => {
     if (row.link_type === "external") return row.external_url;
-    const page = row.pages as { slug: string } | null;
-    return page === null ? null : `/sitio/${page.slug}`;
+    const page = row.pages as { slug: string; status: string } | null;
+    if (page === null || page.status !== "published") return null;
+    return `/sitio/${page.slug}`;
   };
 
   const tops = rows.filter((row) => row.parent_id === null);

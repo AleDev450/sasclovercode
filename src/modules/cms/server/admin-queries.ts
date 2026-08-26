@@ -20,6 +20,10 @@ export interface AdminPage {
   readonly status: "draft" | "published";
   readonly sectionCount: number;
   readonly updatedAt: string;
+  /** Phase 08. Null means the page inherits the site-wide value. */
+  readonly seoTitle: string | null;
+  readonly seoDescription: string | null;
+  readonly ogImagePath: string | null;
 }
 
 export interface AdminSection {
@@ -44,7 +48,9 @@ export async function listPages(tenantId: string): Promise<AdminPage[]> {
   const client = await createSupabaseServerClient();
   const { data, error } = await client
     .from("pages")
-    .select("id, slug, title, status, updated_at, page_sections(id)")
+    .select(
+      "id, slug, title, status, updated_at, seo_title, seo_description, og_image_path, page_sections(id)",
+    )
     .eq("tenant_id", tenantId)
     .order("updated_at", { ascending: false });
 
@@ -60,6 +66,9 @@ export async function listPages(tenantId: string): Promise<AdminPage[]> {
     status: row.status,
     sectionCount: (row.page_sections ?? []).length,
     updatedAt: row.updated_at,
+    seoTitle: row.seo_title,
+    seoDescription: row.seo_description,
+    ogImagePath: row.og_image_path,
   }));
 }
 
@@ -71,7 +80,9 @@ export async function getPageWithSections(
   const { data, error } = await client
     .from("pages")
     .select(
-      "id, slug, title, status, updated_at, page_sections(id, type, content, position, is_visible)",
+      // One literal, however long: PostgREST infers the row type from the
+      // string itself, and a concatenation infers nothing.
+      "id, slug, title, status, updated_at, seo_title, seo_description, og_image_path, page_sections(id, type, content, position, is_visible)",
     )
     .eq("tenant_id", tenantId)
     .eq("id", pageId)
@@ -103,6 +114,9 @@ export async function getPageWithSections(
       status: data.status,
       sectionCount: sections.length,
       updatedAt: data.updated_at,
+      seoTitle: data.seo_title,
+      seoDescription: data.seo_description,
+      ogImagePath: data.og_image_path,
     },
     sections,
   };

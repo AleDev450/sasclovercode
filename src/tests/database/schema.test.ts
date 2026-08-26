@@ -71,6 +71,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825170100_create_pages.sql",
       "20260825170200_create_navigation.sql",
       "20260825170300_create_public_read.sql",
+      // Phase 08
+      "20260825180000_create_tenant_seo.sql",
+      "20260825180100_add_page_seo.sql",
+      "20260825180200_create_public_site_reads.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -92,6 +96,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "roles",
       "tenant_domains",
       "tenant_members",
+      "tenant_seo",
       "tenant_settings",
       "tenant_social_links",
       "tenant_themes",

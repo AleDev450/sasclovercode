@@ -138,7 +138,23 @@ describe("TEST-726: nothing in the public site interprets markup", () => {
   const ROOTS = [
     join(process.cwd(), "src", "modules", "cms"),
     join(process.cwd(), "src", "app", "(site)"),
+    // Phase 08 put SEO on the public site, so it falls under the same rule.
+    join(process.cwd(), "src", "modules", "seo"),
   ];
+
+  /*
+   * The single allow-listed file, added in Phase 08 (TEST-824).
+   *
+   * JSON-LD has exactly one delivery mechanism - a `<script>` whose body is
+   * JSON - and React escapes text children, which would make the body invalid
+   * JSON. `dangerouslySetInnerHTML` is genuinely the only way to write it.
+   *
+   * The entry is a NAMED exception rather than a relaxed rule: the guarantee
+   * still holds everywhere else, the escaping in that file is attacked directly
+   * by TEST-821 to TEST-823, and adding a second name here is a decision
+   * somebody has to make on purpose.
+   */
+  const ALLOWED = [join("modules", "seo", "structured-data.tsx")];
 
   async function collectFiles(dir: string): Promise<string[]> {
     const entries = await readdir(dir, { withFileTypes: true });
@@ -176,6 +192,7 @@ describe("TEST-726: nothing in the public site interprets markup", () => {
 
     const offenders: string[] = [];
     for (const file of files) {
+      if (ALLOWED.some((allowed) => file.endsWith(allowed))) continue;
       const code = stripComments(await readFile(file, "utf8"));
       if (/dangerouslySetInnerHTML\s*=/.test(code) || /\.innerHTML\s*=/.test(code)) {
         offenders.push(file);
@@ -183,6 +200,24 @@ describe("TEST-726: nothing in the public site interprets markup", () => {
     }
 
     expect(offenders, "a public CMS file interprets markup").toEqual([]);
+  });
+
+  /*
+   * Guards the allow-list itself.
+   *
+   * An exception nobody can see is an exception that grows. If the allow-listed
+   * file ever stops using the escaping - or stops existing - this fails and
+   * somebody has to look at why the exception is still there.
+   */
+  it("allows exactly one file, and that file escapes what it writes (TEST-824)", async () => {
+    expect(ALLOWED).toHaveLength(1);
+
+    const source = await readFile(
+      join(process.cwd(), "src", "modules", "seo", "structured-data.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("serializeJsonLd");
+    expect(stripComments(source)).toContain("\u003c");
   });
 
   it("would catch a real offender", async () => {

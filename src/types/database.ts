@@ -216,6 +216,10 @@ export type Database = {
           slug: string;
           title: string;
           status: PageStatus;
+          /** Phase 08. Null means "inherit from the site", never "blank". */
+          seo_title: string | null;
+          seo_description: string | null;
+          og_image_path: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -225,6 +229,9 @@ export type Database = {
           slug: string;
           title: string;
           status?: PageStatus;
+          seo_title?: string | null;
+          seo_description?: string | null;
+          og_image_path?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["pages"]["Row"]>;
         Relationships: [
@@ -362,6 +369,26 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["tenant_themes"]["Row"]>;
         Relationships: [];
       };
+      tenant_seo: {
+        Row: {
+          tenant_id: string;
+          site_title: string | null;
+          site_description: string | null;
+          og_title: string | null;
+          og_description: string | null;
+          og_image_path: string | null;
+          twitter_image_path: string | null;
+          robots_index: boolean;
+          google_verification: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string } & Partial<
+          Omit<Database["public"]["Tables"]["tenant_seo"]["Row"], "tenant_id">
+        >;
+        Update: Partial<Database["public"]["Tables"]["tenant_seo"]["Row"]>;
+        Relationships: [];
+      };
       tenant_social_links: {
         Row: {
           id: string;
@@ -495,6 +522,24 @@ export type Database = {
       };
       storage_path_tenant_id: {
         Args: { p_name: string };
+        Returns: string | null;
+      };
+      storage_path_folder: {
+        Args: { p_name: string };
+        Returns: string | null;
+      };
+      get_public_business_identity: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          trade_name: string | null;
+          address_line: string | null;
+          district: string | null;
+          city: string | null;
+          phone: string | null;
+        }[];
+      };
+      get_tenant_primary_domain: {
+        Args: { p_tenant_id: string };
         Returns: string | null;
       };
       is_tenant_public: {

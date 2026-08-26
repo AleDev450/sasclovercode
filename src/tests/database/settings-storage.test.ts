@@ -270,13 +270,30 @@ describe("RLS on settings (TEST-608 to TEST-613)", () => {
     expect(rows[0]?.city).toBeNull();
   });
 
-  it("shows an anonymous caller nothing", async () => {
-    for (const table of ["tenant_settings", "tenant_themes", "tenant_social_links"]) {
+  it("keeps fiscal and contact settings away from an anonymous caller", async () => {
+    for (const table of ["tenant_settings", "tenant_social_links"]) {
       const rows = await db.asRole("anon", () =>
         db.query<{ c: string }>(`select count(*)::text c from public.${table}`),
       );
       expect(Number(rows[0]?.c), table).toBe(0);
     }
+  });
+
+  /*
+   * `tenant_themes` used to be in the list above, and Phase 08 deliberately
+   * took it out.
+   *
+   * The premise changed rather than the guarantee. A theme is the colours,
+   * typography and logo of a public website: every value in the row is visible
+   * in the rendered page, so hiding the row hid nothing while making the site
+   * unable to render itself for a visitor. What still must not be public is the
+   * fiscal identity next door, and that is what the assertion above holds.
+   */
+  it("does show an anonymous caller the theme, which is the site's own appearance", async () => {
+    const rows = await db.asRole("anon", () =>
+      db.query<{ c: string }>("select count(*)::text c from public.tenant_themes"),
+    );
+    expect(Number(rows[0]?.c)).toBeGreaterThan(0);
   });
 });
 
@@ -330,16 +347,28 @@ describe("storage isolation (TEST-614 to TEST-618)", () => {
     expect(rows.length).toBeGreaterThan(0);
   });
 
-  it("does NOT let a member read another tenant's asset (TEST-617)", async () => {
-    await tryUpload(ownerB, `tenants/${tenantB}/branding/logo.png`);
+  /*
+   * TEST-617, restated for Phase 08.
+   *
+   * It used to assert that a member of A sees no object of B at all. That is no
+   * longer the invariant, and it should not be: `branding`, `banners` and
+   * `products` are the files an active business SHOWS on its public website, so
+   * every visitor on the internet can read them - a member of another company
+   * included, and they could already read them by loading the page.
+   *
+   * The isolation that remains, and the one that always mattered, is over the
+   * files that are NOT on a website. `documents` holds invoices and contracts,
+   * and nobody outside the business reads those.
+   */
+  it("does NOT let a member read another tenant's private documents (TEST-617)", async () => {
+    await tryUpload(ownerB, `tenants/${tenantB}/documents/contrato.pdf`);
 
     const rows = await db.asUser(ownerA, () =>
       db.query<{ name: string }>(
         "select name from storage.objects where bucket_id = 'tenant-assets'",
       ),
     );
-    expect(rows.every((r) => r.name.includes(tenantA))).toBe(true);
-    expect(rows.some((r) => r.name.includes(tenantB))).toBe(false);
+    expect(rows.some((r) => r.name.includes("documents"))).toBe(false);
   });
 
   it("cannot be escaped with a traversal segment (AB-604)", async () => {

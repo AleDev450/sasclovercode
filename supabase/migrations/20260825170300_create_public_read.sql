@@ -54,12 +54,24 @@ grant execute on function public.is_tenant_public(uuid) to anon, authenticated;
 -- Anonymous policies
 -- ---------------------------------------------------------------------------
 
--- SELECT only. There is deliberately no anonymous INSERT, UPDATE or DELETE
--- policy anywhere in this migration: a visitor reads a website, and nothing
--- else.
+-- SELECT only. There is deliberately no public INSERT, UPDATE or DELETE policy
+-- anywhere in this migration: a visitor reads a website, and nothing else.
+--
+-- Granted to `anon` AND `authenticated`.
+--
+-- The first version granted only `anon`, and that was a real bug: a visitor who
+-- happens to be signed in to CloverCode is `authenticated`, not `anon`. Neither
+-- policy matched them - the member policy needs `content.view` in that tenant,
+-- which a stranger does not have - so every business's public website was
+-- invisible to anyone with a session. It worked in a private window and not in
+-- your own browser, which is the worst way for a bug to present.
+--
+-- The fix is also the more correct model: "publishable" is a property of the
+-- ROW, not of who is reading it. These rows are readable by the whole internet
+-- anonymously, so granting the same to a signed-in reader adds no exposure.
 
 create policy pages_select_public
-  on public.pages for select to anon
+  on public.pages for select to anon, authenticated
   using (
     status = 'published'
     and public.is_tenant_public(tenant_id)
@@ -69,7 +81,7 @@ create policy pages_select_public
 -- section's `is_visible` would publish the sections of a draft page to anyone
 -- who asked for them directly.
 create policy page_sections_select_public
-  on public.page_sections for select to anon
+  on public.page_sections for select to anon, authenticated
   using (
     is_visible
     and public.is_tenant_public(tenant_id)
@@ -86,7 +98,7 @@ create policy page_sections_select_public
 -- navbar would advertise a draft: the link would 404, but its LABEL would leak
 -- what the business is about to launch.
 create policy navigation_items_select_public
-  on public.navigation_items for select to anon
+  on public.navigation_items for select to anon, authenticated
   using (
     is_active
     and public.is_tenant_public(tenant_id)

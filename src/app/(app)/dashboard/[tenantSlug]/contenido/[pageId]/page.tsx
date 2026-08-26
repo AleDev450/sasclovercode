@@ -15,6 +15,7 @@ import { requireActiveTenant } from "@/lib/tenant/active";
 import { DeleteSectionForm, SectionEditor } from "@/modules/cms/components/section-editor";
 import { getPageWithSections } from "@/modules/cms/server/admin-queries";
 import { SECTION_LABELS } from "@/modules/cms/sections";
+import { PageSeoForm } from "@/modules/seo/components/page-seo-form";
 
 export const metadata = { title: "Editor de pagina" };
 
@@ -74,6 +75,26 @@ export default async function PageEditorPage({
           ))}
         </ul>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">SEO de esta pagina</CardTitle>
+          <CardDescription>
+            Opcional. Lo que dejes vacio se hereda del SEO del sitio.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PageSeoForm
+            tenantSlug={tenant.slug}
+            page={{
+              id: page.id,
+              seoTitle: page.seoTitle,
+              seoDescription: page.seoDescription,
+              ogImagePath: page.ogImagePath,
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

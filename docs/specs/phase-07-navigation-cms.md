@@ -6,9 +6,9 @@
 Phase:                07
 Nombre:               Navigation + CMS
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.2.0
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-25 (auditoría de fase, §26)
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -656,7 +656,9 @@ _etiqueta_ filtraría lo que el negocio está a punto de lanzar.
 ```text
 KL-701  El editor de secciones es JSON. Funciona y valida, pero no es una
         interfaz que se le pueda dar a un dueño de restaurante sin explicar.
-        Owner: Fase 08.
+        Owner: SIN ASIGNAR. Se apuntó a la Fase 08 al cerrar esta fase, pero
+        la Fase 08 es SEO + Metadata (§33) y un editor visual no es SEO.
+        Reasignado en lugar de darse por hecho.
 
 KL-702  No hay reordenar arrastrando: el orden es un número. Suficiente y
         aburrido, que para esto es una virtud.
@@ -664,19 +666,28 @@ KL-702  No hay reordenar arrastrando: el orden es un número. Suficiente y
 KL-703  La sección `products` renderiza un envoltorio vacío hasta la Fase 11.
 
 KL-704  No se pueden subir imágenes desde el CMS: hay que usar la pantalla de
-        la Fase 06 y pegar la ruta. Owner: Fase 08.
+        la Fase 06 y pegar la ruta. Owner: SIN ASIGNAR, por el mismo motivo
+        que KL-701. Los formularios de SEO de la Fase 08 heredan la misma
+        limitación: se pega la ruta del archivo.
 
-KL-705  El proxy corre sobre `/sitio`, así que cada visita anónima hace una
-        llamada a Supabase Auth que siempre dará "sin sesión". Es coste puro
-        para el tráfico público. Owner: revisar el matcher en la Fase 26.
+KL-705  RESUELTO en la auditoría de la fase (§26, A7-3): `/sitio` se excluyó
+        del matcher del proxy.
 
 KL-706  Sin caché de la web pública: publicar se ve de inmediato, a cambio de
         una consulta por visita. Medir antes de cachear (§26).
 
 KL-707  El footer no es administrable todavía; reutilizará navigation_items.
 
-KL-708  El sitio público no aplica aún el tema de la Fase 06: usa los tokens
-        por defecto. Owner: Fase 08.
+KL-708  CERRADA por la Fase 08: el tema viaja como variables CSS en el
+        atributo `style` del contenedor del sitio, nunca como hoja generada.
+
+KL-710  DEFECTO ENCONTRADO EN LA FASE 08, no en esta. `signAssetPaths` firma
+        como el visitante, que es anónimo, y `storage.objects` solo tenía
+        política de lectura para miembros: ninguna imagen de ninguna web
+        pública se veía para quien no estuviera logueado. Corregido en
+        `20260825180200_create_public_site_reads.sql`. Anotado aquí porque
+        el fallo nació en esta fase y la auditoría de esta fase no lo vio:
+        se probó el renderizado, no la firma.
 
 KL-709  Los cambios de esta fase están sin commitear.
 ```
@@ -696,4 +707,109 @@ KL-709  Los cambios de esta fase están sin commitear.
   renderizador traduce a JSX.
 - Fase 09 conecta dominios propios; el renderizador ya funciona con ellos
   porque el resolver de la Fase 01 no distingue.
+```
+
+---
+
+## 26. Auditoría de la fase
+
+Tres hallazgos. El primero rompía la web pública para una parte enorme de sus
+visitantes, y ninguna de las 43 pruebas que escribí lo detectó.
+
+### A7-1 — La web pública era invisible para cualquiera con sesión (corregido)
+
+Las políticas públicas se concedieron `to anon`. Un visitante que **tiene sesión
+en CloverCode** es `authenticated`, no `anon`, así que:
+
+```text
+pages_select_member  -> exige content.view en ESE tenant, que un extraño no tiene
+pages_select_public  -> to anon, no aplica a authenticated
+```
+
+Sonda:
+
+```text
+usuario logueado ve paginas publicas de OTRO tenant: 0   (esperado >= 1)
+el mismo contenido como anonimo:                     1
+```
+
+Es decir: **la web pública de todos los negocios funcionaba en una ventana
+privada y no en el navegador de siempre.** Es la peor forma que tiene un fallo de
+presentarse, porque quien lo reporta parece estar equivocado.
+
+Por qué no lo vieron mis tests: los escribí preguntando «¿puede el anónimo ver
+esto?» y «¿puede el miembro ver aquello?». Nunca pregunté por el tercer actor —
+alguien con sesión que **no es miembro de ese tenant**— porque no lo había
+modelado como un actor. Es exactamente el hueco que una auditoría existe para
+encontrar.
+
+La corrección es también el modelo más correcto: **«publicable» es propiedad de
+la FILA, no de quien lee**. Esas filas las puede leer internet entero de forma
+anónima, así que concedérselas a un lector con sesión no añade exposición
+ninguna. Las tres políticas son ahora `to anon, authenticated`.
+
+### A7-2 — La web se veía distinta según quién mirara (corregido)
+
+Un owner en su propia web veía entradas de navbar apuntando a **borradores**
+(«Proximamente»), porque su política de miembro se las mostraba y
+`getPublicNavigation` confiaba en que la política anónima las filtrara.
+
+Un owner no podía usar su propio sitio como vista previa de lo que ven sus
+clientes, que es justo para lo que lo va a usar.
+
+Corregido filtrando por `status = 'published'` **en la consulta**, no delegando
+en qué política resultó coincidir. La mitad de la garantía que le toca a la
+aplicación no debe depender de la mitad que le toca a la base de datos.
+
+### A7-3 — KL-705 era un defecto, no una limitación (corregido)
+
+Lo había documentado como coste aceptable. Al revisarlo, el mismo razonamiento
+que escribí para excluir `/api/health` del proxy aplica con **más** fuerza a la
+web pública:
+
+```text
+/api/health   una llamada a Auth haría que una caída de Auth reporte la app caída
+/sitio        una llamada a Auth acopla la web de CADA negocio a la
+              disponibilidad del servicio de autenticación
+```
+
+Una caída de Auth no debería tumbar la carta de un restaurante. Y es la
+superficie con más tráfico del producto, servida a visitantes que no tienen
+sesión ni la necesitan.
+
+Excluido del matcher. No se pierde nada: `/sitio` ya era prefijo público, así
+que la rama de protección decidía «no requiere sesión» de todos modos, y el
+refresco de sesión no lo necesita una página que no usa la sesión.
+
+Se añadió `proxy-matcher.test.ts`: **un regex que nadie prueba es un regex que
+deja de excluir lo que se escribió para excluir**. Incluye un caso que verifica
+que la exclusión no es más ancha de lo previsto (`/dashboard/x/sitios` sigue
+protegido).
+
+### Tests preexistentes actualizados
+
+Tres aserciones de la fase decían «un miembro sin permiso no ve nada» y «un
+miembro nunca ve páginas de otro tenant». Con A7-1 corregido eso dejó de ser
+cierto **a propósito**: una página publicada es pública. Se reescribieron para
+expresar la línea más afilada, que es más fuerte que la anterior:
+
+```text
+antes  "no ve nada"                  -> ahora "solo ve lo ya publicado, nunca un borrador"
+antes  "nunca ve otro tenant"        -> ahora "ve la WEB de otro tenant, jamas sus borradores"
+```
+
+### Revisado sin hallazgos
+
+```text
+- Ninguna política pública de escritura, para ningún rol.
+- Borradores, tenants suspendidos y archivados siguen ocultos, también al
+  lector con sesión.
+- La jerarquía sigue rechazando ciclos, profundidad 3 y padres de otro tenant.
+- TEST-726 sigue verde: nada en el CMS ni en el sitio interpreta marcado.
+```
+
+### Resultado
+
+```text
+Format PASS · Lint PASS · Types PASS · Tests 728/728 · Build PASS
 ```

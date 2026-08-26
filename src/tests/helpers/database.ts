@@ -117,13 +117,20 @@ const SUPABASE_AUTH_SCHEMA_SQL = `
 
   alter table storage.objects enable row level security;
 
-  -- Splits an object path into its segments, as the real service does.
+  -- The DIRECTORY segments of an object path.
+  --
+  -- Faithful to the real implementation, which splits on "/" and then drops the
+  -- last element - the file name. The first version of this shim kept every
+  -- segment, so a path was one element longer here than in production and any
+  -- policy indexing into the array would have been tested against the wrong
+  -- position. Nothing depended on it until Phase 08 read the folder out of
+  -- element 3, which is exactly the kind of thing a shim must not get wrong.
   create function storage.foldername(name text)
   returns text[]
   language sql
   immutable
   as $$
-    select string_to_array(name, '/');
+    select (string_to_array(name, '/'))[1:array_length(string_to_array(name, '/'), 1) - 1];
   $$;
 
   grant select, insert, update, delete on storage.objects to anon, authenticated;

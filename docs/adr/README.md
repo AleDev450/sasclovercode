@@ -19,6 +19,7 @@ Status.
 | 009 | [Profiles and membership](./009-profiles-and-membership.md)                  | ACCEPTED | 02    |
 | 010 | [RBAC authorization](./010-rbac-authorization.md)                            | ACCEPTED | 03    |
 | 011 | [Platform identity](./011-platform-identity.md)                              | ACCEPTED | 04    |
+| 012 | [Structured data and public reads](./012-structured-data-and-public-reads.md) | ACCEPTED | 08    |
 
 ## Planned
 

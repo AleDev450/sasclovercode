@@ -96,7 +96,20 @@ export const config = {
      * make every probe call Supabase Auth, so an auth outage would report the
      * application as down when it is serving perfectly well. Dependency health
      * is a separate signal, and it belongs to Phase 24.
+     *
+     * `/sitio` is excluded for the same reason, and it matters more. It is the
+     * tenant public website: the highest-traffic surface of the product, served
+     * to visitors who have no session and need none. Running it through here
+     * would add a Supabase Auth round trip to every page view, and - worse -
+     * would couple every business's marketing site to the availability of the
+     * auth service. An auth outage should not take down a restaurant's menu.
+     *
+     * Nothing is lost by skipping it: `/sitio` is a public prefix, so the
+     * protection branch would decide "no session required" anyway, and the
+     * session refresh it would perform is not needed by a page that uses no
+     * session. A signed-in visitor still sees the site, because the public
+     * policies now grant `authenticated` as well as `anon`.
      */
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/health|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff|woff2|ttf)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|api/health|sitio|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|avif|woff|woff2|ttf)$).*)",
   ],
 };
