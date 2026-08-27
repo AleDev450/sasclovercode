@@ -51,6 +51,22 @@ export interface OrderHistoryEntry {
   readonly createdAt: string;
 }
 
+/**
+ * A payment applied to the order (Phase 14). Read-only here: recording and
+ * voiding go through `@/modules/payments`, which owns every write to this
+ * table. This is only the shape the order detail screen shows alongside its
+ * lines and its history.
+ */
+export interface OrderPayment {
+  readonly id: string;
+  readonly methodName: string;
+  readonly amountCents: number;
+  readonly reference: string | null;
+  readonly voidedAt: string | null;
+  readonly voidReason: string | null;
+  readonly createdAt: string;
+}
+
 export interface OrderDetail extends OrderSummary {
   readonly locationId: string;
   readonly customerId: string | null;
@@ -63,6 +79,11 @@ export interface OrderDetail extends OrderSummary {
   readonly completedAt: string | null;
   readonly lines: readonly OrderLine[];
   readonly history: readonly OrderHistoryEntry[];
+  /** Sum of non-voided payments (`orders.paid_cents`, Phase 14). */
+  readonly paidCents: number;
+  /** `totalCents - paidCents`. Never negative: the database enforces the cap. */
+  readonly balanceCents: number;
+  readonly payments: readonly OrderPayment[];
 }
 
 export interface OrderPage {
@@ -156,11 +177,13 @@ export async function getOrderDetail(
     .from("orders")
     .select(
       `${ORDER_COLUMNS}, notes, subtotal_cents, discount_cents, tax_cents, shipping_cents,
-       cancel_reason, completed_at,
+       cancel_reason, completed_at, paid_cents,
        locations(name), customers(name),
        order_items(id, name_snapshot, variant_snapshot, unit_price_cents, quantity,
                    discount_cents, tax_cents, total_cents, notes, position),
-       order_status_history(id, from_status, to_status, reason, created_at)`,
+       order_status_history(id, from_status, to_status, reason, created_at),
+       payments(id, amount_cents, reference, voided_at, void_reason, created_at,
+                payment_methods(name))`,
     )
     .eq("tenant_id", tenantId)
     .eq("id", orderId)
@@ -182,6 +205,16 @@ export async function getOrderDetail(
     shipping_cents: number;
     cancel_reason: string | null;
     completed_at: string | null;
+    paid_cents: number;
+    payments: readonly {
+      id: string;
+      amount_cents: number;
+      reference: string | null;
+      voided_at: string | null;
+      void_reason: string | null;
+      created_at: string;
+      payment_methods: { name: string } | null;
+    }[];
     order_items: readonly {
       id: string;
       name_snapshot: string;
@@ -214,6 +247,21 @@ export async function getOrderDetail(
     shippingCents: row.shipping_cents,
     cancelReason: row.cancel_reason,
     completedAt: row.completed_at,
+    paidCents: row.paid_cents,
+    // Never negative: the database's own CHECK (orders_paid_within_total)
+    // guarantees paid_cents <= total_cents.
+    balanceCents: row.total_cents - row.paid_cents,
+    payments: (row.payments ?? [])
+      .map((payment) => ({
+        id: payment.id,
+        methodName: payment.payment_methods?.name ?? "—",
+        amountCents: payment.amount_cents,
+        reference: payment.reference,
+        voidedAt: payment.voided_at,
+        voidReason: payment.void_reason,
+        createdAt: payment.created_at,
+      }))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
     lines: (row.order_items ?? [])
       .map((line) => ({
         id: line.id,

@@ -45,6 +45,10 @@ export type OrderStatus =
   "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
 export type OrderSource = "web" | "pos" | "manual" | "whatsapp" | "delivery";
 
+/** Master section 14 (Phase 14). */
+export type PaymentMethodType = "cash" | "yape" | "plin" | "card" | "transfer" | "other";
+export type CashMovementType = "sale" | "payout" | "deposit" | "adjustment";
+
 export type Database = {
   public: {
     Tables: {
@@ -716,6 +720,8 @@ export type Database = {
           tax_cents: number;
           shipping_cents: number;
           total_cents: number;
+          /** Sum of non-voided payments (Phase 14). Computed by trigger; never sent by a client. */
+          paid_cents: number;
           placed_at: string;
           completed_at: string | null;
           cancelled_at: string | null;
@@ -841,6 +847,199 @@ export type Database = {
         Insert: never;
         Update: never;
         Relationships: [];
+      };
+      payment_methods: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          type: PaymentMethodType;
+          name: string;
+          reference: string | null;
+          is_active: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          type: PaymentMethodType;
+          name: string;
+          reference?: string | null;
+          is_active?: boolean;
+          position?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["payment_methods"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "payment_methods_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cash_registers: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          location_id: string;
+          name: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          location_id: string;
+          name: string;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["cash_registers"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "cash_registers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cash_registers_location_id_fkey";
+            columns: ["location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cash_sessions: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the register; never trusted from a client. */
+          tenant_id: string;
+          cash_register_id: string;
+          opened_by: string | null;
+          closed_by: string | null;
+          opening_cents: number;
+          /** NULL until the session closes, together with the next two columns. */
+          closing_cents: number | null;
+          /** Computed by trigger at close: opening + the session's ledger. */
+          expected_cents: number | null;
+          difference_cents: number | null;
+          notes: string | null;
+          opened_at: string;
+          closed_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          cash_register_id: string;
+          opened_by?: string | null;
+          opening_cents?: number;
+          notes?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["cash_sessions"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "cash_sessions_register_id_fkey";
+            columns: ["cash_register_id"];
+            referencedRelation: "cash_registers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payments: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the order; never trusted from a client. */
+          tenant_id: string;
+          order_id: string;
+          payment_method_id: string;
+          /** NOT NULL only for a `cash` payment, and must be an open session. */
+          cash_session_id: string | null;
+          amount_cents: number;
+          reference: string | null;
+          notes: string | null;
+          voided_at: string | null;
+          void_reason: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          order_id: string;
+          payment_method_id: string;
+          cash_session_id?: string | null;
+          amount_cents: number;
+          reference?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["payments"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_payment_method_id_fkey";
+            columns: ["payment_method_id"];
+            referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_cash_session_id_fkey";
+            columns: ["cash_session_id"];
+            referencedRelation: "cash_sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      cash_movements: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the session; never trusted from a client. */
+          tenant_id: string;
+          cash_session_id: string;
+          type: CashMovementType;
+          /** Signed: cash in is positive, cash out is negative. */
+          amount_cents: number;
+          /** Set for `sale` and a void's compensating `adjustment`; null for a manual entry. */
+          payment_id: string | null;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          cash_session_id: string;
+          type: CashMovementType;
+          amount_cents: number;
+          payment_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_session_id_fkey";
+            columns: ["cash_session_id"];
+            referencedRelation: "cash_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cash_movements_payment_id_fkey";
+            columns: ["payment_id"];
+            referencedRelation: "payments";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       tenant_social_links: {
         Row: {
@@ -1067,6 +1266,8 @@ export type Database = {
       customer_doc_type: CustomerDocType;
       order_status: OrderStatus;
       order_source: OrderSource;
+      payment_method_type: PaymentMethodType;
+      cash_movement_type: CashMovementType;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

@@ -26,6 +26,15 @@ export const PERMISSIONS = {
 
   CASH_OPEN: "cash.open",
   CASH_CLOSE: "cash.close",
+  CASH_VIEW: "cash.view",
+  CASH_MANAGE: "cash.manage",
+
+  PAYMENTS_VIEW: "payments.view",
+  PAYMENTS_CREATE: "payments.create",
+  PAYMENTS_VOID: "payments.void",
+
+  PAYMENT_METHODS_VIEW: "payment_methods.view",
+  PAYMENT_METHODS_MANAGE: "payment_methods.manage",
 
   BILLING_VIEW: "billing.view",
   BILLING_CREATE: "billing.create",

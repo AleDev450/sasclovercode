@@ -34,6 +34,11 @@ type CustomerAddressRow = Database["public"]["Tables"]["customer_addresses"]["Ro
 type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
 type OrderItemRow = Database["public"]["Tables"]["order_items"]["Row"];
 type OrderStatusHistoryRow = Database["public"]["Tables"]["order_status_history"]["Row"];
+type PaymentMethodRow = Database["public"]["Tables"]["payment_methods"]["Row"];
+type CashRegisterRow = Database["public"]["Tables"]["cash_registers"]["Row"];
+type CashSessionRow = Database["public"]["Tables"]["cash_sessions"]["Row"];
+type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
+type CashMovementRow = Database["public"]["Tables"]["cash_movements"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -119,6 +124,7 @@ export type _OrderKeys = Expect<
     | "tax_cents"
     | "shipping_cents"
     | "total_cents"
+    | "paid_cents"
     | "placed_at"
     | "completed_at"
     | "cancelled_at"
@@ -161,6 +167,79 @@ export type _OrderStatusHistoryKeys = Expect<
     | "to_status"
     | "reason"
     | "changed_by"
+    | "created_at"
+  >
+>;
+
+export type _PaymentMethodKeys = Expect<
+  Equal<
+    keyof PaymentMethodRow,
+    "id" | "tenant_id" | "type" | "name" | "reference" | "is_active" | "position"
+    | "created_at" | "updated_at"
+  >
+>;
+
+export type _CashRegisterKeys = Expect<
+  Equal<
+    keyof CashRegisterRow,
+    "id" | "tenant_id" | "location_id" | "name" | "is_active" | "created_at" | "updated_at"
+  >
+>;
+
+export type _CashSessionKeys = Expect<
+  Equal<
+    keyof CashSessionRow,
+    | "id"
+    | "tenant_id"
+    | "cash_register_id"
+    | "opened_by"
+    | "closed_by"
+    | "opening_cents"
+    | "closing_cents"
+    | "expected_cents"
+    | "difference_cents"
+    | "notes"
+    | "opened_at"
+    | "closed_at"
+    | "updated_at"
+  >
+>;
+
+/*
+ * ADR-018: voiding is a nullable pair, not a status enum - a payment has one
+ * possible edge, unlike Phase 13's eight-edge order lifecycle. Losing either
+ * column would not fail anywhere else, so it is asserted as a presence.
+ */
+export type _PaymentKeys = Expect<
+  Equal<
+    keyof PaymentRow,
+    | "id"
+    | "tenant_id"
+    | "order_id"
+    | "payment_method_id"
+    | "cash_session_id"
+    | "amount_cents"
+    | "reference"
+    | "notes"
+    | "voided_at"
+    | "void_reason"
+    | "created_by"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _CashMovementKeys = Expect<
+  Equal<
+    keyof CashMovementRow,
+    | "id"
+    | "tenant_id"
+    | "cash_session_id"
+    | "type"
+    | "amount_cents"
+    | "payment_id"
+    | "reason"
+    | "created_by"
     | "created_at"
   >
 >;
@@ -250,6 +329,7 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     tax_cents: { dataType: "bigint", nullable: false },
     shipping_cents: { dataType: "bigint", nullable: false },
     total_cents: { dataType: "bigint", nullable: false },
+    paid_cents: { dataType: "bigint", nullable: false },
     placed_at: { dataType: "timestamp with time zone", nullable: false },
     completed_at: { dataType: "timestamp with time zone", nullable: true },
     cancelled_at: { dataType: "timestamp with time zone", nullable: true },
@@ -289,6 +369,67 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
   order_transitions: {
     from_status: { dataType: "USER-DEFINED", nullable: false },
     to_status: { dataType: "USER-DEFINED", nullable: false },
+  },
+  payment_methods: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    type: { dataType: "USER-DEFINED", nullable: false },
+    name: { dataType: "text", nullable: false },
+    reference: { dataType: "text", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    position: { dataType: "smallint", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  cash_registers: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    location_id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  cash_sessions: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    cash_register_id: { dataType: "uuid", nullable: false },
+    opened_by: { dataType: "uuid", nullable: true },
+    closed_by: { dataType: "uuid", nullable: true },
+    opening_cents: { dataType: "bigint", nullable: false },
+    closing_cents: { dataType: "bigint", nullable: true },
+    expected_cents: { dataType: "bigint", nullable: true },
+    difference_cents: { dataType: "bigint", nullable: true },
+    notes: { dataType: "text", nullable: true },
+    opened_at: { dataType: "timestamp with time zone", nullable: false },
+    closed_at: { dataType: "timestamp with time zone", nullable: true },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  payments: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    order_id: { dataType: "uuid", nullable: false },
+    payment_method_id: { dataType: "uuid", nullable: false },
+    cash_session_id: { dataType: "uuid", nullable: true },
+    amount_cents: { dataType: "bigint", nullable: false },
+    reference: { dataType: "text", nullable: true },
+    notes: { dataType: "text", nullable: true },
+    voided_at: { dataType: "timestamp with time zone", nullable: true },
+    void_reason: { dataType: "text", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  cash_movements: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    cash_session_id: { dataType: "uuid", nullable: false },
+    type: { dataType: "USER-DEFINED", nullable: false },
+    amount_cents: { dataType: "bigint", nullable: false },
+    payment_id: { dataType: "uuid", nullable: true },
+    reason: { dataType: "text", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
   },
   customers: {
     id: { dataType: "uuid", nullable: false },

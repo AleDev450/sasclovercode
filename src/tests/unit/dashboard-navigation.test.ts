@@ -74,6 +74,43 @@ describe("the customers entry (TEST-1209)", () => {
   });
 });
 
+describe("the cash entry (Phase 14)", () => {
+  const withCash = new Set<Permission>([PERMISSIONS.CASH_VIEW]);
+
+  it("appears for a holder of cash.view", () => {
+    expect(visibleNavItems(withCash).map((i) => i.key)).toContain("cash");
+  });
+
+  it("is hidden without it", () => {
+    expect(visibleNavItems(none).map((i) => i.key)).not.toContain("cash");
+  });
+
+  it("points at /caja", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "cash")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/caja");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/caja/abc")).toBe("cash");
+  });
+});
+
+describe("the payment methods entry (Phase 14)", () => {
+  const withMethods = new Set<Permission>([PERMISSIONS.PAYMENT_METHODS_VIEW]);
+
+  it("appears for a holder of payment_methods.view, independent of settings.manage", () => {
+    // Same posture as domains (Phase 09): admin holds payment_methods.manage
+    // but not settings.manage, so this must not depend on the settings entry.
+    expect(visibleNavItems(withMethods).map((i) => i.key)).toContain("payment-methods");
+    expect(visibleNavItems(withMethods).map((i) => i.key)).not.toContain("settings");
+  });
+
+  it("points at /configuracion/pagos, distinct from /configuracion", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "payment-methods")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/configuracion/pagos");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/configuracion/pagos")).toBe(
+      "payment-methods",
+    );
+  });
+});
+
 describe("navItemHref", () => {
   it("builds a tenant-scoped path", () => {
     const home = NAV_ITEMS.find((i) => i.key === "home")!;

@@ -25,6 +25,7 @@ Status.
 | 015 | [Money as integers in the minor unit](./015-money-as-minor-units.md)           | ACCEPTED | 11    |
 | 016 | [Personal data minimization](./016-personal-data-minimization.md)              | ACCEPTED | 12    |
 | 017 | [Order snapshots and state machine](./017-order-snapshot-and-state-machine.md) | ACCEPTED | 13    |
+| 018 | [Payment voiding and the cash ledger](./018-payment-void-and-cash-ledger.md)   | ACCEPTED | 14    |
 
 ## Planned
 

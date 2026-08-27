@@ -11,6 +11,9 @@ import {
 } from "@/modules/orders/components/order-status-actions";
 import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS } from "@/modules/orders/lifecycle";
 import { getOrderDetail } from "@/modules/orders/server/queries";
+import { PaymentBalance, PaymentsList } from "@/modules/payments/components/payments-list";
+import { RecordPaymentForm } from "@/modules/payments/components/record-payment-form";
+import { listOpenSessionsForLocation, listPaymentMethods } from "@/modules/payments/server/queries";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
 
 export const metadata = { title: "Pedido" };
@@ -27,17 +30,28 @@ export default async function OrderDetailPage({
     notFound();
   }
 
-  const [order, settings, canUpdate, canCancel] = await Promise.all([
-    getOrderDetail(tenant.id, orderId),
-    getBusinessSettings(tenant.id),
-    hasPermission(tenant.id, PERMISSIONS.ORDERS_UPDATE),
-    hasPermission(tenant.id, PERMISSIONS.ORDERS_CANCEL),
-  ]);
+  const [order, settings, canUpdate, canCancel, canViewPayments, canCreatePayment, canVoidPayment] =
+    await Promise.all([
+      getOrderDetail(tenant.id, orderId),
+      getBusinessSettings(tenant.id),
+      hasPermission(tenant.id, PERMISSIONS.ORDERS_UPDATE),
+      hasPermission(tenant.id, PERMISSIONS.ORDERS_CANCEL),
+      hasPermission(tenant.id, PERMISSIONS.PAYMENTS_VIEW),
+      hasPermission(tenant.id, PERMISSIONS.PAYMENTS_CREATE),
+      hasPermission(tenant.id, PERMISSIONS.PAYMENTS_VOID),
+    ]);
 
   // An order that does not exist and one belonging to another business give the
   // same answer, for the reason Phase 12 gave: telling them apart lets someone
   // discover which ids exist elsewhere.
   if (order === null) notFound();
+
+  const [methods, openSessions] = canCreatePayment
+    ? await Promise.all([
+        listPaymentMethods(tenant.id, { activeOnly: true }),
+        listOpenSessionsForLocation(tenant.id, order.locationId),
+      ])
+    : [[], []];
 
   const money = (cents: number): string => formatCurrency(cents, settings.currency);
 
@@ -144,6 +158,38 @@ export default async function OrderDetailPage({
           </table>
         </CardContent>
       </Card>
+
+      {canViewPayments ? (
+        <Card>
+          <CardHeader>
+            <CardTitle as="h2">Pagos</CardTitle>
+            <PaymentBalance
+              totalCents={order.totalCents}
+              paidCents={order.paidCents}
+              balanceCents={order.balanceCents}
+              currency={settings.currency}
+            />
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            <PaymentsList
+              tenantSlug={tenant.slug}
+              orderId={order.id}
+              payments={order.payments}
+              currency={settings.currency}
+              canVoid={canVoidPayment}
+            />
+            {canCreatePayment && order.status !== "cancelled" && order.balanceCents > 0 ? (
+              <RecordPaymentForm
+                tenantSlug={tenant.slug}
+                orderId={order.id}
+                balanceCents={order.balanceCents}
+                methods={methods}
+                openSessions={openSessions}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {canUpdate || canCancel ? (
         <div className="grid gap-6 sm:grid-cols-2">

@@ -100,6 +100,13 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260827130100_create_orders.sql",
       "20260827130200_create_order_items.sql",
       "20260827130300_create_order_status_history.sql",
+      // Phase 14
+      "20260827140000_create_payment_permissions.sql",
+      "20260827140100_create_payment_methods.sql",
+      "20260827140200_create_cash_registers.sql",
+      "20260827140300_create_cash_sessions.sql",
+      "20260827140400_create_payments_and_movements.sql",
+      "20260827140500_extend_orders_paid_cents.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -111,6 +118,9 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.map((t) => t.tablename)).toEqual([
+      "cash_movements",
+      "cash_registers",
+      "cash_sessions",
       "categories",
       "customer_addresses",
       "customers",
@@ -123,6 +133,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "orders",
       "page_sections",
       "pages",
+      "payment_methods",
+      "payments",
       "permissions",
       "platform_admins",
       "product_images",
@@ -147,6 +159,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
        where n.nspname = 'public' and t.typtype = 'e' order by t.typname`,
     );
     expect(enums.map((e) => e.typname)).toEqual([
+      "cash_movement_type",
       "customer_doc_type",
       "domain_provider_status",
       "domain_verification_status",
@@ -155,6 +168,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "order_source",
       "order_status",
       "page_status",
+      "payment_method_type",
       "platform_admin_status",
       "product_status",
       "section_type",

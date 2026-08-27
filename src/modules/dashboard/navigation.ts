@@ -64,6 +64,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.CUSTOMERS_VIEW,
   },
   {
+    key: "cash",
+    label: "Caja",
+    segment: "/caja",
+    permission: PERMISSIONS.CASH_VIEW,
+  },
+  {
     key: "locations",
     label: "Sedes",
     segment: "/sedes",
@@ -73,13 +79,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
    * Its own entry rather than a link inside Configuracion, because the two are
    * not reachable by the same people: `admin` holds every permission except
    * `settings.manage`, so an admin can manage domains and cannot open the
-   * settings page that would have held the link.
+   * settings page that would have held the link. Payment methods are the same
+   * shape (Phase 14): `payment_methods.manage` is granted to admin too.
    */
   {
     key: "domains",
     label: "Dominios",
     segment: "/configuracion/dominios",
     permission: PERMISSIONS.DOMAINS_VIEW,
+  },
+  {
+    key: "payment-methods",
+    label: "Metodos de pago",
+    segment: "/configuracion/pagos",
+    permission: PERMISSIONS.PAYMENT_METHODS_VIEW,
   },
   {
     key: "settings",
