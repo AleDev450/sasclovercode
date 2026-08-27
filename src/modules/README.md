@@ -9,21 +9,30 @@ phase must follow so the structure stays uniform.
 
 ## Modules and owning phase
 
-| Module      | Phase | Status                                                                                                                                 |
-| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `tenants`   | 01    | Not created. Phase 01 delivered `src/lib/tenant` only, with no UI or actions to own.                                                   |
-| `auth`      | 02    | Created.                                                                                                                               |
-| `users`     | 04    | Planned. Profile and membership management is Phase 04, not Phase 02: this phase gives a user a session, it does not administer users. |
-| `roles`     | 03    | Planned.                                                                                                                               |
-| `website`   | 07    | Planned.                                                                                                                               |
-| `locations` | 10    | Planned.                                                                                                                               |
-| `catalog`   | 11    | Planned.                                                                                                                               |
-| `customers` | 12    | Planned.                                                                                                                               |
-| `orders`    | 13    | Planned.                                                                                                                               |
-| `pos`       | 15    | Planned.                                                                                                                               |
-| `billing`   | 17    | Planned.                                                                                                                               |
-| `inventory` | 18    | Planned.                                                                                                                               |
-| `reports`   | 23    | Planned.                                                                                                                               |
+| Module      | Phase | Status                                                                                                                             |
+| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `tenants`   | 01    | Not created. Phase 01 delivered `src/lib/tenant` only, with no UI or actions to own.                                               |
+| `auth`      | 02    | Created.                                                                                                                           |
+| `roles`     | 03    | Not created. Phase 03 delivered `src/lib/permissions` and the SQL catalogue; the UI that administers roles is part of `dashboard`. |
+| `platform`  | 04    | Created. Named for what it governs — the platform — rather than `users`, which Phase 04 turned out not to be about.                |
+| `dashboard` | 05    | Created.                                                                                                                           |
+| `settings`  | 06    | Created.                                                                                                                           |
+| `cms`       | 07    | Created. Planned as `website`; the name follows what it does — pages, sections and navigation.                                     |
+| `seo`       | 08    | Created.                                                                                                                           |
+| `domains`   | 09    | Created.                                                                                                                           |
+| `locations` | 10    | Created.                                                                                                                           |
+| `catalog`   | 11    | Created.                                                                                                                           |
+| `customers` | 12    | Created.                                                                                                                           |
+| `orders`    | 13    | Planned.                                                                                                                           |
+| `pos`       | 15    | Planned.                                                                                                                           |
+| `billing`   | 17    | Planned.                                                                                                                           |
+| `inventory` | 18    | Planned.                                                                                                                           |
+| `reports`   | 23    | Planned.                                                                                                                           |
+
+This table was corrected in Phase 12. It still said "Planned" for modules that
+had existed for several phases; `dashboard`, `settings`, `seo` and `domains`
+were missing from it entirely; and two rows named modules that were built under
+a different name (`users` became `platform`, `website` became `cms`).
 
 ## Anatomy of a module
 

@@ -29,6 +29,8 @@ type TenantDomainRow = Database["public"]["Tables"]["tenant_domains"]["Row"];
 type ProfileRow = Database["public"]["Tables"]["profiles"]["Row"];
 type TenantMemberRow = Database["public"]["Tables"]["tenant_members"]["Row"];
 type TenantSeoRow = Database["public"]["Tables"]["tenant_seo"]["Row"];
+type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
+type CustomerAddressRow = Database["public"]["Tables"]["customer_addresses"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -57,6 +59,49 @@ export type _TenantDomainKeys = Expect<
 
 export type _ProfileKeys = Expect<
   Equal<keyof ProfileRow, "id" | "email" | "full_name" | "avatar_url" | "created_at" | "updated_at">
+>;
+
+export type _CustomerKeys = Expect<
+  Equal<
+    keyof CustomerRow,
+    | "id"
+    | "tenant_id"
+    | "name"
+    | "doc_type"
+    | "doc_number"
+    | "email"
+    | "phone"
+    | "is_active"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _CustomerAddressKeys = Expect<
+  Equal<
+    keyof CustomerAddressRow,
+    | "id"
+    | "customer_id"
+    | "tenant_id"
+    | "label"
+    | "address_line"
+    | "district"
+    | "city"
+    | "reference"
+    | "is_default"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+/*
+ * Phase 12 keeps NO personal data beyond what an operation needs (ADR-016), and
+ * this is the place a column added later would have to pass through. A `notes`
+ * or `birth_date` on a customer fails here before anybody has to notice it in a
+ * migration.
+ */
+export type _CustomerHasNoSurplusPersonalData = Expect<
+  Equal<Extract<keyof CustomerRow, "notes" | "birth_date" | "gender" | "address">, never>
 >;
 export type _TenantMemberKeys = Expect<
   Equal<
@@ -111,6 +156,31 @@ interface ColumnSpec {
 }
 
 const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
+  customers: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    doc_type: { dataType: "USER-DEFINED", nullable: true },
+    doc_number: { dataType: "text", nullable: true },
+    email: { dataType: "text", nullable: true },
+    phone: { dataType: "text", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  customer_addresses: {
+    id: { dataType: "uuid", nullable: false },
+    customer_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    label: { dataType: "text", nullable: false },
+    address_line: { dataType: "text", nullable: false },
+    district: { dataType: "text", nullable: true },
+    city: { dataType: "text", nullable: true },
+    reference: { dataType: "text", nullable: true },
+    is_default: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
   tenants: {
     id: { dataType: "uuid", nullable: false },
     name: { dataType: "text", nullable: false },
@@ -178,6 +248,9 @@ afterAll(async () => {
 });
 
 describe("TEST-141: declared types match the real schema", () => {
+  // Phase 12 added `customers` and `customer_addresses` here rather than to the
+  // exempt list below (TEST-1224): `src/types/database.ts` is hand-maintained,
+  // and this phase hand-wrote 76 lines of it.
   it.each(Object.keys(EXPECTED_COLUMNS))("%s has exactly the declared columns", async (table) => {
     const rows = await db.query<{
       column_name: string;
@@ -219,6 +292,9 @@ describe("TEST-141: declared types match the real schema", () => {
       tenant_status: ["active", "suspended", "archived"],
       tenant_domain_type: ["system", "custom"],
       domain_verification_status: ["pending", "verifying", "active", "failed"],
+      // Exactly the three of master section 33 (Phase 12). A fourth added
+      // without a phase asking for it fails here.
+      customer_doc_type: ["dni", "ruc", "ce"],
     };
 
     for (const [name, values] of Object.entries(declared)) {
@@ -255,7 +331,7 @@ describe("TEST-141: declared types match the real schema", () => {
     expect(actual.sort()).toEqual([...declaredKeys].sort());
   });
 
-  it("has no table outside the declared contract", async () => {
+  it("has no table outside the declared contract (TEST-1225)", async () => {
     const rows = await db.query<{ tablename: string }>(
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
@@ -281,8 +357,6 @@ describe("TEST-141: declared types match the real schema", () => {
       "product_images",
       "product_variants",
       "product_options",
-      "customers",
-      "customer_addresses",
     ];
     expect(rows.map((r) => r.tablename).sort()).toEqual(
       [...Object.keys(EXPECTED_COLUMNS), ...catalogueTables].sort(),

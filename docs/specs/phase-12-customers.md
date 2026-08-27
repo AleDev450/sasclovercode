@@ -894,6 +894,43 @@ sus migraciones con una `..._select_public`, y con razón; copiar esa forma aqu�
 por analogía publicaría la agenda de clientes de cada negocio y la web pública
 se vería exactamente igual.
 
+### El contrato de tipos, y por qué no bastaba añadirlo a la lista
+
+`src/types/database.ts` se mantiene a mano (ADR-007: generarlo necesita Docker),
+y esta fase le escribió 76 líneas a mano. El fichero que impide que eso derive
+es `schema-contract.test.ts`, con dos mitades que se encuentran en el medio:
+
+```text
+schema real       <-> EXPECTED_COLUMNS   en tiempo de ejecución, contra PostgreSQL
+EXPECTED_COLUMNS  <-> Database           en compilación, por tsc
+```
+
+El primer intento de esta fase añadió `customers` y `customer_addresses` a
+`catalogueTables`, que es la lista de tablas **exentas** de la comprobación
+columna a columna — con lo que el test pasaba en verde sin verificar nada de lo
+que esta fase había escrito a mano. Las Fases 03 a 11 tienen sus tablas ahí, así
+que el error era seguir el precedente sin mirar qué hacía la lista.
+
+Corregido: las dos tablas están en `EXPECTED_COLUMNS` con sus dos mitades. Se
+comprobó que el mecanismo falla de verdad, no que pasa:
+
+```text
+columna `notes` añadida a la migración   -> el test de runtime falla
+columna renombrada en Database           -> tsc falla en _CustomerKeys
+```
+
+`_CustomerHasNoSurplusPersonalData` va más allá y afirma que `notes`,
+`birth_date`, `gender` y `address` NO existen en la fila. Es ADR-016 convertido
+en algo que falla solo: la decisión de minimizar datos personales es de las que
+se erosionan una columna a la vez, y el sitio donde se erosionaría es
+exactamente este tipo.
+
+Lo que estas dos mitades **no** cubren: la nulabilidad declarada en `Database`
+no está atada a la de `EXPECTED_COLUMNS`. Cambiar `phone: string | null` a
+`phone: string` en los tipos no rompe el contrato; en esta fase lo detectó `tsc`
+porque una acción consumía el campo, que es suerte, no diseño. Es una limitación
+del test desde la Fase 00 y afecta a todas las tablas por igual (KL-1211).
+
 ### Qué se verificó y qué no
 
 Lo verificado corriendo: las tres migraciones aplican, el dígito verificador
@@ -953,6 +990,13 @@ KL-1209  El listado no muestra cuántos pedidos lleva cada cliente,
 KL-1210  Las direcciones no tienen coordenadas. La Fase 19 las
          necesitará para repartir; son columnas nuevas anulables, no
          un cambio de forma.
+
+KL-1211  El contrato de tipos no ata la NULABILIDAD declarada en
+         `Database` con la de `EXPECTED_COLUMNS`: solo compara nombres
+         de columna. Un `string | null` que pase a `string` en los
+         tipos no rompe el contrato. Viene de la Fase 00 y afecta a
+         todas las tablas; arreglarlo es derivar un tipo de
+         `EXPECTED_COLUMNS` en vez de escribir la lista de claves.
 ```
 
 ---
