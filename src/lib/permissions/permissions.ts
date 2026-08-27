@@ -40,6 +40,12 @@ export const PERMISSIONS = {
   CONTENT_VIEW: "content.view",
   CONTENT_MANAGE: "content.manage",
 
+  DOMAINS_VIEW: "domains.view",
+  DOMAINS_MANAGE: "domains.manage",
+
+  LOCATIONS_VIEW: "locations.view",
+  LOCATIONS_MANAGE: "locations.manage",
+
   MEMBERS_VIEW: "members.view",
   MEMBERS_MANAGE: "members.manage",
 } as const;

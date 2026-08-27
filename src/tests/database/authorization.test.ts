@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { ALL_PERMISSIONS, ALL_ROLES } from "@/lib/permissions";
 import { createTestDatabase, insertTenant, type TestDatabase } from "../helpers/database";
 
 /**
@@ -85,11 +86,21 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe("catalogue (TEST-309, TEST-310, TEST-311)", () => {
-  it("loads 8 roles and 22 permissions", async () => {
+  /*
+   * Counted against the TypeScript catalogue rather than a literal.
+   *
+   * The number used to be written here, and every phase that added a
+   * permission had to come and bump it - at which point the assertion tests
+   * nothing except that somebody typed the new number. `ALL_PERMISSIONS` is
+   * itself checked against the database, name by name, in
+   * `authorization-schema.test.ts`, so counting against it still catches a row
+   * that exists on one side only.
+   */
+  it("loads 8 roles and one permission per catalogue entry", async () => {
     const roles = await db.query<{ c: string }>("select count(*)::text c from public.roles");
     const perms = await db.query<{ c: string }>("select count(*)::text c from public.permissions");
-    expect(Number(roles[0]?.c)).toBe(8);
-    expect(Number(perms[0]?.c)).toBe(22);
+    expect(Number(roles[0]?.c)).toBe(ALL_ROLES.length);
+    expect(Number(perms[0]?.c)).toBe(ALL_PERMISSIONS.length);
   });
 
   it("gives owner every permission and admin all but settings.manage", async () => {
@@ -99,8 +110,8 @@ describe("catalogue (TEST-309, TEST-310, TEST-311)", () => {
     const admin = await db.query<{ permission: string }>(
       "select permission from public.role_permissions where role = 'admin'",
     );
-    expect(Number(owner[0]?.c)).toBe(22);
-    expect(admin).toHaveLength(21);
+    expect(Number(owner[0]?.c)).toBe(ALL_PERMISSIONS.length);
+    expect(admin).toHaveLength(ALL_PERMISSIONS.length - 1);
     expect(admin.map((r) => r.permission)).not.toContain("settings.manage");
   });
 
@@ -130,7 +141,7 @@ describe("catalogue (TEST-309, TEST-310, TEST-311)", () => {
     const rows = await db.asUser(outsider, () =>
       db.query<{ c: string }>("select count(*)::text c from public.permissions"),
     );
-    expect(Number(rows[0]?.c)).toBe(22);
+    expect(Number(rows[0]?.c)).toBe(ALL_PERMISSIONS.length);
   });
 
   it("is not writable by an authenticated user", async () => {

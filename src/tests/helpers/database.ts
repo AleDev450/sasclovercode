@@ -296,7 +296,14 @@ export async function insertTenant(
   return id;
 }
 
-/** Inserts a domain for a tenant. `active` domains get a verified_at stamp. */
+/**
+ * Inserts a domain for a tenant. `active` domains get a verified_at stamp.
+ *
+ * A custom domain also gets a verification token, because Phase 09 made that an
+ * invariant of the table: in production every custom domain arrives through
+ * `claim_domain`, which mints one. A fixture that skipped it would be building
+ * a row the application can never produce - and the CHECK would refuse it.
+ */
 export async function insertDomain(
   db: TestDatabase,
   values: {
@@ -308,14 +315,18 @@ export async function insertDomain(
   },
 ): Promise<string> {
   const status = values.verificationStatus ?? "active";
+  const type = values.type ?? "custom";
   const rows = await db.query<{ id: string }>(
     `insert into public.tenant_domains
-       (tenant_id, domain, type, is_primary, verification_status, verified_at)
+       (tenant_id, domain, type, is_primary, verification_status, verified_at,
+        verification_token)
      values ($1, $2, $3::public.tenant_domain_type, $4,
              $5::public.domain_verification_status,
-             case when $5 = 'active' then now() else null end)
+             case when $5 = 'active' then now() else null end,
+             case when $3 = 'custom' then public.new_domain_verification_token()
+                  else null end)
      returning id`,
-    [values.tenantId, values.domain, values.type ?? "custom", values.isPrimary ?? false, status],
+    [values.tenantId, values.domain, type, values.isPrimary ?? false, status],
   );
   const id = rows[0]?.id;
   if (id === undefined) throw new Error("insertDomain returned no id");

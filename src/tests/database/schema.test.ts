@@ -75,6 +75,17 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825180000_create_tenant_seo.sql",
       "20260825180100_add_page_seo.sql",
       "20260825180200_create_public_site_reads.sql",
+      // Phase 09
+      "20260825190000_create_domain_permissions.sql",
+      "20260825190100_extend_tenant_domains.sql",
+      "20260825190200_create_domain_functions.sql",
+      "20260825190300_create_domain_policies.sql",
+      "20260825190400_fix_provisioning_domain.sql",
+      // Phase 10
+      "20260825200000_create_location_permissions.sql",
+      "20260825200100_create_locations.sql",
+      "20260825200200_create_location_hours.sql",
+      "20260825200400_extend_tenant_defaults_location.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -86,6 +97,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.map((t) => t.tablename)).toEqual([
+      "location_hours",
+      "locations",
       "navigation_items",
       "page_sections",
       "pages",
@@ -109,6 +122,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
        where n.nspname = 'public' and t.typtype = 'e' order by t.typname`,
     );
     expect(enums.map((e) => e.typname)).toEqual([
+      "domain_provider_status",
       "domain_verification_status",
       "membership_status",
       "nav_link_type",
@@ -263,18 +277,26 @@ describe("tenant_domains constraints (TEST-123, TEST-124, TEST-127)", () => {
   it("requires verified_at exactly when the status is active (TEST-127)", async () => {
     const tenant = await insertTenant(db, { slug: "verified-at" });
 
+    // The token is supplied because Phase 09 made it mandatory for a custom
+    // domain; without it these would fail on the wrong constraint and the test
+    // would pass while proving nothing about `verified_at`.
+
     // active without verified_at
     await expectRejection(
-      `insert into public.tenant_domains (tenant_id, domain, type, verification_status, verified_at)
-       values ($1, 'no-stamp.com', 'custom', 'active', null)`,
+      `insert into public.tenant_domains
+         (tenant_id, domain, type, verification_status, verified_at, verification_token)
+       values ($1, 'no-stamp.com', 'custom', 'active', null,
+               public.new_domain_verification_token())`,
       [tenant],
       "tenant_domains_verified_at_consistency",
     );
 
     // pending WITH verified_at
     await expectRejection(
-      `insert into public.tenant_domains (tenant_id, domain, type, verification_status, verified_at)
-       values ($1, 'early-stamp.com', 'custom', 'pending', now())`,
+      `insert into public.tenant_domains
+         (tenant_id, domain, type, verification_status, verified_at, verification_token)
+       values ($1, 'early-stamp.com', 'custom', 'pending', now(),
+               public.new_domain_verification_token())`,
       [tenant],
       "tenant_domains_verified_at_consistency",
     );

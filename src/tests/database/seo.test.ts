@@ -344,9 +344,12 @@ describe("what a public website needs to render itself", () => {
 
   it("resolves the primary domain for the canonical URL", async () => {
     await db.query(
-      `insert into public.tenant_domains (tenant_id, domain, type, is_primary, verification_status, verified_at)
-       values ($1, 'sugurolls.com', 'custom', true, 'active', now()),
-              ($1, 'sugurolls.clovercodeapp.com', 'system', false, 'active', now())`,
+      `insert into public.tenant_domains
+         (tenant_id, domain, type, is_primary, verification_status, verified_at,
+          verification_token)
+       values ($1, 'sugurolls.com', 'custom', true, 'active', now(),
+               public.new_domain_verification_token()),
+              ($1, 'sugurolls.clovercodeapp.com', 'system', false, 'active', now(), null)`,
       [tenantA],
     );
     const rows = await db.asRole("anon", () =>

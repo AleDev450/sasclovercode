@@ -28,9 +28,19 @@ function stub(result: { data?: unknown; error?: unknown }) {
 }
 
 describe("permission catalogue (TEST-301)", () => {
-  it("exposes 22 permissions with no duplicates", () => {
-    expect(ALL_PERMISSIONS).toHaveLength(22);
-    expect(new Set(ALL_PERMISSIONS).size).toBe(22);
+  /*
+   * The count is derived rather than written down.
+   *
+   * A literal here has to be bumped by every phase that adds a permission, and
+   * at that moment the assertion tests nothing but that somebody typed the new
+   * number. What is worth asserting is the property: no duplicates. The
+   * catalogue is checked NAME BY NAME against the database in
+   * `authorization-schema.test.ts`, which is where a missing or extra
+   * permission is actually caught.
+   */
+  it("exposes a catalogue with no duplicates", () => {
+    expect(ALL_PERMISSIONS.length).toBeGreaterThan(0);
+    expect(new Set(ALL_PERMISSIONS).size).toBe(ALL_PERMISSIONS.length);
   });
 
   it("uses the resource.action shape the database validates", () => {

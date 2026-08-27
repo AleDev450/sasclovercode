@@ -574,6 +574,9 @@ describe("audit: the public site works for a SIGNED-IN visitor too", () => {
      * public policy has to be written down here on purpose.
      */
     expect(rows.map((r) => r.policyname).sort()).toEqual([
+      // Phase 10: where the business is, and when it opens.
+      "location_hours_select_public",
+      "locations_select_public",
       "navigation_items_select_public",
       "page_sections_select_public",
       "pages_select_public",

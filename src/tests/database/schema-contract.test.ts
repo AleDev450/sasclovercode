@@ -45,6 +45,11 @@ export type _TenantDomainKeys = Expect<
     | "is_primary"
     | "verification_status"
     | "verified_at"
+    | "verification_token"
+    | "verification_checked_at"
+    | "last_error"
+    | "provider_status"
+    | "provider_synced_at"
     | "created_at"
     | "updated_at"
   >
@@ -122,6 +127,11 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     is_primary: { dataType: "boolean", nullable: false },
     verification_status: { dataType: "USER-DEFINED", nullable: false },
     verified_at: { dataType: "timestamp with time zone", nullable: true },
+    verification_token: { dataType: "text", nullable: true },
+    verification_checked_at: { dataType: "timestamp with time zone", nullable: true },
+    last_error: { dataType: "text", nullable: true },
+    provider_status: { dataType: "USER-DEFINED", nullable: false },
+    provider_synced_at: { dataType: "timestamp with time zone", nullable: true },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },
@@ -264,6 +274,8 @@ describe("TEST-141: declared types match the real schema", () => {
       "pages",
       "page_sections",
       "navigation_items",
+      "locations",
+      "location_hours",
     ];
     expect(rows.map((r) => r.tablename).sort()).toEqual(
       [...Object.keys(EXPECTED_COLUMNS), ...catalogueTables].sort(),

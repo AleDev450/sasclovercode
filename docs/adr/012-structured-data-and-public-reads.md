@@ -59,12 +59,12 @@ test does not look: an exception nobody can see is an exception that grows.
 
 Three things became readable to `anon` **and** `authenticated`:
 
-| What              | How                                                    |
-| ----------------- | ------------------------------------------------------ |
-| `tenant_seo`      | RLS policy, `is_tenant_public(tenant_id)`              |
-| `tenant_themes`   | RLS policy, `is_tenant_public(tenant_id)`              |
-| public assets     | `storage.objects` policy, three folders only           |
-| business identity | `get_public_business_identity()`, SECURITY DEFINER     |
+| What              | How                                                |
+| ----------------- | -------------------------------------------------- |
+| `tenant_seo`      | RLS policy, `is_tenant_public(tenant_id)`          |
+| `tenant_themes`   | RLS policy, `is_tenant_public(tenant_id)`          |
+| public assets     | `storage.objects` policy, three folders only       |
+| business identity | `get_public_business_identity()`, SECURITY DEFINER |
 
 The theme is public because every value in the row is visible in the rendered
 page: hiding it hid nothing while making the site unable to render itself.

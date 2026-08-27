@@ -22,6 +22,7 @@ export type Json = string | number | boolean | null | { [key: string]: Json | un
 export type TenantStatus = "active" | "suspended" | "archived";
 export type TenantDomainType = "system" | "custom";
 export type DomainVerificationStatus = "pending" | "verifying" | "active" | "failed";
+export type DomainProviderStatus = "unknown" | "requested" | "ready" | "error";
 
 /** Master section 12. Order matches the enum's sort order in PostgreSQL. */
 export type TenantRole =
@@ -74,6 +75,12 @@ export type Database = {
           is_primary: boolean;
           verification_status: DomainVerificationStatus;
           verified_at: string | null;
+          /** Phase 09. Null on a system domain, which needs no proof. */
+          verification_token: string | null;
+          verification_checked_at: string | null;
+          last_error: string | null;
+          provider_status: DomainProviderStatus;
+          provider_synced_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -85,6 +92,11 @@ export type Database = {
           is_primary?: boolean;
           verification_status?: DomainVerificationStatus;
           verified_at?: string | null;
+          verification_token?: string | null;
+          verification_checked_at?: string | null;
+          last_error?: string | null;
+          provider_status?: DomainProviderStatus;
+          provider_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -96,6 +108,11 @@ export type Database = {
           is_primary?: boolean;
           verification_status?: DomainVerificationStatus;
           verified_at?: string | null;
+          verification_token?: string | null;
+          verification_checked_at?: string | null;
+          last_error?: string | null;
+          provider_status?: DomainProviderStatus;
+          provider_synced_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -389,6 +406,68 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["tenant_seo"]["Row"]>;
         Relationships: [];
       };
+      locations: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          address_line: string | null;
+          district: string | null;
+          city: string | null;
+          reference: string | null;
+          phone: string | null;
+          /** Stored as numeric; PostgREST returns it as a JS number. */
+          latitude: number | null;
+          longitude: number | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string; name: string } & Partial<
+          Omit<Database["public"]["Tables"]["locations"]["Row"], "tenant_id" | "name">
+        >;
+        Update: Partial<Database["public"]["Tables"]["locations"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "locations_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      location_hours: {
+        Row: {
+          id: string;
+          location_id: string;
+          tenant_id: string;
+          /** 0 = Sunday, matching getDay() and PostgreSQL dow. */
+          day_of_week: number;
+          /** `time`, as HH:MM:SS. Local business time, never UTC. */
+          opens_at: string;
+          closes_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          location_id: string;
+          /** Derived by a trigger from the location; never trusted from a client. */
+          tenant_id?: string;
+          day_of_week: number;
+          opens_at: string;
+          closes_at: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["location_hours"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "location_hours_location_id_fkey";
+            columns: ["location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tenant_social_links: {
         Row: {
           id: string;
@@ -542,6 +621,18 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: string | null;
       };
+      claim_domain: {
+        Args: { p_tenant_id: string; p_domain: string };
+        Returns: string;
+      };
+      record_domain_ownership_check: {
+        Args: { p_domain_id: string; p_ok: boolean; p_error?: string | null };
+        Returns: DomainVerificationStatus;
+      };
+      set_primary_domain: {
+        Args: { p_domain_id: string };
+        Returns: undefined;
+      };
       is_tenant_public: {
         Args: { p_tenant_id: string };
         Returns: boolean;
@@ -588,6 +679,7 @@ export type Database = {
       tenant_status: TenantStatus;
       tenant_domain_type: TenantDomainType;
       domain_verification_status: DomainVerificationStatus;
+      domain_provider_status: DomainProviderStatus;
       tenant_role: TenantRole;
       membership_status: MembershipStatus;
       platform_admin_status: PlatformAdminStatus;

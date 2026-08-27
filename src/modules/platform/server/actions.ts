@@ -175,3 +175,121 @@ export async function setTenantStatusAction(formData: FormData): Promise<void> {
   revalidatePath("/super-admin/tenants");
   revalidatePath(`/super-admin/tenants/${input.tenantId}`);
 }
+
+// ---------------------------------------------------------------------------
+// Domains (Phase 09)
+// ---------------------------------------------------------------------------
+
+const setDomainStatusSchema = z.object({
+  tenantId: z.uuid(),
+  domainId: z.uuid(),
+  status: z.enum(["verifying", "active", "failed"]),
+});
+
+const setProviderStatusSchema = z.object({
+  tenantId: z.uuid(),
+  domainId: z.uuid(),
+  providerStatus: z.enum(["unknown", "requested", "ready", "error"]),
+});
+
+/**
+ * Publishes or retires a domain.
+ *
+ * This is the only place in the product that can write `active`, and that is
+ * the point: `resolve_tenant_by_domain` serves only active domains, so an
+ * operator - not a tenant - decides when a name starts carrying traffic. The
+ * tenant-side functions in Phase 09 stop at `verifying` for exactly this
+ * reason.
+ *
+ * `pending` is absent from the accepted values on purpose. Sending a domain
+ * back to "we have not seen your TXT record" would be a lie the operator has no
+ * way of knowing to be true; retiring one is `failed`.
+ */
+export async function setDomainStatusAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(setDomainStatusSchema, {
+    tenantId: formData.get("tenantId"),
+    domainId: formData.get("domainId"),
+    status: formData.get("status"),
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  // `verified_at` is not decoration: a CHECK on the table requires it to be
+  // present exactly when the status is active, so the two move together or the
+  // write is refused.
+  const { error } = await client
+    .from("tenant_domains")
+    .update({
+      verification_status: input.status,
+      verified_at: input.status === "active" ? new Date().toISOString() : null,
+      // Retiring a domain clears the primary flag with it. Leaving a retired
+      // domain as primary would point the canonical URL of the public site
+      // (Phase 08) at a name that no longer resolves.
+      ...(input.status === "active" ? {} : { is_primary: false }),
+    })
+    .eq("id", input.domainId);
+
+  if (error) {
+    logger.error("platform.domain.status_change_failed", {
+      domainId: input.domainId,
+      error,
+    });
+    throw new DatabaseError("Domain status change failed.", { cause: error });
+  }
+
+  logger.info("platform.domain.status_changed", {
+    tenantId: input.tenantId,
+    domainId: input.domainId,
+    to: input.status,
+    operatorId: operator?.id ?? null,
+  });
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+}
+
+/**
+ * Records what the hosting provider has for a domain.
+ *
+ * Written by hand because nothing else can know it. Master section 33:
+ * "Nunca asumir que agregar un registro a nuestra BD configura Vercel
+ * automaticamente." Until a provider integration exists (ADR-013), an operator
+ * registers the domain there and then says so here - and `provider_synced_at`
+ * records when that statement was last true.
+ */
+export async function setProviderStatusAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(setProviderStatusSchema, {
+    tenantId: formData.get("tenantId"),
+    domainId: formData.get("domainId"),
+    providerStatus: formData.get("providerStatus"),
+  });
+
+  const client = await createSupabaseServerClient();
+  const { error } = await client
+    .from("tenant_domains")
+    .update({
+      provider_status: input.providerStatus,
+      provider_synced_at: new Date().toISOString(),
+    })
+    .eq("id", input.domainId);
+
+  if (error) {
+    logger.error("platform.domain.provider_change_failed", {
+      domainId: input.domainId,
+      error,
+    });
+    throw new DatabaseError("Provider status change failed.", { cause: error });
+  }
+
+  logger.info("platform.domain.provider_changed", {
+    tenantId: input.tenantId,
+    domainId: input.domainId,
+    to: input.providerStatus,
+  });
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+}

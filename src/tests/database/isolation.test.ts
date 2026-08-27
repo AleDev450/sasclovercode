@@ -67,22 +67,51 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
   // two tenant tables: opening those up is an authorization decision that
   // belongs to Phase 03, and until then nothing but the guarded resolver reads
   // them.
-  it("opens tenant_domains only to the platform, never to tenant users", async () => {
-    // Phase 01 left this table with no policies at all. Phase 04 added the
-    // platform operator, and nobody else: a tenant member still reaches its
-    // domains only through resolve_tenant_by_domain.
+  /*
+   * Phase 01 left this table with no policies at all, Phase 04 added the
+   * platform operator, and Phase 09 gave a business a screen for its own
+   * domains - so "platform only" stopped being the invariant.
+   *
+   * What replaced it is narrower and says more. Every policy is predicated on
+   * platform authority OR on a domains permission in the row's own tenant, and
+   * - the part worth asserting on its own - there is still no UPDATE policy
+   * reachable from a tenant session. RLS is row-level, so a policy permissive
+   * enough to let a business set `is_primary` would also let it write
+   * `verification_status = 'active'`, which is the state that serves traffic.
+   * That is why every tenant-side write goes through a SECURITY DEFINER
+   * function instead.
+   */
+  it("predicates every tenant_domains policy on platform authority or a domains permission", async () => {
     // An INSERT policy has no `qual`, only `with_check`. Reading just one of
     // the two columns would silently pass a policy it never inspected.
-    const rows = await db.query<{ policyname: string; predicate: string | null }>(
-      `select policyname, coalesce(qual, with_check) as predicate
+    const rows = await db.query<{ policyname: string; cmd: string; predicate: string | null }>(
+      `select policyname, cmd, coalesce(qual, with_check) as predicate
        from pg_policies
        where schemaname = 'public' and tablename = 'tenant_domains'`,
     );
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
+      const predicate = row.predicate ?? "";
+      expect(
+        predicate.includes("is_platform_admin") ||
+          predicate.includes("'domains.view'") ||
+          predicate.includes("'domains.manage'"),
+        `${row.policyname} is predicated on neither platform authority nor a domains permission`,
+      ).toBe(true);
+    }
+  });
+
+  it("gives a tenant session no UPDATE path into tenant_domains at all", async () => {
+    const rows = await db.query<{ policyname: string; predicate: string | null }>(
+      `select policyname, coalesce(qual, with_check) as predicate
+       from pg_policies
+       where schemaname = 'public' and tablename = 'tenant_domains' and cmd = 'UPDATE'`,
+    );
+    // The platform policy may update; nothing else may.
+    for (const row of rows) {
       expect(
         (row.predicate ?? "").includes("is_platform_admin"),
-        `${row.policyname} is not predicated on platform authority`,
+        `${row.policyname} lets something other than an operator update a domain`,
       ).toBe(true);
     }
   });

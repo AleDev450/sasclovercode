@@ -12,6 +12,8 @@ import {
   getPublicTheme,
   getSiteSeo,
 } from "@/modules/seo/server/queries";
+import { PublicLocations } from "@/modules/locations/components/public-locations";
+import { listPublicLocations } from "@/modules/locations/server/queries";
 import { JsonLd, localBusinessJsonLd } from "@/modules/seo/structured-data";
 import { themeCssVariables } from "@/modules/seo/theme";
 
@@ -125,12 +127,13 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
     );
   }
 
-  const [navigation, theme, identity, seo, domain] = await Promise.all([
+  const [navigation, theme, identity, seo, domain, locations] = await Promise.all([
     getPublicNavigation(site.tenant.id),
     getPublicTheme(site.tenant.id),
     getPublicIdentity(site.tenant.id, site.tenant.name),
     getSiteSeo(site.tenant.id),
     getPrimaryDomain(site.tenant.id),
+    listPublicLocations(site.tenant.id),
   ]);
 
   const resolved = resolveSeo({ site: seo, business: identity, tenantIsServing: true });
@@ -208,9 +211,16 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
       <main className="mx-auto max-w-5xl px-6">{children}</main>
 
       <footer className="border-border mt-16 border-t">
-        <div className="text-muted-foreground mx-auto max-w-5xl px-6 py-8 text-xs">
-          {identity.name}
-          {identity.city !== null ? ` · ${identity.city}` : null}
+        <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
+          {/* Master section 30: dirección y horarios. Rendered from the Phase
+              10 rows, and omitted entirely when a business has not filled any
+              of it in - an empty heading is worse than no heading. */}
+          <PublicLocations locations={locations} />
+
+          <p className="text-muted-foreground text-xs">
+            {identity.name}
+            {identity.city !== null ? ` · ${identity.city}` : null}
+          </p>
         </div>
       </footer>
     </div>

@@ -41,6 +41,24 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.CONTENT_MANAGE,
   },
   {
+    key: "locations",
+    label: "Sedes",
+    segment: "/sedes",
+    permission: PERMISSIONS.LOCATIONS_VIEW,
+  },
+  /*
+   * Its own entry rather than a link inside Configuracion, because the two are
+   * not reachable by the same people: `admin` holds every permission except
+   * `settings.manage`, so an admin can manage domains and cannot open the
+   * settings page that would have held the link.
+   */
+  {
+    key: "domains",
+    label: "Dominios",
+    segment: "/configuracion/dominios",
+    permission: PERMISSIONS.DOMAINS_VIEW,
+  },
+  {
     key: "settings",
     label: "Configuracion",
     segment: "/configuracion",

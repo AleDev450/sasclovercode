@@ -10,6 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui";
+import { listTenantDomains } from "@/modules/domains/server/queries";
+import { PlatformTenantDomains } from "@/modules/platform/components/tenant-domains";
 import { setTenantStatusAction } from "@/modules/platform/server/actions";
 import { getPlatformTenant } from "@/modules/platform/server/queries";
 
@@ -69,6 +71,9 @@ export default async function PlatformTenantDetailPage({
 }) {
   const { id } = await params;
   const tenant = await getPlatformTenant(id);
+  // The platform SELECT policy on `tenant_domains` lets an operator read any
+  // tenant's rows, so the same query the business uses serves this screen too.
+  const domains = await listTenantDomains(tenant.id);
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,8 +96,8 @@ export default async function PlatformTenantDetailPage({
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle as="h2">Dominio</CardTitle>
-            <CardDescription>Dominio principal de la empresa.</CardDescription>
+            <CardTitle as="h2">Dominio principal</CardTitle>
+            <CardDescription>La direccion canonica de su sitio publico.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="font-mono text-sm">{tenant.primaryDomain ?? "Sin dominio principal"}</p>
@@ -109,6 +114,8 @@ export default async function PlatformTenantDetailPage({
           </CardContent>
         </Card>
       </div>
+
+      <PlatformTenantDomains tenantId={tenant.id} domains={domains} />
 
       <Card>
         <CardHeader>

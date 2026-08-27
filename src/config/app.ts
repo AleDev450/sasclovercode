@@ -16,6 +16,29 @@ export const APP_DESCRIPTION =
  */
 export const SYSTEM_DOMAIN = "clovercodeapp.com";
 
+/**
+ * DNS targets a business points its own domain at (Phase 09).
+ *
+ * These are the hosting provider's published values, and they are the one place
+ * in the codebase that has to change when the provider changes them. They are
+ * constants rather than environment variables on purpose: a wrong value here
+ * takes a tenant site off the air, and that should be a reviewed commit rather
+ * than a variable somebody edits in a dashboard at midnight.
+ *
+ * An apex domain gets the A record - DNS forbids a CNAME at a zone apex - and a
+ * subdomain gets the CNAME.
+ *
+ * Pointing DNS here does NOT make a domain work. The provider must also be told
+ * to serve that hostname, which is a separate, explicitly tracked fact
+ * (`tenant_domains.provider_status`). Master section 33 is emphatic about not
+ * conflating the two.
+ */
+export const DNS_TARGET_IPV4 = "76.76.21.21";
+export const DNS_TARGET_CNAME = "cname.vercel-dns.com";
+
+/** Subdomain whose TXT record proves ownership: `_clovercode.sugurolls.com`. */
+export const VERIFICATION_RECORD_PREFIX = "_clovercode";
+
 /** Default IANA timezone for a newly provisioned tenant (Phase 06 overrides). */
 export const DEFAULT_TIMEZONE = "America/Lima";
 
