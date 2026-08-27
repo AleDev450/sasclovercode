@@ -21,7 +21,8 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 10    | Locations               | [phase-10-locations.md](./phase-10-locations.md)                             | COMPLETED |
 | 11    | Catalog                 | [phase-11-catalog.md](./phase-11-catalog.md)                                 | COMPLETED |
 | 12    | Customers               | [phase-12-customers.md](./phase-12-customers.md)                             | COMPLETED |
-| 13-28 | see master document     | _not written_                                                                | -         |
+| 13    | Orders Core             | [phase-13-orders-core.md](./phase-13-orders-core.md)                         | COMPLETED |
+| 14-28 | see master document     | _not written_                                                                | -         |
 
 ## Required contents
 

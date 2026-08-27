@@ -46,6 +46,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     segment: "/navegacion",
     permission: PERMISSIONS.CONTENT_MANAGE,
   },
+  /*
+   * Orders sit above the reference data on purpose: from Phase 13 this is the
+   * screen somebody has open all day, and the catalogue is something they visit
+   * when a price changes.
+   */
+  {
+    key: "orders",
+    label: "Pedidos",
+    segment: "/pedidos",
+    permission: PERMISSIONS.ORDERS_VIEW,
+  },
   {
     key: "customers",
     label: "Clientes",

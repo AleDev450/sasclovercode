@@ -164,7 +164,15 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     // The Phase 03 catalogue (roles / permissions / role_permissions) does use
     // `using (true)`, and legitimately: it holds no tenant data, only the
     // product's capability list. Everything else must be predicated.
-    const CATALOGUE = ["roles", "permissions", "role_permissions"];
+    //
+    // Phase 13 added `order_transitions` to the same list, on the same grounds:
+    // it is the order lifecycle of the PRODUCT, not of any business - a tenant
+    // does not get to invent a path from `completed` back to `pending`. It
+    // holds two enum columns and no tenant data.
+    //
+    // Anything added here must satisfy the next test as well: an exception is
+    // only safe while it stays read-only.
+    const CATALOGUE = ["roles", "permissions", "role_permissions", "order_transitions"];
 
     const rows = await db.query<{ tablename: string; qual: string | null }>(
       "select tablename, qual from pg_policies where schemaname = 'public'",
@@ -178,9 +186,9 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     const rows = await db.query<{ cmd: string }>(
       `select cmd from pg_policies
        where schemaname = 'public'
-         and tablename in ('roles','permissions','role_permissions')`,
+         and tablename in ('roles','permissions','role_permissions','order_transitions')`,
     );
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
     expect(rows.every((r) => r.cmd === "SELECT")).toBe(true);
   });
 });

@@ -1,0 +1,215 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+import { formatCurrency } from "@/lib/money";
+import { PERMISSIONS } from "@/lib/permissions";
+import { hasPermission } from "@/lib/permissions/check";
+import { requireActiveTenant } from "@/lib/tenant/active";
+import {
+  AdvanceOrderForm,
+  CancelOrderForm,
+} from "@/modules/orders/components/order-status-actions";
+import { ORDER_SOURCE_LABELS, ORDER_STATUS_LABELS } from "@/modules/orders/lifecycle";
+import { getOrderDetail } from "@/modules/orders/server/queries";
+import { getBusinessSettings } from "@/modules/settings/server/queries";
+
+export const metadata = { title: "Pedido" };
+
+export default async function OrderDetailPage({
+  params,
+}: {
+  params: Promise<{ tenantSlug: string; orderId: string }>;
+}) {
+  const { tenantSlug, orderId } = await params;
+  const tenant = await requireActiveTenant(tenantSlug);
+
+  if (!(await hasPermission(tenant.id, PERMISSIONS.ORDERS_VIEW))) {
+    notFound();
+  }
+
+  const [order, settings, canUpdate, canCancel] = await Promise.all([
+    getOrderDetail(tenant.id, orderId),
+    getBusinessSettings(tenant.id),
+    hasPermission(tenant.id, PERMISSIONS.ORDERS_UPDATE),
+    hasPermission(tenant.id, PERMISSIONS.ORDERS_CANCEL),
+  ]);
+
+  // An order that does not exist and one belonging to another business give the
+  // same answer, for the reason Phase 12 gave: telling them apart lets someone
+  // discover which ids exist elsewhere.
+  if (order === null) notFound();
+
+  const money = (cents: number): string => formatCurrency(cents, settings.currency);
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2">
+        <Link
+          href={`/dashboard/${tenant.slug}/pedidos`}
+          className="text-muted-foreground text-sm hover:underline"
+        >
+          ← Pedidos
+        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">Pedido #{order.number}</h1>
+          <Badge variant={order.status === "cancelled" ? "neutral" : "success"}>
+            {ORDER_STATUS_LABELS[order.status]}
+          </Badge>
+          <span className="text-muted-foreground text-sm">
+            {ORDER_SOURCE_LABELS[order.source]} · {order.locationName ?? "—"}
+          </span>
+        </div>
+        {order.cancelReason !== null ? (
+          <p className="text-muted-foreground text-sm">Anulado: {order.cancelReason}</p>
+        ) : null}
+      </div>
+
+      <Card className="overflow-x-auto">
+        <CardHeader>
+          <CardTitle as="h2">Detalle</CardTitle>
+          <CardDescription>
+            Estos importes son los del momento de la venta. No cambian aunque cambie el catalogo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full min-w-[36rem] border-collapse text-sm">
+            <caption className="sr-only">Lineas del pedido #{order.number}</caption>
+            <thead>
+              <tr className="border-border text-muted-foreground border-b text-left text-xs">
+                <th scope="col" className="py-2 font-medium">
+                  Producto
+                </th>
+                <th scope="col" className="py-2 text-right font-medium">
+                  Cantidad
+                </th>
+                <th scope="col" className="py-2 text-right font-medium">
+                  Precio
+                </th>
+                <th scope="col" className="py-2 text-right font-medium">
+                  Descuento
+                </th>
+                <th scope="col" className="py-2 text-right font-medium">
+                  Total
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.lines.map((line) => (
+                <tr key={line.id} className="border-border border-b last:border-0">
+                  <td className="py-2">
+                    {line.name}
+                    {line.variantName !== null ? (
+                      <span className="text-muted-foreground"> · {line.variantName}</span>
+                    ) : null}
+                  </td>
+                  <td className="py-2 text-right tabular-nums">{line.quantity}</td>
+                  <td className="py-2 text-right tabular-nums">{money(line.unitPriceCents)}</td>
+                  <td className="py-2 text-right tabular-nums">
+                    {line.discountCents > 0 ? `- ${money(line.discountCents)}` : "—"}
+                  </td>
+                  <td className="py-2 text-right tabular-nums">{money(line.totalCents)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={4} className="py-2 text-right">
+                  Subtotal
+                </td>
+                <td className="py-2 text-right tabular-nums">{money(order.subtotalCents)}</td>
+              </tr>
+              {order.discountCents > 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-2 text-right">
+                    Descuentos
+                  </td>
+                  <td className="py-2 text-right tabular-nums">- {money(order.discountCents)}</td>
+                </tr>
+              ) : null}
+              {order.shippingCents > 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-2 text-right">
+                    Envio
+                  </td>
+                  <td className="py-2 text-right tabular-nums">{money(order.shippingCents)}</td>
+                </tr>
+              ) : null}
+              <tr className="font-medium">
+                <td colSpan={4} className="py-2 text-right">
+                  Total
+                </td>
+                <td className="py-2 text-right tabular-nums">{money(order.totalCents)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </CardContent>
+      </Card>
+
+      {canUpdate || canCancel ? (
+        <div className="grid gap-6 sm:grid-cols-2">
+          {canUpdate ? (
+            <Card>
+              <CardHeader>
+                <CardTitle as="h2">Avanzar</CardTitle>
+                <CardDescription>
+                  Un pedido avanza paso a paso. No se puede saltar ni volver atras.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AdvanceOrderForm
+                  tenantSlug={tenant.slug}
+                  orderId={order.id}
+                  status={order.status}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {canCancel ? (
+            <Card>
+              <CardHeader>
+                <CardTitle as="h2">Anular</CardTitle>
+                <CardDescription>Requiere un motivo y no se puede deshacer.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CancelOrderForm
+                  tenantSlug={tenant.slug}
+                  orderId={order.id}
+                  status={order.status}
+                />
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Historial</CardTitle>
+          <CardDescription>
+            Lo escribe la base de datos en cada cambio. No se puede editar.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ol className="flex flex-col gap-3">
+            {order.history.map((entry) => (
+              <li key={entry.id} className="flex flex-wrap items-baseline gap-2 text-sm">
+                <span className="text-muted-foreground tabular-nums">
+                  {new Date(entry.createdAt).toLocaleString("es-PE")}
+                </span>
+                <span>
+                  {entry.fromStatus === null
+                    ? "Creado"
+                    : `${ORDER_STATUS_LABELS[entry.fromStatus]} → ${ORDER_STATUS_LABELS[entry.toStatus]}`}
+                </span>
+                {entry.reason !== null ? (
+                  <span className="text-muted-foreground">· {entry.reason}</span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

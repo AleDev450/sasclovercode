@@ -68,8 +68,19 @@ const SUPABASE_AUTH_SCHEMA_SQL = `
   language sql
   stable
   as $$
+    -- The inner nullif guards the CAST, not the result.
+    --
+    -- asUser clears the GUC by setting it to the empty string, and ''::jsonb
+    -- raises "invalid input syntax for type json". On real Supabase an unset
+    -- claim reads as NULL and auth.uid() simply returns NULL, so a function
+    -- that throws here would be the shim being LESS forgiving than production -
+    -- and it would throw inside whatever trigger happened to call it.
+    --
+    -- Phase 13 is where this first mattered: record_order_status calls
+    -- auth.uid() on every order insert, including the ones a test makes outside
+    -- an asUser block.
     select nullif(
-      current_setting('request.jwt.claims', true)::jsonb ->> 'sub',
+      nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub',
       ''
     )::uuid;
   $$;

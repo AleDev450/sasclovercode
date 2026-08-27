@@ -23,7 +23,7 @@ phase must follow so the structure stays uniform.
 | `locations` | 10    | Created.                                                                                                                           |
 | `catalog`   | 11    | Created.                                                                                                                           |
 | `customers` | 12    | Created.                                                                                                                           |
-| `orders`    | 13    | Planned.                                                                                                                           |
+| `orders`    | 13    | Created.                                                                                                                           |
 | `pos`       | 15    | Planned.                                                                                                                           |
 | `billing`   | 17    | Planned.                                                                                                                           |
 | `inventory` | 18    | Planned.                                                                                                                           |

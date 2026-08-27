@@ -38,6 +38,24 @@ describe("visibleNavItems (TEST-501, TEST-503)", () => {
   });
 });
 
+describe("the orders entry (Phase 13)", () => {
+  const withOrders = new Set<Permission>([PERMISSIONS.ORDERS_VIEW]);
+
+  it("appears for a holder of orders.view", () => {
+    expect(visibleNavItems(withOrders).map((i) => i.key)).toContain("orders");
+  });
+
+  it("is hidden without it", () => {
+    expect(visibleNavItems(none).map((i) => i.key)).not.toContain("orders");
+  });
+
+  it("points at /pedidos and matches its detail pages", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "orders")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/pedidos");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/pedidos/abc")).toBe("orders");
+  });
+});
+
 describe("the customers entry (TEST-1209)", () => {
   const withCustomers = new Set<Permission>([PERMISSIONS.CUSTOMERS_VIEW]);
 

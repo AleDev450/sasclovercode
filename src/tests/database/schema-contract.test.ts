@@ -31,6 +31,9 @@ type TenantMemberRow = Database["public"]["Tables"]["tenant_members"]["Row"];
 type TenantSeoRow = Database["public"]["Tables"]["tenant_seo"]["Row"];
 type CustomerRow = Database["public"]["Tables"]["customers"]["Row"];
 type CustomerAddressRow = Database["public"]["Tables"]["customer_addresses"]["Row"];
+type OrderRow = Database["public"]["Tables"]["orders"]["Row"];
+type OrderItemRow = Database["public"]["Tables"]["order_items"]["Row"];
+type OrderStatusHistoryRow = Database["public"]["Tables"]["order_status_history"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -100,6 +103,83 @@ export type _CustomerAddressKeys = Expect<
  * or `birth_date` on a customer fails here before anybody has to notice it in a
  * migration.
  */
+export type _OrderKeys = Expect<
+  Equal<
+    keyof OrderRow,
+    | "id"
+    | "tenant_id"
+    | "location_id"
+    | "customer_id"
+    | "number"
+    | "status"
+    | "source"
+    | "notes"
+    | "subtotal_cents"
+    | "discount_cents"
+    | "tax_cents"
+    | "shipping_cents"
+    | "total_cents"
+    | "placed_at"
+    | "completed_at"
+    | "cancelled_at"
+    | "cancel_reason"
+    | "created_by"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _OrderItemKeys = Expect<
+  Equal<
+    keyof OrderItemRow,
+    | "id"
+    | "order_id"
+    | "tenant_id"
+    | "product_id"
+    | "variant_id"
+    | "name_snapshot"
+    | "variant_snapshot"
+    | "unit_price_cents"
+    | "quantity"
+    | "discount_cents"
+    | "tax_cents"
+    | "total_cents"
+    | "notes"
+    | "position"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _OrderStatusHistoryKeys = Expect<
+  Equal<
+    keyof OrderStatusHistoryRow,
+    | "id"
+    | "order_id"
+    | "tenant_id"
+    | "from_status"
+    | "to_status"
+    | "reason"
+    | "changed_by"
+    | "created_at"
+  >
+>;
+
+/*
+ * Master section 33 (Phase 13) names the five fields an order line must keep as
+ * a snapshot. Losing one would not fail anywhere else - the line would simply
+ * stop recording something - so it is asserted as a presence.
+ */
+export type _OrderItemKeepsTheSnapshot = Expect<
+  Equal<
+    Extract<
+      keyof OrderItemRow,
+      "unit_price_cents" | "quantity" | "discount_cents" | "tax_cents" | "total_cents"
+    >,
+    "unit_price_cents" | "quantity" | "discount_cents" | "tax_cents" | "total_cents"
+  >
+>;
+
 export type _CustomerHasNoSurplusPersonalData = Expect<
   Equal<Extract<keyof CustomerRow, "notes" | "birth_date" | "gender" | "address">, never>
 >;
@@ -156,6 +236,60 @@ interface ColumnSpec {
 }
 
 const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
+  orders: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    location_id: { dataType: "uuid", nullable: false },
+    customer_id: { dataType: "uuid", nullable: true },
+    number: { dataType: "integer", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
+    source: { dataType: "USER-DEFINED", nullable: false },
+    notes: { dataType: "text", nullable: true },
+    subtotal_cents: { dataType: "bigint", nullable: false },
+    discount_cents: { dataType: "bigint", nullable: false },
+    tax_cents: { dataType: "bigint", nullable: false },
+    shipping_cents: { dataType: "bigint", nullable: false },
+    total_cents: { dataType: "bigint", nullable: false },
+    placed_at: { dataType: "timestamp with time zone", nullable: false },
+    completed_at: { dataType: "timestamp with time zone", nullable: true },
+    cancelled_at: { dataType: "timestamp with time zone", nullable: true },
+    cancel_reason: { dataType: "text", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  order_items: {
+    id: { dataType: "uuid", nullable: false },
+    order_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    product_id: { dataType: "uuid", nullable: true },
+    variant_id: { dataType: "uuid", nullable: true },
+    name_snapshot: { dataType: "text", nullable: false },
+    variant_snapshot: { dataType: "text", nullable: true },
+    unit_price_cents: { dataType: "bigint", nullable: false },
+    quantity: { dataType: "numeric", nullable: false },
+    discount_cents: { dataType: "bigint", nullable: false },
+    tax_cents: { dataType: "bigint", nullable: false },
+    total_cents: { dataType: "bigint", nullable: false },
+    notes: { dataType: "text", nullable: true },
+    position: { dataType: "smallint", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  order_status_history: {
+    id: { dataType: "uuid", nullable: false },
+    order_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    from_status: { dataType: "USER-DEFINED", nullable: true },
+    to_status: { dataType: "USER-DEFINED", nullable: false },
+    reason: { dataType: "text", nullable: true },
+    changed_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  order_transitions: {
+    from_status: { dataType: "USER-DEFINED", nullable: false },
+    to_status: { dataType: "USER-DEFINED", nullable: false },
+  },
   customers: {
     id: { dataType: "uuid", nullable: false },
     tenant_id: { dataType: "uuid", nullable: false },
@@ -295,6 +429,9 @@ describe("TEST-141: declared types match the real schema", () => {
       // Exactly the three of master section 33 (Phase 12). A fourth added
       // without a phase asking for it fails here.
       customer_doc_type: ["dni", "ruc", "ce"],
+      // The six of master section 33 (Phase 13), in its order.
+      order_status: ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"],
+      order_source: ["web", "pos", "manual", "whatsapp", "delivery"],
     };
 
     for (const [name, values] of Object.entries(declared)) {

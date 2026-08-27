@@ -95,6 +95,11 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260827120000_create_customer_documents.sql",
       "20260827120100_create_customers.sql",
       "20260827120200_create_customer_addresses.sql",
+      // Phase 13
+      "20260827130000_create_order_enums.sql",
+      "20260827130100_create_orders.sql",
+      "20260827130200_create_order_items.sql",
+      "20260827130300_create_order_status_history.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -112,6 +117,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "location_hours",
       "locations",
       "navigation_items",
+      "order_items",
+      "order_status_history",
+      "order_transitions",
+      "orders",
       "page_sections",
       "pages",
       "permissions",
@@ -143,6 +152,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "domain_verification_status",
       "membership_status",
       "nav_link_type",
+      "order_source",
+      "order_status",
       "page_status",
       "platform_admin_status",
       "product_status",

@@ -40,6 +40,11 @@ export type ProductStatus = "draft" | "active" | "archived";
 /** Master section 33 (Phase 12): the three Peruvian documents, no more. */
 export type CustomerDocType = "dni" | "ruc" | "ce";
 
+/** Master section 33 (Phase 13). Order matches the enum's sort order. */
+export type OrderStatus =
+  "pending" | "confirmed" | "preparing" | "ready" | "completed" | "cancelled";
+export type OrderSource = "web" | "pos" | "manual" | "whatsapp" | "delivery";
+
 export type Database = {
   public: {
     Tables: {
@@ -696,6 +701,147 @@ export type Database = {
           },
         ];
       };
+      orders: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          location_id: string;
+          customer_id: string | null;
+          number: number;
+          status: OrderStatus;
+          source: OrderSource;
+          notes: string | null;
+          subtotal_cents: number;
+          discount_cents: number;
+          tax_cents: number;
+          shipping_cents: number;
+          total_cents: number;
+          placed_at: string;
+          completed_at: string | null;
+          cancelled_at: string | null;
+          cancel_reason: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string; location_id: string } & Partial<
+          Omit<Database["public"]["Tables"]["orders"]["Row"], "tenant_id" | "location_id">
+        >;
+        Update: Partial<Database["public"]["Tables"]["orders"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "orders_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_location_id_fkey";
+            columns: ["location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_customer_id_fkey";
+            columns: ["customer_id"];
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_items: {
+        Row: {
+          id: string;
+          order_id: string;
+          tenant_id: string;
+          product_id: string | null;
+          variant_id: string | null;
+          name_snapshot: string;
+          variant_snapshot: string | null;
+          unit_price_cents: number;
+          /** numeric(10,3): a quantity, never money. ADR-015 is untouched. */
+          quantity: number;
+          discount_cents: number;
+          tax_cents: number;
+          total_cents: number;
+          notes: string | null;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          /** Derived by a trigger from the order; never trusted from a client. */
+          tenant_id?: string;
+          product_id?: string | null;
+          variant_id?: string | null;
+          /** Copied from the catalogue by a trigger when product_id is given. */
+          name_snapshot?: string;
+          variant_snapshot?: string | null;
+          /** Never sent by a client for a catalogue line: the trigger sets it. */
+          unit_price_cents?: number;
+          quantity: number;
+          discount_cents?: number;
+          tax_cents?: number;
+          notes?: string | null;
+          position?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_status_history: {
+        Row: {
+          id: string;
+          order_id: string;
+          tenant_id: string;
+          from_status: OrderStatus | null;
+          to_status: OrderStatus;
+          reason: string | null;
+          changed_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          tenant_id?: string;
+          from_status?: OrderStatus | null;
+          to_status: OrderStatus;
+          reason?: string | null;
+          changed_by?: string | null;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "order_status_history_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_transitions: {
+        Row: {
+          from_status: OrderStatus;
+          to_status: OrderStatus;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       tenant_social_links: {
         Row: {
           id: string;
@@ -919,6 +1065,8 @@ export type Database = {
       social_platform: SocialPlatform;
       product_status: ProductStatus;
       customer_doc_type: CustomerDocType;
+      order_status: OrderStatus;
+      order_source: OrderSource;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;
