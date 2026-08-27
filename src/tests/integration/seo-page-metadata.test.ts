@@ -19,7 +19,14 @@ const state = vi.hoisted(() => ({
     googleVerification: null as string | null,
   },
   page: null as unknown,
-  identity: { name: "Sugu Rolls", addressLine: null, district: null, city: null, phone: null },
+  identity: {
+    name: "Sugu Rolls",
+    addressLine: null,
+    district: null,
+    city: null,
+    phone: null,
+    currency: "PEN",
+  },
   domain: null as string | null,
 }));
 

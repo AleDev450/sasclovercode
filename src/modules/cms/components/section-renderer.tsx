@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatCurrency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { SECTION_SCHEMAS, type SectionType } from "../sections";
 
@@ -31,6 +32,23 @@ export interface RenderableSection {
  * failed, and the image is skipped rather than rendered broken.
  */
 export type AssetUrls = ReadonlyMap<string, string>;
+
+/** What the `products` section needs in order to render. */
+export interface CatalogForSections {
+  readonly products: readonly {
+    id: string;
+    name: string;
+    description: string | null;
+    basePriceCents: number;
+    isAvailable: boolean;
+    isFeatured: boolean;
+    position: number;
+    imagePath: string | null;
+    categorySlug: string | null;
+  }[];
+  /** From `tenant_settings` via the public identity function (Phase 06/11). */
+  readonly currency: string;
+}
 
 function Heading({ children }: { children: string }) {
   if (children.length === 0) return null;
@@ -76,9 +94,19 @@ const buttonClass =
 export function SectionRenderer({
   section,
   assetUrls,
+  catalog,
 }: {
   section: RenderableSection;
   assetUrls: AssetUrls;
+  /**
+   * The tenant's published catalogue, read once by the page and passed down.
+   *
+   * Passed in rather than fetched here so this component stays synchronous and
+   * pure: it renders what it is given, which is what makes it testable and what
+   * keeps the "nothing here interprets markup" guarantee of Phase 07 easy to
+   * check by reading one file.
+   */
+  catalog?: CatalogForSections;
 }) {
   // Re-validated at render time, not trusted from the row.
   //
@@ -204,15 +232,66 @@ export function SectionRenderer({
 
     case "products": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["products"]["_output"];
+
+      const all = catalog?.products ?? [];
+      // A section pointing at a category that no longer exists shows the whole
+      // catalogue rather than an empty block (EC-1108): the business lost a
+      // grouping, not its products.
+      const matching =
+        c.categorySlug === undefined ||
+        !all.some((product) => product.categorySlug === c.categorySlug)
+          ? all
+          : all.filter((product) => product.categorySlug === c.categorySlug);
+
+      // Featured first, then the order the business chose.
+      const shown = [...matching]
+        .sort(
+          (a, b) =>
+            Number(b.isFeatured) - Number(a.isFeatured) ||
+            a.position - b.position ||
+            a.name.localeCompare(b.name),
+        )
+        .slice(0, c.limit);
+
+      if (shown.length === 0) return null;
+
       return (
         <section className="flex flex-col gap-4 py-8">
           <Heading>{c.heading}</Heading>
-          {/* Deliberately empty until Phase 11 creates the catalogue. Shipping
-              the wrapper lets a business lay the page out before the products
-              exist. */}
-          <p className="text-muted-foreground text-sm">
-            El catalogo se mostrara aqui cuando este disponible.
-          </p>
+          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {shown.map((product) => {
+              const imageUrl =
+                product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
+              return (
+                <li key={product.id} className="flex flex-col gap-2">
+                  {imageUrl !== undefined ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={imageUrl}
+                      alt={product.name}
+                      className="aspect-[4/3] w-full rounded-md object-cover"
+                    />
+                  ) : null}
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-sm font-medium">{product.name}</h3>
+                    <span className="font-mono text-sm whitespace-nowrap tabular-nums">
+                      {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
+                    </span>
+                  </div>
+                  {product.description !== null ? (
+                    <p className="text-muted-foreground max-w-prose text-sm">
+                      {product.description}
+                    </p>
+                  ) : null}
+                  {!product.isAvailable ? (
+                    // Sold out today, still on the menu. Hiding it would tell a
+                    // customer the business does not serve this at all.
+                    <span className="text-muted-foreground text-xs">Agotado por hoy</span>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
         </section>
       );
     }

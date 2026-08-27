@@ -38,6 +38,7 @@ const BUSINESS: BusinessIdentity = {
   district: "Miraflores",
   city: "Lima",
   phone: "+51 987 654 321",
+  currency: "PEN",
 };
 
 const PAGE: PageSeo = {

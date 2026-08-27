@@ -663,7 +663,10 @@ KL-701  El editor de secciones es JSON. Funciona y valida, pero no es una
 KL-702  No hay reordenar arrastrando: el orden es un número. Suficiente y
         aburrido, que para esto es una virtud.
 
-KL-703  La sección `products` renderiza un envoltorio vacío hasta la Fase 11.
+KL-703  CERRADA por la Fase 11: la sección `products` renderiza el catálogo
+        real. El renderizador sigue siendo síncrono y puro - recibe los
+        productos por props, no los consulta - así que la garantía de que nada
+        aquí interpreta markup se sigue comprobando leyendo un archivo.
 
 KL-704  No se pueden subir imágenes desde el CMS: hay que usar la pantalla de
         la Fase 06 y pegar la ruta. Owner: SIN ASIGNAR, por el mismo motivo

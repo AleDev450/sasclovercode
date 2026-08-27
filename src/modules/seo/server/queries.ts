@@ -78,6 +78,16 @@ const EMPTY_SEO: SiteSeo = {
   googleVerification: null,
 };
 
+/** What the site falls back to when the identity cannot be read. */
+const FALLBACK_IDENTITY = (name: string): BusinessIdentity => ({
+  name,
+  addressLine: null,
+  district: null,
+  city: null,
+  phone: null,
+  currency: "PEN",
+});
+
 /**
  * The public identity of the business, through the narrow function.
  *
@@ -95,12 +105,12 @@ export const getPublicIdentity = cache(
 
     if (error) {
       logger.error("seo.identity_failed", { tenantId, error });
-      return { name: fallbackName, addressLine: null, district: null, city: null, phone: null };
+      return FALLBACK_IDENTITY(fallbackName);
     }
 
     const row = data?.[0];
     if (row === undefined) {
-      return { name: fallbackName, addressLine: null, district: null, city: null, phone: null };
+      return FALLBACK_IDENTITY(fallbackName);
     }
 
     return {
@@ -109,6 +119,10 @@ export const getPublicIdentity = cache(
       district: row.district,
       city: row.city,
       phone: row.phone,
+      // Defaulted rather than left empty: a page that shows prices with no
+      // currency is worse than one that shows them in the platform's default
+      // market. The function defaults it too, so this is the second layer.
+      currency: row.currency ?? "PEN",
     };
   },
 );

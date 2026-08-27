@@ -43,6 +43,8 @@ export interface BusinessIdentity {
   readonly district: string | null;
   readonly city: string | null;
   readonly phone: string | null;
+  /** ISO 4217 code the business's prices are in (Phase 06, read in Phase 11). */
+  readonly currency: string;
 }
 
 export interface ResolvedSeo {

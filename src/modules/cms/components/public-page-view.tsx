@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/ui";
+import { listPublicProducts } from "@/modules/catalog/server/queries";
+import { getPublicIdentity } from "@/modules/seo/server/queries";
 import { getPublicPage } from "../server/public-queries";
 import { getSiteContext, signAssetPaths } from "../server/site-context";
 import { collectAssetPaths } from "../sections";
-import { SectionRenderer } from "./section-renderer";
+import { SectionRenderer, type CatalogForSections } from "./section-renderer";
 
 /**
  * Renders one published page of the tenant that owns this hostname.
@@ -34,7 +36,34 @@ export async function PublicPageView({ slug }: { slug: string }) {
     notFound();
   }
 
-  const assetUrls = await signAssetPaths(collectAssetPaths(page.sections));
+  /*
+   * The catalogue is read once, here, and only when the page asks for it.
+   *
+   * A page with no `products` section pays nothing: a restaurant's "Nosotros"
+   * page should not query the catalogue to render two paragraphs. And reading
+   * it in ONE place means the product images can be signed in the same batch as
+   * the section images - one round trip to Storage instead of one per product.
+   */
+  const wantsCatalog = page.sections.some((section) => section.type === "products");
+
+  const [catalog, identity] = wantsCatalog
+    ? await Promise.all([
+        listPublicProducts(site.tenant.id),
+        getPublicIdentity(site.tenant.id, site.tenant.name),
+      ])
+    : [[], null];
+
+  const productImagePaths = catalog
+    .map((product) => product.imagePath)
+    .filter((path): path is string => path !== null);
+
+  const assetUrls = await signAssetPaths([
+    ...collectAssetPaths(page.sections),
+    ...productImagePaths,
+  ]);
+
+  const catalogForSections: CatalogForSections | undefined =
+    identity === null ? undefined : { products: catalog, currency: identity.currency };
 
   return (
     <article className="flex flex-col">
@@ -47,7 +76,12 @@ export async function PublicPageView({ slug }: { slug: string }) {
         />
       ) : (
         page.sections.map((section) => (
-          <SectionRenderer key={section.id} section={section} assetUrls={assetUrls} />
+          <SectionRenderer
+            key={section.id}
+            section={section}
+            assetUrls={assetUrls}
+            catalog={catalogForSections}
+          />
         ))
       )}
     </article>

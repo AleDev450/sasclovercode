@@ -97,15 +97,27 @@ const gallerySchema = z.object({
 });
 
 /**
- * The products section is a placeholder until Phase 11 exists.
+ * The products section, which Phase 11 filled in.
  *
- * It stores only presentation: which catalogue to show is a decision that needs
- * a catalogue. Shipping the wrapper now means a business can lay out the page
- * before the products arrive.
+ * It still stores only PRESENTATION - a heading, how many to show, and which
+ * category - never the products themselves. The catalogue is read at render
+ * time from `products`, so publishing a price change does not mean rewriting
+ * every page that mentions it.
+ *
+ * `categorySlug` is optional and refers to a category by slug rather than by
+ * id: a slug survives a category being recreated, and a section pointing at a
+ * category that no longer exists falls back to the whole catalogue rather than
+ * failing (EC-1108).
  */
 const productsSchema = z.object({
   heading: text(120).optional().default(""),
   limit: z.coerce.number().int().min(1).max(24).default(8),
+  categorySlug: z
+    .string()
+    .trim()
+    .max(80)
+    .regex(/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/, "Slug de categoria invalido.")
+    .optional(),
 });
 
 const faqSchema = z.object({

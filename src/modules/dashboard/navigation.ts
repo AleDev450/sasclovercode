@@ -29,6 +29,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.MEMBERS_VIEW,
   },
   {
+    key: "catalog",
+    label: "Catalogo",
+    segment: "/catalogo",
+    permission: PERMISSIONS.PRODUCTS_VIEW,
+  },
+  {
     key: "content",
     label: "Contenido",
     segment: "/contenido",

@@ -35,6 +35,7 @@ export type SectionTypeName =
   "hero" | "text" | "image" | "banner" | "cta" | "gallery" | "products" | "faq";
 export type NavLinkType = "page" | "external";
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "x" | "youtube" | "linkedin";
+export type ProductStatus = "draft" | "active" | "archived";
 
 export type Database = {
   public: {
@@ -468,6 +469,162 @@ export type Database = {
           },
         ];
       };
+      categories: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          slug: string;
+          description: string | null;
+          position: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string; name: string; slug: string } & Partial<
+          Omit<Database["public"]["Tables"]["categories"]["Row"], "tenant_id" | "name" | "slug">
+        >;
+        Update: Partial<Database["public"]["Tables"]["categories"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "categories_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      products: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          category_id: string | null;
+          name: string;
+          slug: string;
+          description: string | null;
+          /** Minor units. 2490 is S/ 24.90. Never a float (ADR-015). */
+          base_price_cents: number;
+          status: ProductStatus;
+          /** Available today. Independent of `status`, which is editorial. */
+          is_available: boolean;
+          is_featured: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string; name: string; slug: string } & Partial<
+          Omit<Database["public"]["Tables"]["products"]["Row"], "tenant_id" | "name" | "slug">
+        >;
+        Update: Partial<Database["public"]["Tables"]["products"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "products_category_id_fkey";
+            columns: ["category_id"];
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_images: {
+        Row: {
+          id: string;
+          product_id: string;
+          tenant_id: string;
+          path: string;
+          alt_text: string | null;
+          position: number;
+          is_primary: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          /** Derived by a trigger from the product; never trusted from a client. */
+          tenant_id?: string;
+          path: string;
+          alt_text?: string | null;
+          position?: number;
+          is_primary?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_images"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "product_images_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_variants: {
+        Row: {
+          id: string;
+          product_id: string;
+          tenant_id: string;
+          name: string;
+          sku: string | null;
+          /** Absolute price in minor units, not a delta on the product. */
+          price_cents: number;
+          is_active: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          tenant_id?: string;
+          name: string;
+          sku?: string | null;
+          price_cents?: number;
+          is_active?: boolean;
+          position?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_variants"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      product_options: {
+        Row: {
+          id: string;
+          product_id: string;
+          tenant_id: string;
+          group_label: string;
+          name: string;
+          /** Signed: an option may subtract as well as add. */
+          price_delta_cents: number;
+          is_active: boolean;
+          position: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_id: string;
+          tenant_id?: string;
+          group_label: string;
+          name: string;
+          price_delta_cents?: number;
+          is_active?: boolean;
+          position?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_options"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "product_options_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tenant_social_links: {
         Row: {
           id: string;
@@ -615,6 +772,7 @@ export type Database = {
           district: string | null;
           city: string | null;
           phone: string | null;
+          currency: string;
         }[];
       };
       get_tenant_primary_domain: {
@@ -684,6 +842,7 @@ export type Database = {
       membership_status: MembershipStatus;
       platform_admin_status: PlatformAdminStatus;
       social_platform: SocialPlatform;
+      product_status: ProductStatus;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;
