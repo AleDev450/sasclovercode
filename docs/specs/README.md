@@ -16,9 +16,11 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 05    | Tenant Dashboard        | [phase-05-tenant-dashboard.md](./phase-05-tenant-dashboard.md)               | COMPLETED |
 | 06    | Business Settings/Theme | [phase-06-business-settings-theme.md](./phase-06-business-settings-theme.md) | COMPLETED |
 | 07    | Navigation + CMS        | [phase-07-navigation-cms.md](./phase-07-navigation-cms.md)                   | COMPLETED |
-| 08    | SEO + Metadata          | _not written_                                                                | -         |
-| 09    | Custom Domains          | _not written_                                                                | -         |
-| 10-28 | see master document     | _not written_                                                                | -         |
+| 08    | SEO + Metadata          | [phase-08-seo-metadata.md](./phase-08-seo-metadata.md)                       | COMPLETED |
+| 09    | Custom Domains          | [phase-09-custom-domains.md](./phase-09-custom-domains.md)                   | COMPLETED |
+| 10    | Locations               | [phase-10-locations.md](./phase-10-locations.md)                             | COMPLETED |
+| 11    | Catalog                 | [phase-11-catalog.md](./phase-11-catalog.md)                                 | COMPLETED |
+| 12-28 | see master document     | _not written_                                                                | -         |
 
 ## Required contents
 

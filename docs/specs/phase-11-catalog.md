@@ -6,9 +6,9 @@
 Phase:                11
 Nombre:               Catalog
 Estado:               COMPLETED
-Versión:              1.1.0
+Versión:              1.1.1
 Fecha creación:       2026-08-25
-Última actualización: 2026-08-25
+Última actualización: 2026-08-27
 Responsable:          alejandro.avendano@masuno.pe
 ```
 
@@ -689,9 +689,6 @@ KL-1107  Sin impuestos ni afectación IGV en el producto. Owner: Fase 17.
 
 KL-1108  `slugify` está en el módulo pero el formulario no lo usa todavía: el
          slug se escribe a mano. Es una mejora de UI, no de modelo.
-
-KL-1109  Los cambios de esta fase están sin commitear. Las Fases 09 y 10 sí
-         lo están, en el commit `fase 10`.
 ```
 
 ---
