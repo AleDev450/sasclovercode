@@ -1,7 +1,6 @@
 # Multi-tenancy
 
-> Current as of Phase 03. Sections marked with a phase describe intent, not
-> implemented behaviour.
+> Current as of Phase 14.
 
 ## The rule
 
@@ -36,7 +35,9 @@ erDiagram
 ```
 
 `tenants` is the root. From Phase 10 onward every business table carries
-`tenant_id uuid not null`.
+`tenant_id uuid not null` directly; a table subordinate to another business
+row (an order line, a cash movement, …) derives it by trigger from its parent
+instead — see [database.md](./database.md#conventions).
 
 ## Two globally unique namespaces
 
@@ -116,16 +117,22 @@ call site (master sections 42 and 43).
 | Hostname resolution                 | 01    | Implemented     |
 | RLS deny-by-default                 | 01    | Implemented     |
 | `tenant_members`, per-user policies | 02/03 | Implemented     |
-| RBAC (roles, permissions, matrix)   | 03    | Implemented     |
-| Tenant provisioning                 | 04    | Not implemented |
-| Domain verification, Vercel API     | 09    | Not implemented |
-| `tenant_id` on business tables      | 10+   | Not implemented |
+| RBAC (roles, permissions, matrix)   | 03    | Implemented — [authorization.md](./authorization.md) |
+| Tenant provisioning                 | 04    | Implemented     |
+| Domain verification                 | 09    | Implemented — [domains.md](./domains.md) |
+| Vercel API integration              | —     | **Not implemented**, deliberately (ADR-013) |
+| `tenant_id` on business tables      | 10+   | Implemented, through Phase 14 |
 
 ## The proof
 
 `src/tests/database/isolation.test.ts` runs the project's migrations against a
 real PostgreSQL and asserts, among other things, that no hostname ever returns
-another tenant's data (TEST-140). It is the suite the product rests on, and it
-grows with every phase. Phase 03 added `authorization.test.ts`, whose TEST-331
-walks **every role in the catalogue** and proves that none of them reaches the
-other tenant, reading or writing.
+another tenant's data (TEST-140), and — table by table, across every phase —
+that no business table is reachable across a tenant boundary. It is the suite
+the product rests on, and it grows with every phase; Phase 14 added its five
+new tables to the same invariant rather than a parallel one.
+
+`authorization.test.ts` (Phase 03) walks **every role in the catalogue** and
+proves none of them reaches another tenant, reading or writing (TEST-331) —
+the identical guarantee, exercised from the RBAC side rather than the
+hostname side.

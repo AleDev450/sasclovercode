@@ -14,6 +14,8 @@ import { getOrderDetail } from "@/modules/orders/server/queries";
 import { PaymentBalance, PaymentsList } from "@/modules/payments/components/payments-list";
 import { RecordPaymentForm } from "@/modules/payments/components/record-payment-form";
 import { listOpenSessionsForLocation, listPaymentMethods } from "@/modules/payments/server/queries";
+import { PrintButton } from "@/modules/pos/components/print-button";
+import { Receipt } from "@/modules/pos/components/receipt";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
 
 export const metadata = { title: "Pedido" };
@@ -55,8 +57,13 @@ export default async function OrderDetailPage({
 
   const money = (cents: number): string => formatCurrency(cents, settings.currency);
 
+  // Only the receipt itself is meant to come out of "Imprimir" - everything
+  // else on this page (nav, forms, history) is print:hidden so a reprint
+  // from here is the same ticket a POS checkout produces (Phase 15), not a
+  // screenshot of the dashboard.
   return (
     <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 print:hidden">
       <div className="flex flex-col gap-2">
         <Link
           href={`/dashboard/${tenant.slug}/pedidos`}
@@ -254,6 +261,34 @@ export default async function OrderDetailPage({
               </li>
             ))}
           </ol>
+        </CardContent>
+      </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 print:hidden">
+          <CardTitle as="h2">Recibo</CardTitle>
+          <PrintButton />
+        </CardHeader>
+        <CardContent>
+          <Receipt
+            orderNumber={order.number}
+            locationName={order.locationName ?? "—"}
+            customerName={order.customerName}
+            lines={order.lines.map((line) => ({
+              name: line.name,
+              variantName: line.variantName,
+              quantity: line.quantity,
+              unitPriceCents: line.unitPriceCents,
+              totalCents: line.totalCents,
+            }))}
+            totalCents={order.totalCents}
+            currency={settings.currency}
+            placedAt={order.placedAt}
+            payments={order.payments
+              .filter((payment) => payment.voidedAt === null)
+              .map((payment) => ({ methodName: payment.methodName, amountCents: payment.amountCents }))}
+          />
         </CardContent>
       </Card>
     </div>

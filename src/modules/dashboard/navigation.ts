@@ -57,6 +57,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     segment: "/pedidos",
     permission: PERMISSIONS.ORDERS_VIEW,
   },
+  /*
+   * Gated on orders.create, not payments.create: building a sale is POS's
+   * core loop, and checkout is one part of the screen that hides itself
+   * (ADR-019) for whoever lacks payments.create, the same way the order
+   * detail page already hides RecordPaymentForm.
+   */
+  {
+    key: "pos",
+    label: "Punto de venta",
+    segment: "/pos",
+    permission: PERMISSIONS.ORDERS_CREATE,
+  },
   {
     key: "customers",
     label: "Clientes",

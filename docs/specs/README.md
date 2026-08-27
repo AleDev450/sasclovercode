@@ -23,7 +23,8 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 12    | Customers               | [phase-12-customers.md](./phase-12-customers.md)                             | COMPLETED |
 | 13    | Orders Core             | [phase-13-orders-core.md](./phase-13-orders-core.md)                         | COMPLETED |
 | 14    | Payments + Cash         | [phase-14-payments-cash.md](./phase-14-payments-cash.md)                     | COMPLETED |
-| 15-28 | see master document     | _not written_                                                                | -         |
+| 15    | POS                     | [phase-15-pos.md](./phase-15-pos.md)                                         | COMPLETED |
+| 16-28 | see master document     | _not written_                                                                | -         |
 
 ## Required contents
 

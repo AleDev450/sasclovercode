@@ -26,6 +26,7 @@ Status.
 | 016 | [Personal data minimization](./016-personal-data-minimization.md)              | ACCEPTED | 12    |
 | 017 | [Order snapshots and state machine](./017-order-snapshot-and-state-machine.md) | ACCEPTED | 13    |
 | 018 | [Payment voiding and the cash ledger](./018-payment-void-and-cash-ledger.md)   | ACCEPTED | 14    |
+| 019 | [POS actions as RPC, ephemeral cart](./019-pos-actions-as-rpc-and-ephemeral-cart.md) | ACCEPTED | 15    |
 
 ## Planned
 
@@ -33,8 +34,6 @@ Decisions the master document calls out that belong to a later phase:
 
 | Topic                        | Phase                         |
 | ---------------------------- | ----------------------------- |
-| RBAC authorization strategy  | 03                            |
-| RLS policy shape             | 03                            |
 | Vercel provider adapter      | when a token exists (ADR-013) |
 | Billing provider abstraction | 17                            |
 

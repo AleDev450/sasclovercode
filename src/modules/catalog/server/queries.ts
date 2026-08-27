@@ -217,6 +217,59 @@ export async function getProductDetail(
   };
 }
 
+export interface ProductWithVariants extends Product {
+  readonly variants: readonly ProductVariant[];
+}
+
+/**
+ * The sellable catalogue, variants included, in ONE query.
+ *
+ * Built for the POS grid (Phase 15): tapping a product needs to know
+ * immediately whether it has variants to offer a choice, and a per-product
+ * `getProductDetail` call on every tap would be the N+1 that query exists to
+ * avoid elsewhere in the codebase. The embed is one round trip regardless of
+ * how many products a tenant has, the same way `getOrderDetail`'s line embed
+ * is (Phase 13).
+ *
+ * `active` only: a draft or archived product is not something a till should
+ * be able to ring up, unlike the dashboard's own `listProducts`, which shows
+ * everything because it's for managing the catalogue, not selling from it.
+ */
+export async function listProductsWithVariants(
+  tenantId: string,
+): Promise<readonly ProductWithVariants[]> {
+  const client = await createSupabaseServerClient();
+  const { data, error } = await client
+    .from("products")
+    .select(
+      `${PRODUCT_COLUMNS}, product_variants(id, name, sku, price_cents, is_active, position)`,
+    )
+    .eq("tenant_id", tenantId)
+    .eq("status", "active")
+    .order("position")
+    .order("name");
+
+  if (error) {
+    logger.error("catalog.products_with_variants_failed", { tenantId, error });
+    throw new DatabaseError("Product listing failed.", { cause: error });
+  }
+
+  return (data ?? []).map((row) => ({
+    ...toProduct(row),
+    variants: (row.product_variants ?? [])
+      .filter((variant) => variant.is_active)
+      .map((variant) => ({
+        id: variant.id,
+        name: variant.name,
+        sku: variant.sku,
+        priceCents: variant.price_cents,
+        isActive: variant.is_active,
+        position: variant.position,
+      }))
+      .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
+  }));
+}
+
 export interface PublicProduct extends Product {
   readonly imagePath: string | null;
   readonly categorySlug: string | null;

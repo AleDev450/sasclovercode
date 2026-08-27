@@ -150,12 +150,25 @@ function toItemRow(orderId: string, item: OrderItemInput, position: number) {
   };
 }
 
-export async function createOrderAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const tenant = await requireOrderAccess(formData, PERMISSIONS.ORDERS_CREATE);
+interface CreatedOrder {
+  readonly id: string;
+  readonly number: number;
+}
 
+type InsertOrderOutcome =
+  | { readonly ok: true; readonly order: CreatedOrder }
+  | { readonly ok: false; readonly formState: FormState };
+
+/**
+ * The actual work of creating an order: parse, insert, insert lines,
+ * translate failure. `createOrderAction` (the `/pedidos` form) and
+ * `createOrderForPos` (Phase 15) both call this and nothing else - one
+ * insert path, two callers, per ADR-019. Neither caller re-derives any of it.
+ */
+async function insertOrder(
+  tenant: { id: string; slug: string },
+  formData: FormData,
+): Promise<InsertOrderOutcome> {
   const parsed = createOrderSchema.safeParse({
     locationId: readText(formData, "locationId"),
     customerId: readText(formData, "customerId"),
@@ -164,7 +177,9 @@ export async function createOrderAction(
     notes: readText(formData, "notes"),
     items: readItems(formData),
   });
-  if (!parsed.success) return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
+  if (!parsed.success) {
+    return { ok: false, formState: { status: "error", fieldErrors: toFieldErrors(parsed.error) } };
+  }
 
   const client = await createSupabaseServerClient();
 
@@ -178,16 +193,19 @@ export async function createOrderAction(
       shipping_cents: parsed.data.shipping,
       notes: parsed.data.notes,
     })
-    .select("id")
+    .select("id, number")
     .single();
 
   if (orderError) {
     const described = describeDatabaseError(orderError);
-    if (described !== null) return described;
+    if (described !== null) return { ok: false, formState: described };
     // 23505 is the per-tenant number racing another cashier. The row is not
     // written, so retrying is safe and invisible.
     if (orderError.code === "23505") {
-      return { status: "error", message: "Otro pedido se creo al mismo tiempo. Intenta de nuevo." };
+      return {
+        ok: false,
+        formState: { status: "error", message: "Otro pedido se creo al mismo tiempo. Intenta de nuevo." },
+      };
     }
     logger.error("orders.create_failed", { tenantId: tenant.id, error: orderError });
     throw new DatabaseError("Order creation failed.", { cause: orderError });
@@ -203,13 +221,52 @@ export async function createOrderAction(
     // the failure is visible rather than silently half-applied.
     const described = describeDatabaseError(itemsError);
     logger.error("orders.create_items_failed", { tenantId: tenant.id, error: itemsError });
-    if (described !== null) return described;
+    if (described !== null) return { ok: false, formState: described };
     throw new DatabaseError("Order lines failed.", { cause: itemsError });
   }
 
   logger.info("order.created", { tenantId: tenant.id, orderId: order.id });
   revalidateOrders(tenant.slug, order.id);
+  return { ok: true, order };
+}
+
+export async function createOrderAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const tenant = await requireOrderAccess(formData, PERMISSIONS.ORDERS_CREATE);
+  const result = await insertOrder(tenant, formData);
+  if (!result.ok) return result.formState;
   return { status: "success", message: "Pedido creado." };
+}
+
+export interface PosOrderResult {
+  readonly status: "success" | "error";
+  readonly orderId?: string;
+  readonly orderNumber?: number;
+  readonly message?: string;
+  readonly fieldErrors?: Readonly<Record<string, readonly string[]>>;
+}
+
+/**
+ * Same insert as `createOrderAction`, called directly rather than through a
+ * `<form>` (ADR-019) - the POS screen needs the new order's id immediately,
+ * to attach a payment without a page navigation. `FormState` itself is not
+ * widened for this: it is shared by every form in the project.
+ */
+export async function createOrderForPos(formData: FormData): Promise<PosOrderResult> {
+  const tenant = await requireOrderAccess(formData, PERMISSIONS.ORDERS_CREATE);
+  const result = await insertOrder(tenant, formData);
+
+  if (!result.ok) {
+    return {
+      status: "error",
+      message: result.formState.message,
+      fieldErrors: result.formState.fieldErrors,
+    };
+  }
+
+  return { status: "success", orderId: result.order.id, orderNumber: result.order.number };
 }
 
 export async function addOrderItemAction(

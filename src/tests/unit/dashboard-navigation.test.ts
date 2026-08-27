@@ -74,6 +74,26 @@ describe("the customers entry (TEST-1209)", () => {
   });
 });
 
+describe("the pos entry (Phase 15)", () => {
+  const withOrdersCreate = new Set<Permission>([PERMISSIONS.ORDERS_CREATE]);
+
+  it("appears for a holder of orders.create, not payments.create", () => {
+    // Gated the same way the checkout section inside the page hides itself
+    // (ADR-019): the nav entry tracks "can build a sale", not "can charge
+    // for one".
+    expect(visibleNavItems(withOrdersCreate).map((i) => i.key)).toContain("pos");
+    expect(
+      visibleNavItems(new Set<Permission>([PERMISSIONS.PAYMENTS_CREATE])).map((i) => i.key),
+    ).not.toContain("pos");
+  });
+
+  it("points at /pos", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "pos")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/pos");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/pos")).toBe("pos");
+  });
+});
+
 describe("the cash entry (Phase 14)", () => {
   const withCash = new Set<Permission>([PERMISSIONS.CASH_VIEW]);
 
