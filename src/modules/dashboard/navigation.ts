@@ -47,6 +47,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.CONTENT_MANAGE,
   },
   {
+    key: "customers",
+    label: "Clientes",
+    segment: "/clientes",
+    permission: PERMISSIONS.CUSTOMERS_VIEW,
+  },
+  {
     key: "locations",
     label: "Sedes",
     segment: "/sedes",

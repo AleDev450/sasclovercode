@@ -23,6 +23,7 @@ Status.
 | 013 | [Domain verification and provider](./013-domain-verification-and-provider.md) | ACCEPTED | 09    |
 | 014 | [Locations as operational anchor](./014-locations-as-operational-anchor.md)   | ACCEPTED | 10    |
 | 015 | [Money as integers in the minor unit](./015-money-as-minor-units.md)          | ACCEPTED | 11    |
+| 016 | [Personal data minimization](./016-personal-data-minimization.md)             | ACCEPTED | 12    |
 
 ## Planned
 

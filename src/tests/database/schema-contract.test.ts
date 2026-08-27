@@ -281,6 +281,8 @@ describe("TEST-141: declared types match the real schema", () => {
       "product_images",
       "product_variants",
       "product_options",
+      "customers",
+      "customer_addresses",
     ];
     expect(rows.map((r) => r.tablename).sort()).toEqual(
       [...Object.keys(EXPECTED_COLUMNS), ...catalogueTables].sort(),

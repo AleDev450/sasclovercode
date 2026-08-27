@@ -38,6 +38,24 @@ describe("visibleNavItems (TEST-501, TEST-503)", () => {
   });
 });
 
+describe("the customers entry (TEST-1209)", () => {
+  const withCustomers = new Set<Permission>([PERMISSIONS.CUSTOMERS_VIEW]);
+
+  it("appears for a holder of customers.view", () => {
+    expect(visibleNavItems(withCustomers).map((i) => i.key)).toContain("customers");
+  });
+
+  it("is hidden without it", () => {
+    expect(visibleNavItems(none).map((i) => i.key)).not.toContain("customers");
+  });
+
+  it("points at /clientes and is matched by activeNavKey", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "customers")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/clientes");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/clientes/abc")).toBe("customers");
+  });
+});
+
 describe("navItemHref", () => {
   it("builds a tenant-scoped path", () => {
     const home = NAV_ITEMS.find((i) => i.key === "home")!;

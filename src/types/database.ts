@@ -37,6 +37,9 @@ export type NavLinkType = "page" | "external";
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "x" | "youtube" | "linkedin";
 export type ProductStatus = "draft" | "active" | "archived";
 
+/** Master section 33 (Phase 12): the three Peruvian documents, no more. */
+export type CustomerDocType = "dni" | "ruc" | "ce";
+
 export type Database = {
   public: {
     Tables: {
@@ -625,6 +628,74 @@ export type Database = {
           },
         ];
       };
+      customers: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          doc_type: CustomerDocType | null;
+          doc_number: string | null;
+          email: string | null;
+          phone: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { tenant_id: string; name: string } & Partial<
+          Omit<Database["public"]["Tables"]["customers"]["Row"], "tenant_id" | "name">
+        >;
+        Update: Partial<Database["public"]["Tables"]["customers"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "customers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_addresses: {
+        Row: {
+          id: string;
+          customer_id: string;
+          tenant_id: string;
+          label: string;
+          address_line: string;
+          district: string | null;
+          city: string | null;
+          reference: string | null;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          customer_id: string;
+          /** Derived by a trigger from the customer; never trusted from a client. */
+          tenant_id?: string;
+          label: string;
+          address_line: string;
+          district?: string | null;
+          city?: string | null;
+          reference?: string | null;
+          is_default?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["customer_addresses"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "customer_addresses_customer_id_fkey";
+            columns: ["customer_id"];
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_addresses_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       tenant_social_links: {
         Row: {
           id: string;
@@ -795,6 +866,10 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: boolean;
       };
+      is_valid_ruc: {
+        Args: { p_value: string };
+        Returns: boolean;
+      };
       is_platform_admin: {
         Args: Record<string, never>;
         Returns: boolean;
@@ -843,6 +918,7 @@ export type Database = {
       platform_admin_status: PlatformAdminStatus;
       social_platform: SocialPlatform;
       product_status: ProductStatus;
+      customer_doc_type: CustomerDocType;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

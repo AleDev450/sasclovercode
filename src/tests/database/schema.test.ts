@@ -91,6 +91,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260825210100_create_products.sql",
       "20260825210200_create_product_children.sql",
       "20260825210300_extend_public_identity_currency.sql",
+      // Phase 12
+      "20260827120000_create_customer_documents.sql",
+      "20260827120100_create_customers.sql",
+      "20260827120200_create_customer_addresses.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -103,6 +107,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
     );
     expect(tables.map((t) => t.tablename)).toEqual([
       "categories",
+      "customer_addresses",
+      "customers",
       "location_hours",
       "locations",
       "navigation_items",
@@ -132,6 +138,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
        where n.nspname = 'public' and t.typtype = 'e' order by t.typname`,
     );
     expect(enums.map((e) => e.typname)).toEqual([
+      "customer_doc_type",
       "domain_provider_status",
       "domain_verification_status",
       "membership_status",
