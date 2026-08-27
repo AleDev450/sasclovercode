@@ -69,6 +69,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     segment: "/pos",
     permission: PERMISSIONS.ORDERS_CREATE,
   },
+  /*
+   * `orders.view` - the same permission the `kitchen` role has held since
+   * Phase 03. A station is which board you're looking at, not a different
+   * capability (ADR-020).
+   */
+  {
+    key: "kitchen",
+    label: "Cocina",
+    segment: "/cocina",
+    permission: PERMISSIONS.ORDERS_VIEW,
+  },
   {
     key: "customers",
     label: "Clientes",

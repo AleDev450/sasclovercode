@@ -27,6 +27,7 @@ Status.
 | 017 | [Order snapshots and state machine](./017-order-snapshot-and-state-machine.md) | ACCEPTED | 13    |
 | 018 | [Payment voiding and the cash ledger](./018-payment-void-and-cash-ledger.md)   | ACCEPTED | 14    |
 | 019 | [POS actions as RPC, ephemeral cart](./019-pos-actions-as-rpc-and-ephemeral-cart.md) | ACCEPTED | 15    |
+| 020 | [KDS station snapshot and Realtime as refetch](./020-kds-station-snapshot-and-realtime-as-refetch.md) | ACCEPTED | 16    |
 
 ## Planned
 

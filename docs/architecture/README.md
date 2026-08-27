@@ -5,7 +5,7 @@ without relying on historical conversations (`CLOVERCODE_MASTER.md` section 60).
 
 | Document                                 | Covers                                        | Status                                          |
 | ----------------------------------------- | ------------------------------------------------ | -------------------------------------------------- |
-| [overview.md](./overview.md)             | System shape, layers, current state           | Current (Phase 15)                              |
+| [overview.md](./overview.md)             | System shape, layers, current state           | Current (Phase 16)                              |
 | [database.md](./database.md)             | Migration history, conventions, RLS inventory | Current (Phase 14)                              |
 | [multitenancy.md](./multitenancy.md)     | Tenant resolution, isolation, RLS model       | Current (Phase 14)                              |
 | [authentication.md](./authentication.md) | Supabase Auth, SSR sessions, cookies          | Current (Phase 02) — mechanics unchanged since  |

@@ -105,12 +105,32 @@ export function CategoryForm({
         />
       </div>
 
-      <Field
-        name="position"
-        label="Orden"
-        defaultValue={String(category?.position ?? 0)}
-        errors={e.position}
-      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          name="position"
+          label="Orden"
+          defaultValue={String(category?.position ?? 0)}
+          errors={e.position}
+        />
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="kitchenStation">Estacion de cocina</Label>
+          <select
+            id="kitchenStation"
+            name="kitchenStation"
+            defaultValue={category?.kitchenStation ?? "kitchen"}
+            className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+          >
+            <option value="kitchen">Cocina</option>
+            <option value="bar">Barra</option>
+            <option value="sushi">Sushi</option>
+            <option value="desserts">Postres</option>
+          </select>
+          <p className="text-muted-foreground text-xs">
+            Que pantalla del KDS (Fase 16) muestra los productos de esta categoria.
+          </p>
+        </div>
+      </div>
 
       {isEdit ? (
         <label className="flex items-center gap-2 text-sm">

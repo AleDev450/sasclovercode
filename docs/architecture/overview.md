@@ -1,6 +1,6 @@
 # CloverCode — Architecture overview
 
-> Scope note: this document reflects what exists **today** (end of Phase 15).
+> Scope note: this document reflects what exists **today** (end of Phase 16).
 > Sections describing later phases are marked as such and are stated as intent,
 > not as implemented behaviour. It is updated at the end of every phase.
 
@@ -49,7 +49,7 @@ app  ->  modules  ->  lib  ->  config / types
 module's internals — only its own `schemas.ts`, `lifecycle.ts`/`constants.ts`,
 `server/actions.ts`, `server/queries.ts` and `components/`.
 
-## Modules, as of Phase 15
+## Modules, as of Phase 16
 
 ```text
 src/modules/
@@ -66,7 +66,8 @@ src/modules/
 ├── orders/                      the sale itself (Phase 13)
 ├── payments/                     payments, cash registers/sessions (Phase 14)
 ├── pos/                            touch till over orders+payments (Phase 15)
-└── platform/                        super-admin: operators, provisioning
+├── kitchen/                         live board over orders+order_items (Phase 16)
+└── platform/                          super-admin: operators, provisioning
 ```
 
 Each holds `schemas.ts` (Zod), `server/actions.ts` (Server Actions,
@@ -78,7 +79,11 @@ the first module with no `schemas.ts` of its own and no new database writes
 at all — it calls `orders`' and `payments`' existing Server Actions directly
 rather than through a `<form>` ([ADR-019](../adr/019-pos-actions-as-rpc-and-ephemeral-cart.md)),
 and carries `cart.ts` in place of `lifecycle.ts`: pure client-side cart math,
-not a state machine.
+not a state machine. `kitchen` is the first module to use Supabase Realtime
+at all — one `postgres_changes` subscription per open board, triggering a
+`router.refresh()` rather than carrying data itself
+([ADR-020](../adr/020-kds-station-snapshot-and-realtime-as-refetch.md)); it
+also has no `server/actions.ts` of its own, reusing `orders`' unmodified.
 
 ## What exists, by capability
 
@@ -103,6 +108,7 @@ not a state machine.
 | Orders (snapshot pricing, state machine) | `src/modules/orders` | 13 |
 | Payments, cash registers/sessions | `src/modules/payments` | 14 |
 | POS: touch till, no new writes of its own | `src/modules/pos` | 15 |
+| Kitchen/KDS: live board, Realtime (first use) | `src/modules/kitchen` | 16 |
 | Health probe (liveness only) | `src/app/api/health` | 00 |
 
 Deeper reference for the database itself — every migration, every RLS policy,

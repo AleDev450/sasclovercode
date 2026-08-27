@@ -93,11 +93,17 @@ const deltaField = z.string().transform((value, ctx) => {
   return result.cents;
 });
 
+// Master section 33 (Phase 16): exactly these four. Defaults to `kitchen`,
+// matching the column's own default - an owner who never opens this field
+// still gets a category whose items land somewhere.
+export const kitchenStationSchema = z.enum(["kitchen", "bar", "sushi", "desserts"]);
+
 export const categorySchema = z.object({
   name: z.string().trim().min(1, "El nombre es obligatorio.").max(120),
   slug,
   description: optionalText(500),
   position: z.coerce.number().int().min(0).max(1000).default(0),
+  kitchenStation: kitchenStationSchema.default("kitchen"),
 });
 
 export type CategoryInput = z.output<typeof categorySchema>;

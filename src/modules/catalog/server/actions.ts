@@ -95,6 +95,7 @@ export async function createCategoryAction(
     slug: readText(formData, "slug"),
     description: readText(formData, "description"),
     position: readText(formData, "position") || 0,
+    kitchenStation: readText(formData, "kitchenStation") || "kitchen",
   });
   if (!parsed.success) return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
 
@@ -105,6 +106,7 @@ export async function createCategoryAction(
     slug: parsed.data.slug,
     description: parsed.data.description,
     position: parsed.data.position,
+    kitchen_station: parsed.data.kitchenStation,
   });
 
   if (error) {
@@ -132,6 +134,7 @@ export async function updateCategoryAction(
     slug: readText(formData, "slug"),
     description: readText(formData, "description"),
     position: readText(formData, "position") || 0,
+    kitchenStation: readText(formData, "kitchenStation") || "kitchen",
   });
   if (!parsed.success) return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
 
@@ -145,6 +148,7 @@ export async function updateCategoryAction(
       slug: parsed.data.slug,
       description: parsed.data.description,
       position: parsed.data.position,
+      kitchen_station: parsed.data.kitchenStation,
       is_active: isActive,
     })
     .eq("tenant_id", tenant.id)

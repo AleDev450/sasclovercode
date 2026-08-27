@@ -49,6 +49,9 @@ export type OrderSource = "web" | "pos" | "manual" | "whatsapp" | "delivery";
 export type PaymentMethodType = "cash" | "yape" | "plin" | "card" | "transfer" | "other";
 export type CashMovementType = "sale" | "payout" | "deposit" | "adjustment";
 
+/** Master section 33 (Phase 16). Snapshotted onto order_items at insert (ADR-020). */
+export type KitchenStation = "kitchen" | "bar" | "sushi" | "desserts";
+
 export type Database = {
   public: {
     Tables: {
@@ -490,6 +493,8 @@ export type Database = {
           description: string | null;
           position: number;
           is_active: boolean;
+          /** Which kitchen screen this category's items show up on (Phase 16). */
+          kitchen_station: KitchenStation;
           created_at: string;
           updated_at: string;
         };
@@ -772,6 +777,8 @@ export type Database = {
           total_cents: number;
           notes: string | null;
           position: number;
+          /** Snapshotted from the product's category at insert (Phase 16, ADR-020). */
+          station: KitchenStation;
           created_at: string;
           updated_at: string;
         };
@@ -792,6 +799,8 @@ export type Database = {
           tax_cents?: number;
           notes?: string | null;
           position?: number;
+          /** Never sent by a client: the trigger copies it from the category. */
+          station?: KitchenStation;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
         Relationships: [
@@ -1268,6 +1277,7 @@ export type Database = {
       order_source: OrderSource;
       payment_method_type: PaymentMethodType;
       cash_movement_type: CashMovementType;
+      kitchen_station: KitchenStation;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

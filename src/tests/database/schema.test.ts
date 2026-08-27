@@ -107,6 +107,10 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260827140300_create_cash_sessions.sql",
       "20260827140400_create_payments_and_movements.sql",
       "20260827140500_extend_orders_paid_cents.sql",
+      // Phase 16
+      "20260827160000_extend_categories_kitchen_station.sql",
+      "20260827160100_extend_order_items_station.sql",
+      "20260827160200_enable_kds_realtime.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -163,6 +167,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "customer_doc_type",
       "domain_provider_status",
       "domain_verification_status",
+      "kitchen_station",
       "membership_status",
       "nav_link_type",
       "order_source",

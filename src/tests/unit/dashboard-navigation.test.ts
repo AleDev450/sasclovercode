@@ -94,6 +94,24 @@ describe("the pos entry (Phase 15)", () => {
   });
 });
 
+describe("the kitchen entry (Phase 16)", () => {
+  const withOrdersView = new Set<Permission>([PERMISSIONS.ORDERS_VIEW]);
+
+  it("appears for a holder of orders.view - the same permission the kitchen role already has", () => {
+    expect(visibleNavItems(withOrdersView).map((i) => i.key)).toContain("kitchen");
+  });
+
+  it("is hidden without it", () => {
+    expect(visibleNavItems(none).map((i) => i.key)).not.toContain("kitchen");
+  });
+
+  it("points at /cocina", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "kitchen")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/cocina");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/cocina")).toBe("kitchen");
+  });
+});
+
 describe("the cash entry (Phase 14)", () => {
   const withCash = new Set<Permission>([PERMISSIONS.CASH_VIEW]);
 

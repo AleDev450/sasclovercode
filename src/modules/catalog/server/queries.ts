@@ -21,7 +21,7 @@ import { cache } from "react";
 import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import type { ProductStatus } from "@/types/database";
+import type { KitchenStation, ProductStatus } from "@/types/database";
 
 export interface Category {
   readonly id: string;
@@ -30,6 +30,8 @@ export interface Category {
   readonly description: string | null;
   readonly position: number;
   readonly isActive: boolean;
+  /** Which kitchen screen this category's items show up on (Phase 16). */
+  readonly kitchenStation: KitchenStation;
 }
 
 export interface ProductImage {
@@ -77,7 +79,7 @@ export interface ProductDetail extends Product {
   readonly options: readonly ProductOption[];
 }
 
-const CATEGORY_COLUMNS = "id, name, slug, description, position, is_active";
+const CATEGORY_COLUMNS = "id, name, slug, description, position, is_active, kitchen_station";
 const PRODUCT_COLUMNS =
   "id, category_id, name, slug, description, base_price_cents, status, is_available, is_featured, position";
 
@@ -88,6 +90,7 @@ function toCategory(row: {
   description: string | null;
   position: number;
   is_active: boolean;
+  kitchen_station: KitchenStation;
 }): Category {
   return {
     id: row.id,
@@ -95,6 +98,7 @@ function toCategory(row: {
     slug: row.slug,
     description: row.description,
     position: row.position,
+    kitchenStation: row.kitchen_station,
     isActive: row.is_active,
   };
 }

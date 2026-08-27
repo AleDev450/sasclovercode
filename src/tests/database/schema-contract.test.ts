@@ -152,6 +152,7 @@ export type _OrderItemKeys = Expect<
     | "total_cents"
     | "notes"
     | "position"
+    | "station"
     | "created_at"
     | "updated_at"
   >
@@ -353,6 +354,7 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     total_cents: { dataType: "bigint", nullable: false },
     notes: { dataType: "text", nullable: true },
     position: { dataType: "smallint", nullable: false },
+    station: { dataType: "USER-DEFINED", nullable: false },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },
