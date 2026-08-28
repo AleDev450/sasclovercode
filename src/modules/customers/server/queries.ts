@@ -36,6 +36,9 @@ export interface CustomerAddress {
   readonly district: string | null;
   readonly city: string | null;
   readonly reference: string | null;
+  /** Added in Phase 19 so a delivery can inherit them instead of retyping. */
+  readonly latitude: number | null;
+  readonly longitude: number | null;
   readonly isDefault: boolean;
 }
 
@@ -159,7 +162,7 @@ export async function getCustomerDetail(
   const { data, error } = await client
     .from("customers")
     .select(
-      `${CUSTOMER_COLUMNS}, customer_addresses(id, label, address_line, district, city, reference, is_default)`,
+      `${CUSTOMER_COLUMNS}, customer_addresses(id, label, address_line, district, city, reference, latitude, longitude, is_default)`,
     )
     .eq("tenant_id", tenantId)
     .eq("id", customerId)
@@ -181,6 +184,8 @@ export async function getCustomerDetail(
         district: row.district,
         city: row.city,
         reference: row.reference,
+        latitude: row.latitude,
+        longitude: row.longitude,
         isDefault: row.is_default,
       }))
       // The default first, then alphabetically: the one the rider needs is the

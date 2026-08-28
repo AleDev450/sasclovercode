@@ -51,7 +51,7 @@ active     an operator, and nobody else
 `resolve_tenant_by_domain()` — the one read path that serves live traffic —
 matches only `active` domains. That makes the state that carries traffic
 **unreachable from a tenant session**, which is the entire security property
-this phase provides: the DNS check runs on the server, but its *result* is
+this phase provides: the DNS check runs on the server, but its _result_ is
 reported by the caller, and a caller can lie. A forged `record_domain_ownership_check(id, true)`
 only reaches `verifying`, which serves nothing — it buys a place in a queue
 an operator is already looking at, not a live domain.
@@ -97,21 +97,21 @@ policy** on `tenant_domains` at all — RLS is row-level, not column-level, so
 a policy permissive enough to let a tenant set `is_primary` would also be
 permissive enough to let it set `verification_status = 'active'`.
 
-| Function | Does | Notably |
-|---|---|---|
-| `claim_domain(tenant_id, domain)` | Reserves a domain, `pending` | Rejects the platform's own namespace; refuses a live domain of another tenant **without saying whose** (same 404-never-403 reasoning as elsewhere); releases another tenant's unverified claim after 7 days |
-| `record_domain_ownership_check(domain_id, ok, error?)` | Records a DNS lookup result | Can reach `verifying` or `failed`, never `active` — a forged `true` costs nothing but a queue slot |
-| `set_primary_domain(domain_id)` | Moves the primary flag | Only a `verified` domain may become primary (Phase 08 builds the canonical URL from it); the flag move is one transaction so a tenant is never briefly primary-less or double-primary |
+| Function                                               | Does                         | Notably                                                                                                                                                                                                     |
+| ------------------------------------------------------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claim_domain(tenant_id, domain)`                      | Reserves a domain, `pending` | Rejects the platform's own namespace; refuses a live domain of another tenant **without saying whose** (same 404-never-403 reasoning as elsewhere); releases another tenant's unverified claim after 7 days |
+| `record_domain_ownership_check(domain_id, ok, error?)` | Records a DNS lookup result  | Can reach `verifying` or `failed`, never `active` — a forged `true` costs nothing but a queue slot                                                                                                          |
+| `set_primary_domain(domain_id)`                        | Moves the primary flag       | Only a `verified` domain may become primary (Phase 08 builds the canonical URL from it); the flag move is one transaction so a tenant is never briefly primary-less or double-primary                       |
 
 ## RLS
 
-| Table | Policy | Effect |
-|---|---|---|
-| `tenant_domains` | `tenant_domains_select_member` | Read own tenant's rows, with `domains.view` |
-| `tenant_domains` | `tenant_domains_delete_manager` | Delete own **custom, non-primary** rows, with `domains.manage` |
-| `tenant_domains` | *(no INSERT policy)* | Only `claim_domain()` can create a row |
-| `tenant_domains` | *(no UPDATE policy)* | Only the three functions above can change one |
-| `tenant_domains` | `tenant_domains_platform_*` | Operator (`platform_admins`) full read/write, added in Phase 04 |
+| Table            | Policy                          | Effect                                                          |
+| ---------------- | ------------------------------- | --------------------------------------------------------------- |
+| `tenant_domains` | `tenant_domains_select_member`  | Read own tenant's rows, with `domains.view`                     |
+| `tenant_domains` | `tenant_domains_delete_manager` | Delete own **custom, non-primary** rows, with `domains.manage`  |
+| `tenant_domains` | _(no INSERT policy)_            | Only `claim_domain()` can create a row                          |
+| `tenant_domains` | _(no UPDATE policy)_            | Only the three functions above can change one                   |
+| `tenant_domains` | `tenant_domains_platform_*`     | Operator (`platform_admins`) full read/write, added in Phase 04 |
 
 Deleting the primary domain, or the system domain, is refused by the policy
 itself (not by application logic): the system subdomain is the address that

@@ -1,6 +1,6 @@
 # Multi-tenancy
 
-> Current as of Phase 18.
+> Current as of Phase 19.
 
 ## The rule
 
@@ -111,19 +111,20 @@ call site (master sections 42 and 43).
 
 ## Status by phase
 
-| Capability                          | Phase | State           |
-| ----------------------------------- | ----- | --------------- |
-| `tenants`, `tenant_domains`         | 01    | Implemented     |
-| Hostname resolution                 | 01    | Implemented     |
-| RLS deny-by-default                 | 01    | Implemented     |
-| `tenant_members`, per-user policies | 02/03 | Implemented     |
-| RBAC (roles, permissions, matrix)   | 03    | Implemented — [authorization.md](./authorization.md) |
-| Tenant provisioning                 | 04    | Implemented     |
-| Domain verification                 | 09    | Implemented — [domains.md](./domains.md) |
-| Vercel API integration              | —     | **Not implemented**, deliberately (ADR-013) |
-| `tenant_id` on business tables      | 10+   | Implemented, through Phase 18 |
-| Secrets outside the tenant-scoped tables (Supabase Vault) | 17 | Implemented — a Vault secret is referenced by an opaque id in a tenant-scoped row, never itself tenant-scoped or readable back (ADR-021) |
-| Tenant isolation through a derived `VIEW`, not just a table | 18 | Implemented — `inventory_stock_levels` is `security_invoker = true`, so it enforces the same RLS as `stock_movements` for whoever queries it, rather than the view owner's privileges (ADR-022) |
+| Capability                                                  | Phase | State                                                                                                                                                                                           |
+| ----------------------------------------------------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tenants`, `tenant_domains`                                 | 01    | Implemented                                                                                                                                                                                     |
+| Hostname resolution                                         | 01    | Implemented                                                                                                                                                                                     |
+| RLS deny-by-default                                         | 01    | Implemented                                                                                                                                                                                     |
+| `tenant_members`, per-user policies                         | 02/03 | Implemented                                                                                                                                                                                     |
+| RBAC (roles, permissions, matrix)                           | 03    | Implemented — [authorization.md](./authorization.md)                                                                                                                                            |
+| Tenant provisioning                                         | 04    | Implemented                                                                                                                                                                                     |
+| Domain verification                                         | 09    | Implemented — [domains.md](./domains.md)                                                                                                                                                        |
+| Vercel API integration                                      | —     | **Not implemented**, deliberately (ADR-013)                                                                                                                                                     |
+| `tenant_id` on business tables                              | 10+   | Implemented, through Phase 19                                                                                                                                                                   |
+| Secrets outside the tenant-scoped tables (Supabase Vault)   | 17    | Implemented — a Vault secret is referenced by an opaque id in a tenant-scoped row, never itself tenant-scoped or readable back (ADR-021)                                                        |
+| Tenant isolation through a derived `VIEW`, not just a table | 18    | Implemented — `inventory_stock_levels` is `security_invoker = true`, so it enforces the same RLS as `stock_movements` for whoever queries it, rather than the view owner's privileges (ADR-022) |
+| A cross-tenant guard on a MEMBERSHIP, not just on a row     | 19    | Implemented — `order_deliveries.courier_user_id` is checked against `tenant_members` by trigger, so a delivery can never name somebody outside the business (ADR-023)                           |
 
 ## The proof
 
@@ -132,7 +133,8 @@ real PostgreSQL and asserts, among other things, that no hostname ever returns
 another tenant's data (TEST-140), and — table by table, across every phase —
 that no business table is reachable across a tenant boundary. It is the suite
 the product rests on, and it grows with every phase; Phase 18 added its seven
-new tables (and its one view) to the same invariant rather than a parallel one.
+new tables (and its one view) to the same invariant rather than a parallel one,
+and Phase 19 added its four the same way.
 
 `authorization.test.ts` (Phase 03) walks **every role in the catalogue** and
 proves none of them reaches another tenant, reading or writing (TEST-331) —

@@ -173,6 +173,9 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     // Phase 17 added `billing_document_transitions` on the identical grounds:
     // the billing document lifecycle, not any tenant's own documents.
     //
+    // Phase 19 added `delivery_transitions`, same again: how a delivery moves
+    // is a fact about the product, not about any business' own deliveries.
+    //
     // Anything added here must satisfy the next test as well: an exception is
     // only safe while it stays read-only.
     const CATALOGUE = [
@@ -181,6 +184,7 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
       "role_permissions",
       "order_transitions",
       "billing_document_transitions",
+      "delivery_transitions",
     ];
 
     const rows = await db.query<{ tablename: string; qual: string | null }>(
@@ -196,9 +200,9 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
       `select cmd from pg_policies
        where schemaname = 'public'
          and tablename in ('roles','permissions','role_permissions','order_transitions',
-                           'billing_document_transitions')`,
+                           'billing_document_transitions','delivery_transitions')`,
     );
-    expect(rows).toHaveLength(5);
+    expect(rows).toHaveLength(6);
     expect(rows.every((r) => r.cmd === "SELECT")).toBe(true);
   });
 });

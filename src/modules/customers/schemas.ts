@@ -131,15 +131,51 @@ export const customerActiveSchema = z.object({
   isActive: z.enum(["true", "false"]).transform((value) => value === "true"),
 });
 
-export const customerAddressSchema = z.object({
-  customerId: z.uuid(),
-  label: z.string().trim().min(1, "Ponle un nombre: Casa, Oficina.").max(60),
-  addressLine: z.string().trim().min(1, "La direccion es obligatoria.").max(300),
-  district: optionalText(100),
-  city: optionalText(100),
-  reference: optionalText(200),
-  isDefault: z.enum(["true", "false"]).transform((value) => value === "true"),
-});
+/**
+ * One half of a coordinate.
+ *
+ * Added in Phase 19: master section 33 asks for coordinates on a delivery, and
+ * a delivery inherits them from the address book rather than making somebody
+ * retype the same house on every order.
+ */
+const coordinateField = (label: string, limit: number) =>
+  z.string().transform((value, ctx) => {
+    const raw = value.trim().replace(",", ".");
+    if (raw.length === 0) return null;
+    if (!/^-?\d{1,3}(\.\d{1,6})?$/.test(raw)) {
+      ctx.addIssue({ code: "custom", message: `${label} debe ser un numero como -12.121500.` });
+      return z.NEVER;
+    }
+    const parsed = Number(raw);
+    if (Number.isNaN(parsed) || parsed < -limit || parsed > limit) {
+      ctx.addIssue({ code: "custom", message: `${label} esta fuera de rango.` });
+      return z.NEVER;
+    }
+    return parsed;
+  });
+
+export const customerAddressSchema = z
+  .object({
+    customerId: z.uuid(),
+    label: z.string().trim().min(1, "Ponle un nombre: Casa, Oficina.").max(60),
+    addressLine: z.string().trim().min(1, "La direccion es obligatoria.").max(300),
+    district: optionalText(100),
+    city: optionalText(100),
+    reference: optionalText(200),
+    latitude: coordinateField("La latitud", 90),
+    longitude: coordinateField("La longitud", 180),
+    isDefault: z.enum(["true", "false"]).transform((value) => value === "true"),
+  })
+  // Half a coordinate is not a location. Stated here as well as in the CHECK so
+  // the message lands on the field instead of arriving as a constraint name.
+  .superRefine((value, ctx) => {
+    if ((value.latitude === null) === (value.longitude === null)) return;
+    ctx.addIssue({
+      code: "custom",
+      path: [value.latitude === null ? "latitude" : "longitude"],
+      message: "Escribe las dos coordenadas o ninguna.",
+    });
+  });
 
 export const deleteAddressSchema = z.object({
   customerId: z.uuid(),

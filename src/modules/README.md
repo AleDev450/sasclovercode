@@ -24,15 +24,25 @@ phase must follow so the structure stays uniform.
 | `catalog`   | 11    | Created.                                                                                                                           |
 | `customers` | 12    | Created.                                                                                                                           |
 | `orders`    | 13    | Created.                                                                                                                           |
-| `pos`       | 15    | Planned.                                                                                                                           |
-| `billing`   | 17    | Planned.                                                                                                                           |
-| `inventory` | 18    | Planned.                                                                                                                           |
+| `payments`  | 14    | Created.                                                                                                                           |
+| `pos`       | 15    | Created.                                                                                                                           |
+| `kitchen`   | 16    | Created. The KDS board; planned under no name, since master calls the phase "Kitchen / KDS".                                       |
+| `billing`   | 17    | Created.                                                                                                                           |
+| `inventory` | 18    | Created.                                                                                                                           |
+| `delivery`  | 19    | Created.                                                                                                                           |
 | `reports`   | 23    | Planned.                                                                                                                           |
 
 This table was corrected in Phase 12. It still said "Planned" for modules that
 had existed for several phases; `dashboard`, `settings`, `seo` and `domains`
 were missing from it entirely; and two rows named modules that were built under
 a different name (`users` became `platform`, `website` became `cms`).
+
+It drifted the same way again and was corrected in Phase 19: `pos`, `billing`
+and `inventory` still read "Planned" several phases after they were built, and
+`payments` (14) and `kitchen` (16) had never been added at all. The lesson the
+Phase 12 note drew still applies — a table nobody updates is worse than no
+table, so updating this row is part of a phase's Definition of Done, not an
+afterthought.
 
 ## Anatomy of a module
 

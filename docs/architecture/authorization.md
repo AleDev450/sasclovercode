@@ -1,9 +1,9 @@
 # Authorization
 
-> Current as of Phase 18.
+> Current as of Phase 19.
 
 How CloverCode decides **what** an authenticated member may do. Identity —
-*who* is making the request — is [authentication.md](./authentication.md) and
+_who_ is making the request — is [authentication.md](./authentication.md) and
 is not covered here.
 
 Full rationale: [ADR-010](../adr/010-rbac-authorization.md). This document is
@@ -68,16 +68,16 @@ is schema, not sample data.
 `rank` lets the UI order roles and lets a future "cannot manage someone above
 you" rule be expressed without naming roles (0 = highest authority).
 
-| Role | rank | Who |
-|---|---|---|
-| `owner` | 0 | Full control, including the business's own configuration |
-| `admin` | 10 | Everything except `settings.manage` |
-| `manager` | 20 | Supervises operations, catalogue, cash and reports |
-| `cashier` | 30 | Takes orders, collects payment, opens/closes a till |
-| `waiter` | 40 | Takes and updates orders only |
-| `kitchen` | 50 | Reads and advances order status only |
-| `delivery` | 60 | Manages assigned deliveries |
-| `accountant` | 70 | Reads reports; issues and cancels billing documents (17), writes nothing else operational |
+| Role         | rank | Who                                                                                       |
+| ------------ | ---- | ----------------------------------------------------------------------------------------- |
+| `owner`      | 0    | Full control, including the business's own configuration                                  |
+| `admin`      | 10   | Everything except `settings.manage`                                                       |
+| `manager`    | 20   | Supervises operations, catalogue, cash and reports                                        |
+| `cashier`    | 30   | Takes orders, collects payment, opens/closes a till                                       |
+| `waiter`     | 40   | Takes and updates orders only                                                             |
+| `kitchen`    | 50   | Reads and advances order status only                                                      |
+| `delivery`   | 60   | Manages assigned deliveries                                                               |
+| `accountant` | 70   | Reads reports; issues and cancels billing documents (17), writes nothing else operational |
 
 `owner` and `admin` do **not** inherit new permissions automatically. Phase
 03's migration granted each a snapshot of the catalogue as it stood then;
@@ -92,27 +92,29 @@ that first consumes it. A code with no "used by" is pre-seeded ahead of the
 phase that needs it — the same move Phase 03 made for `orders.*` (used from
 Phase 13) and `cash.open`/`cash.close` (used from Phase 14).
 
-| Resource | Codes | Added in | Used from |
-|---|---|---|---|
-| `products` | view, create, update, delete | 03 | 11 |
-| `orders` | view, create, update, cancel | 03 | 13 |
-| `customers` | view, manage | 03 | 12 |
-| `cash` | open, close | 03 | 14 |
-| `cash` | view, manage | 14 | 14 |
-| `billing` | view, create, cancel | 03 | 17 |
-| `billing` | manage | 17 | 17 |
-| `reports` | view | 03 | *pending (23)* |
-| `employees` | manage | 03 | *pending* |
-| `settings` | manage | 03 | 06 |
-| `members` | view, manage | 03 | 03 |
-| `content` | view, manage | 07 | 07 |
-| `domains` | view, manage | 09 | 09 |
-| `locations` | view, manage | 10 | 10 |
-| `payment_methods` | view, manage | 14 | 14 |
-| `payments` | view, create, void | 14 | 14 |
-| `inventory` | view, manage | 18 | 18 |
-| `suppliers` | view, manage | 18 | 18 |
-| `purchases` | view, create | 18 | 18 |
+| Resource          | Codes                        | Added in | Used from      |
+| ----------------- | ---------------------------- | -------- | -------------- |
+| `products`        | view, create, update, delete | 03       | 11             |
+| `orders`          | view, create, update, cancel | 03       | 13             |
+| `customers`       | view, manage                 | 03       | 12             |
+| `cash`            | open, close                  | 03       | 14             |
+| `cash`            | view, manage                 | 14       | 14             |
+| `billing`         | view, create, cancel         | 03       | 17             |
+| `billing`         | manage                       | 17       | 17             |
+| `reports`         | view                         | 03       | _pending (23)_ |
+| `employees`       | manage                       | 03       | _pending_      |
+| `settings`        | manage                       | 03       | 06             |
+| `members`         | view, manage                 | 03       | 03             |
+| `content`         | view, manage                 | 07       | 07             |
+| `domains`         | view, manage                 | 09       | 09             |
+| `locations`       | view, manage                 | 10       | 10             |
+| `payment_methods` | view, manage                 | 14       | 14             |
+| `payments`        | view, create, void           | 14       | 14             |
+| `inventory`       | view, manage                 | 18       | 18             |
+| `suppliers`       | view, manage                 | 18       | 18             |
+| `purchases`       | view, create                 | 18       | 18             |
+| `delivery_zones`  | view, manage                 | 19       | 19             |
+| `deliveries`      | view, manage                 | 19       | 19             |
 
 `members.view`/`members.manage` are not in master section 12's own example
 list (which is explicitly "ejemplos"); Phase 03 added them because it needed
@@ -120,14 +122,14 @@ something to govern `tenant_members` itself. Every phase since that needed a
 permission master's list did not name has followed the same move:
 `locations.*` (10), `domains.*` (09), `payment_methods.*` and `cash.view`/
 `cash.manage` (14), `billing.manage` (17), `inventory.*`/`suppliers.*`/
-`purchases.*` (18).
+`purchases.*` (18), `delivery_zones.*`/`deliveries.*` (19).
 
 `purchases` has no `.manage` code, unlike every other resource this
 pattern produced: a purchase is a receipt, written once and never edited
 or cancelled ([ADR-022](../adr/022-derived-stock-and-completion-triggered-consumption.md)
 decision 2), so there is no second action for a `.manage` code to gate.
 
-`billing.manage` is the first permission added *after* its resource's other
+`billing.manage` is the first permission added _after_ its resource's other
 codes had already sat unused for fourteen phases (`billing.view`/`create`/
 `cancel` were pre-seeded in Phase 03, alongside `orders.*`, for exactly this
 kind of gap — see [ADR-021](../adr/021-billing-provider-abstraction-and-vault-credentials.md)).
@@ -160,11 +162,11 @@ only ever ask about themselves), and have `EXECUTE` revoked from `PUBLIC` and
 granted only to `authenticated` (never `anon`: with no session `auth.uid()` is
 null, so these could only return false or nothing).
 
-| Function | Returns | Used by |
-|---|---|---|
-| `is_tenant_member(tenant_id)` | `boolean` | Membership-only gates |
-| `has_permission(tenant_id, permission)` | `boolean` | Every RLS policy and every server check |
-| `my_permissions(tenant_id)` | `table(permission text)` | Rendering a screen without one round trip per control |
+| Function                                | Returns                  | Used by                                               |
+| --------------------------------------- | ------------------------ | ----------------------------------------------------- |
+| `is_tenant_member(tenant_id)`           | `boolean`                | Membership-only gates                                 |
+| `has_permission(tenant_id, permission)` | `boolean`                | Every RLS policy and every server check               |
+| `my_permissions(tenant_id)`             | `table(permission text)` | Rendering a screen without one round trip per control |
 
 `SECURITY DEFINER` is not a convenience here, it is what makes the model
 possible at all: a policy on `tenant_members` that itself reads
@@ -183,7 +185,7 @@ one its trigger fired on (Phase 13's `recompute_order_totals` updating
 applies to every statement the function runs, not just the row it was
 triggered on. This is why `order_status_history` and `cash_movements` still
 carry an INSERT policy even though their only realistic writer is a trigger:
-the policy is what a legitimate *direct* insert (a manual cash movement, an
+the policy is what a legitimate _direct_ insert (a manual cash movement, an
 audit correction) is checked against; the trigger's own writes never consult
 it.
 
@@ -191,11 +193,11 @@ it.
 
 `src/lib/permissions/check.ts`:
 
-| Function | Use |
-|---|---|
-| `hasPermission(tenantId, permission)` | Boolean check, for branching UI |
-| `requirePermission(tenantId, permission)` | Throws `AuthorizationError`; the first line of every Server Action |
-| `getMyPermissions(tenantId)` | Cached per request; for `visibleNavItems` and similar rendering decisions |
+| Function                                  | Use                                                                       |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| `hasPermission(tenantId, permission)`     | Boolean check, for branching UI                                           |
+| `requirePermission(tenantId, permission)` | Throws `AuthorizationError`; the first line of every Server Action        |
+| `getMyPermissions(tenantId)`              | Cached per request; for `visibleNavItems` and similar rendering decisions |
 
 `requirePermission` is what a Server Action calls first, always — a Server
 Action is reachable directly by any client, so the check cannot live only in
@@ -214,7 +216,7 @@ for this and must never be treated as the authorization boundary itself.
 Only a caller holding `settings.manage` — granted to `owner` alone — may
 create, modify, or remove a `tenant_members` row with `role = 'owner'`.
 Enforced in the RLS policy's `WITH CHECK` as well as its `USING`: `USING`
-alone would still let a manageable row be *turned into* an owner row. This is
+alone would still let a manageable row be _turned into_ an owner row. This is
 in the database, not the application, because a Server Action is never the
 only path to a write.
 
@@ -222,7 +224,7 @@ only path to a write.
 
 Every business table's read/write policies resolve through `has_permission`.
 The full per-table breakdown lives in [database.md](./database.md#row-level-security);
-this document owns the *model*, that one owns the *inventory*.
+this document owns the _model_, that one owns the _inventory_.
 
 ## Where to read more
 
@@ -244,7 +246,7 @@ this document owns the *model*, that one owns the *inventory*.
 
 ## Planned
 
-| Change | Phase |
-|---|---|
-| Module/plan gating on top of permissions (a permission held but not enabled by the tenant's plan must still deny) | 21 |
-| Role changes recorded in an audit log | 24 |
+| Change                                                                                                            | Phase |
+| ----------------------------------------------------------------------------------------------------------------- | ----- |
+| Module/plan gating on top of permissions (a permission held but not enabled by the tenant's plan must still deny) | 21    |
+| Role changes recorded in an audit log                                                                             | 24    |

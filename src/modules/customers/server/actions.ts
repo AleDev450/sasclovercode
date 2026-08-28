@@ -226,6 +226,8 @@ export async function addCustomerAddressAction(
     district: readText(formData, "district"),
     city: readText(formData, "city"),
     reference: readText(formData, "reference"),
+    latitude: readText(formData, "latitude"),
+    longitude: readText(formData, "longitude"),
     isDefault: readText(formData, "isDefault") || "false",
   });
   if (!parsed.success) return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
@@ -238,6 +240,8 @@ export async function addCustomerAddressAction(
     district: parsed.data.district,
     city: parsed.data.city,
     reference: parsed.data.reference,
+    latitude: parsed.data.latitude,
+    longitude: parsed.data.longitude,
     is_default: parsed.data.isDefault,
   });
 

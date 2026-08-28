@@ -57,7 +57,12 @@ export type BillingDocumentType = "boleta" | "factura" | "nota_credito" | "nota_
 export type BillingDocumentStatus = "pending" | "sent" | "accepted" | "rejected" | "cancelled";
 
 /** Master section 33 (Phase 18). */
-export type StockMovementType = "purchase" | "sale" | "adjustment" | "waste" | "return" | "transfer";
+export type StockMovementType =
+  "purchase" | "sale" | "adjustment" | "waste" | "return" | "transfer";
+
+/** Master section 33 (Phase 19). Transitions are declared in delivery_transitions. */
+export type DeliveryStatus =
+  "pending" | "assigned" | "in_transit" | "delivered" | "failed" | "cancelled";
 
 export type Database = {
   public: {
@@ -685,6 +690,9 @@ export type Database = {
           district: string | null;
           city: string | null;
           reference: string | null;
+          /** Added in Phase 19: master section 33 asks for coordinates on a delivery. */
+          latitude: number | null;
+          longitude: number | null;
           is_default: boolean;
           created_at: string;
           updated_at: string;
@@ -699,6 +707,8 @@ export type Database = {
           district?: string | null;
           city?: string | null;
           reference?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           is_default?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["customer_addresses"]["Row"]>;
@@ -1312,6 +1322,197 @@ export type Database = {
           },
         ];
       };
+      delivery_zones: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          district: string | null;
+          notes: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          district?: string | null;
+          notes?: string | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["delivery_zones"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "delivery_zones_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_rates: {
+        Row: {
+          /** Derived by a trigger from the zone; never trusted from a client. */
+          id: string;
+          tenant_id: string;
+          zone_id: string;
+          /** NULL is the zone's default rate; a row with a branch overrides it (ADR-023). */
+          location_id: string | null;
+          fee_cents: number;
+          /** Order subtotal from which delivery is free. NULL = never free. */
+          min_order_free_cents: number | null;
+          estimated_minutes: number | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          zone_id: string;
+          location_id?: string | null;
+          fee_cents: number;
+          min_order_free_cents?: number | null;
+          estimated_minutes?: number | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["delivery_rates"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "delivery_rates_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "delivery_rates_zone_id_fkey";
+            columns: ["zone_id"];
+            referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "delivery_rates_location_id_fkey";
+            columns: ["location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_deliveries: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the order; never trusted from a client. */
+          tenant_id: string;
+          order_id: string;
+          zone_id: string | null;
+          /** The zone name as it read when attached, so deleting the zone keeps history intact. */
+          zone_name_snapshot: string;
+          status: DeliveryStatus;
+          /** Minor units (ADR-015). Copied from delivery_rates; drives orders.shipping_cents. */
+          fee_cents: number;
+          address_line: string;
+          district: string | null;
+          city: string | null;
+          reference: string | null;
+          latitude: number | null;
+          longitude: number | null;
+          recipient_name: string | null;
+          recipient_phone: string | null;
+          notes: string | null;
+          courier_user_id: string | null;
+          assigned_at: string | null;
+          dispatched_at: string | null;
+          delivered_at: string | null;
+          failed_at: string | null;
+          cancelled_at: string | null;
+          failure_reason: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          order_id: string;
+          zone_id?: string | null;
+          zone_name_snapshot: string;
+          status?: DeliveryStatus;
+          fee_cents?: number;
+          address_line: string;
+          district?: string | null;
+          city?: string | null;
+          reference?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
+          recipient_name?: string | null;
+          recipient_phone?: string | null;
+          notes?: string | null;
+          courier_user_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["order_deliveries"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "order_deliveries_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_deliveries_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_deliveries_zone_id_fkey";
+            columns: ["zone_id"];
+            referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_status_history: {
+        Row: {
+          id: string;
+          delivery_id: string;
+          tenant_id: string;
+          /** NULL on creation: there was no previous state. */
+          from_status: DeliveryStatus | null;
+          to_status: DeliveryStatus;
+          reason: string | null;
+          changed_by: string | null;
+          created_at: string;
+        };
+        /** Written exclusively by the record_delivery_status() trigger. */
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "delivery_status_history_delivery_id_fkey";
+            columns: ["delivery_id"];
+            referencedRelation: "order_deliveries";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "delivery_status_history_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      delivery_transitions: {
+        Row: {
+          from_status: DeliveryStatus;
+          to_status: DeliveryStatus;
+        };
+        /** Changed by migration only. */
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       payment_methods: {
         Row: {
           id: string;
@@ -1723,6 +1924,15 @@ export type Database = {
           created_at: string;
         }[];
       };
+      get_tenant_couriers: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          user_id: string;
+          email: string;
+          full_name: string | null;
+          role: TenantRole;
+        }[];
+      };
       my_permissions: {
         Args: { p_tenant_id: string };
         Returns: { permission: string }[];
@@ -1759,6 +1969,7 @@ export type Database = {
       billing_document_type: BillingDocumentType;
       billing_document_status: BillingDocumentStatus;
       stock_movement_type: StockMovementType;
+      delivery_status: DeliveryStatus;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

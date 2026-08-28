@@ -1,6 +1,6 @@
 # CloverCode — Architecture overview
 
-> Scope note: this document reflects what exists **today** (end of Phase 18).
+> Scope note: this document reflects what exists **today** (end of Phase 19).
 > Sections describing later phases are marked as such and are stated as intent,
 > not as implemented behaviour. It is updated at the end of every phase.
 
@@ -49,7 +49,7 @@ app  ->  modules  ->  lib  ->  config / types
 module's internals — only its own `schemas.ts`, `lifecycle.ts`/`constants.ts`,
 `server/actions.ts`, `server/queries.ts` and `components/`.
 
-## Modules, as of Phase 18
+## Modules, as of Phase 19
 
 ```text
 src/modules/
@@ -69,6 +69,7 @@ src/modules/
 ├── kitchen/                         live board over orders+order_items (Phase 16)
 ├── billing/                          SUNAT documents, BillingProvider (Phase 17)
 ├── inventory/                          items, recipes, stock ledger (Phase 18)
+├── delivery/                           zones, rates, order deliveries (Phase 19)
 └── platform/                              super-admin: operators, provisioning
 ```
 
@@ -103,31 +104,31 @@ privileges, not the querying user's, and would bypass RLS
 
 ## What exists, by capability
 
-| Capability | Module / location | Since |
-| --- | --- | --- |
-| Domain errors, one serialisation boundary | `src/lib/errors` | 00 |
-| Structured logging, redaction | `src/lib/logger` | 00 |
-| Input validation (Zod) | `src/lib/validation` | 00 |
-| Supabase access (browser + server, typed) | `src/lib/supabase` | 00 |
-| Multi-tenancy, hostname resolution | [multitenancy.md](./multitenancy.md) | 01 |
-| Authentication, SSR sessions | [authentication.md](./authentication.md) | 02 |
-| Authorization (RBAC, permissions in the DB) | [authorization.md](./authorization.md) | 03 |
-| Platform operator identity, tenant provisioning | `src/modules/platform` | 04 |
-| Tenant dashboard shell, permission-derived nav | `src/modules/dashboard` | 05 |
-| Business settings, theme | `src/modules/settings` | 06 |
-| CMS: pages, sections, navigation | `src/modules/cms` | 07 |
-| SEO: site + per-page metadata | `src/modules/seo` | 08 |
-| Custom domains | [domains.md](./domains.md) | 09 |
-| Locations (branches, hours) | `src/modules/locations` | 10 |
-| Catalogue (categories, products, variants) | `src/modules/catalog` | 11 |
-| Customers, Peruvian identity documents | `src/modules/customers` | 12 |
-| Orders (snapshot pricing, state machine) | `src/modules/orders` | 13 |
-| Payments, cash registers/sessions | `src/modules/payments` | 14 |
-| POS: touch till, no new writes of its own | `src/modules/pos` | 15 |
-| Kitchen/KDS: live board, Realtime (first use) | `src/modules/kitchen` | 16 |
-| Electronic billing: SUNAT documents, BillingProvider, Vault credentials (first use) | `src/modules/billing` | 17 |
-| Inventory: items, suppliers, purchases, recipes, stock ledger + derived view (first use) | `src/modules/inventory` | 18 |
-| Health probe (liveness only) | `src/app/api/health` | 00 |
+| Capability                                                                               | Module / location                        | Since |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------- | ----- |
+| Domain errors, one serialisation boundary                                                | `src/lib/errors`                         | 00    |
+| Structured logging, redaction                                                            | `src/lib/logger`                         | 00    |
+| Input validation (Zod)                                                                   | `src/lib/validation`                     | 00    |
+| Supabase access (browser + server, typed)                                                | `src/lib/supabase`                       | 00    |
+| Multi-tenancy, hostname resolution                                                       | [multitenancy.md](./multitenancy.md)     | 01    |
+| Authentication, SSR sessions                                                             | [authentication.md](./authentication.md) | 02    |
+| Authorization (RBAC, permissions in the DB)                                              | [authorization.md](./authorization.md)   | 03    |
+| Platform operator identity, tenant provisioning                                          | `src/modules/platform`                   | 04    |
+| Tenant dashboard shell, permission-derived nav                                           | `src/modules/dashboard`                  | 05    |
+| Business settings, theme                                                                 | `src/modules/settings`                   | 06    |
+| CMS: pages, sections, navigation                                                         | `src/modules/cms`                        | 07    |
+| SEO: site + per-page metadata                                                            | `src/modules/seo`                        | 08    |
+| Custom domains                                                                           | [domains.md](./domains.md)               | 09    |
+| Locations (branches, hours)                                                              | `src/modules/locations`                  | 10    |
+| Catalogue (categories, products, variants)                                               | `src/modules/catalog`                    | 11    |
+| Customers, Peruvian identity documents                                                   | `src/modules/customers`                  | 12    |
+| Orders (snapshot pricing, state machine)                                                 | `src/modules/orders`                     | 13    |
+| Payments, cash registers/sessions                                                        | `src/modules/payments`                   | 14    |
+| POS: touch till, no new writes of its own                                                | `src/modules/pos`                        | 15    |
+| Kitchen/KDS: live board, Realtime (first use)                                            | `src/modules/kitchen`                    | 16    |
+| Electronic billing: SUNAT documents, BillingProvider, Vault credentials (first use)      | `src/modules/billing`                    | 17    |
+| Inventory: items, suppliers, purchases, recipes, stock ledger + derived view (first use) | `src/modules/inventory`                  | 18    |
+| Health probe (liveness only)                                                             | `src/app/api/health`                     | 00    |
 
 Deeper reference for the database itself — every migration, every RLS policy,
 every table — lives in [database.md](./database.md), not duplicated here.
@@ -177,20 +178,20 @@ from `OWNER` (a tenant's own owner role) and must never be conflated.
 
 ## Security posture
 
-| Control                        | Status                                                              |
-| ------------------------------- | -------------------------------------------------------------------- |
-| Security headers                | Active on every route (HSTS, nosniff, DENY, Referrer, Permissions)  |
-| `X-Powered-By`                  | Disabled                                                             |
-| Secrets in the repository       | None; `.env*` ignored except `.env.example`                          |
-| `service_role` key              | **Still not referenced anywhere.** Tenant provisioning (Phase 04) and every other privileged write use a narrow `SECURITY DEFINER` function instead (ADR-011) |
-| Error detail leakage            | Blocked at `serializeError()`, covered by tests                      |
-| Credential leakage into logs    | Blocked by central redaction, covered by tests                       |
-| Content Security Policy         | **Deferred to Phase 25** — needs per-request nonces                  |
-| Authentication                  | Implemented (Phase 02) — [authentication.md](./authentication.md)    |
-| Authorization / RBAC            | Implemented (Phase 03) — [authorization.md](./authorization.md)      |
-| Row Level Security              | Enabled on every business/private table, no exceptions besides two documented read-only, tenant-free catalogues — [database.md](./database.md#row-level-security) |
-| Money as integer minor units, never a float | Implemented (Phase 11) — [ADR-015](../adr/015-money-as-minor-units.md) |
-| Personal data minimization      | Implemented (Phase 12) — [ADR-016](../adr/016-personal-data-minimization.md) |
+| Control                                     | Status                                                                                                                                                            |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Security headers                            | Active on every route (HSTS, nosniff, DENY, Referrer, Permissions)                                                                                                |
+| `X-Powered-By`                              | Disabled                                                                                                                                                          |
+| Secrets in the repository                   | None; `.env*` ignored except `.env.example`                                                                                                                       |
+| `service_role` key                          | **Still not referenced anywhere.** Tenant provisioning (Phase 04) and every other privileged write use a narrow `SECURITY DEFINER` function instead (ADR-011)     |
+| Error detail leakage                        | Blocked at `serializeError()`, covered by tests                                                                                                                   |
+| Credential leakage into logs                | Blocked by central redaction, covered by tests                                                                                                                    |
+| Content Security Policy                     | **Deferred to Phase 25** — needs per-request nonces                                                                                                               |
+| Authentication                              | Implemented (Phase 02) — [authentication.md](./authentication.md)                                                                                                 |
+| Authorization / RBAC                        | Implemented (Phase 03) — [authorization.md](./authorization.md)                                                                                                   |
+| Row Level Security                          | Enabled on every business/private table, no exceptions besides two documented read-only, tenant-free catalogues — [database.md](./database.md#row-level-security) |
+| Money as integer minor units, never a float | Implemented (Phase 11) — [ADR-015](../adr/015-money-as-minor-units.md)                                                                                            |
+| Personal data minimization                  | Implemented (Phase 12) — [ADR-016](../adr/016-personal-data-minimization.md)                                                                                      |
 
 ## Verification
 
@@ -218,7 +219,7 @@ than created empty ahead of time — `authorization.md` and `domains.md` were
 written well after their originating phases (03 and 09) and are caught up as
 of Phase 14; the two below are still genuinely ahead of their phase.
 
-| Document            | Written in phase |
-| -------------------- | ----------------- |
-| `deployment.md`      | 28                |
-| `security.md`        | 25                |
+| Document        | Written in phase |
+| --------------- | ---------------- |
+| `deployment.md` | 28               |
+| `security.md`   | 25               |

@@ -67,6 +67,12 @@ export const PERMISSIONS = {
 
   PURCHASES_VIEW: "purchases.view",
   PURCHASES_CREATE: "purchases.create",
+
+  DELIVERY_ZONES_VIEW: "delivery_zones.view",
+  DELIVERY_ZONES_MANAGE: "delivery_zones.manage",
+
+  DELIVERIES_VIEW: "deliveries.view",
+  DELIVERIES_MANAGE: "deliveries.manage",
 } as const;
 
 /**

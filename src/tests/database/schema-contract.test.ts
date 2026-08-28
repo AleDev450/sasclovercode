@@ -40,7 +40,8 @@ type CashSessionRow = Database["public"]["Tables"]["cash_sessions"]["Row"];
 type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
 type CashMovementRow = Database["public"]["Tables"]["cash_movements"]["Row"];
 type BillingDocumentRow = Database["public"]["Tables"]["billing_documents"]["Row"];
-type BillingDocumentTransitionRow = Database["public"]["Tables"]["billing_document_transitions"]["Row"];
+type BillingDocumentTransitionRow =
+  Database["public"]["Tables"]["billing_document_transitions"]["Row"];
 type BillingDocumentItemRow = Database["public"]["Tables"]["billing_document_items"]["Row"];
 type BillingEventRow = Database["public"]["Tables"]["billing_events"]["Row"];
 type BillingProviderConfigRow = Database["public"]["Tables"]["billing_provider_configs"]["Row"];
@@ -108,6 +109,8 @@ export type _CustomerAddressKeys = Expect<
     | "district"
     | "city"
     | "reference"
+    | "latitude"
+    | "longitude"
     | "is_default"
     | "created_at"
     | "updated_at"
@@ -187,8 +190,15 @@ export type _OrderStatusHistoryKeys = Expect<
 export type _PaymentMethodKeys = Expect<
   Equal<
     keyof PaymentMethodRow,
-    "id" | "tenant_id" | "type" | "name" | "reference" | "is_active" | "position"
-    | "created_at" | "updated_at"
+    | "id"
+    | "tenant_id"
+    | "type"
+    | "name"
+    | "reference"
+    | "is_active"
+    | "position"
+    | "created_at"
+    | "updated_at"
   >
 >;
 
@@ -476,7 +486,10 @@ export type _StockMovementKeys = Expect<
 >;
 
 export type _RecipeKeys = Expect<
-  Equal<keyof RecipeRow, "id" | "tenant_id" | "product_id" | "notes" | "is_active" | "created_at" | "updated_at">
+  Equal<
+    keyof RecipeRow,
+    "id" | "tenant_id" | "product_id" | "notes" | "is_active" | "created_at" | "updated_at"
+  >
 >;
 
 export type _RecipeItemKeys = Expect<
@@ -632,9 +645,71 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     district: { dataType: "text", nullable: true },
     city: { dataType: "text", nullable: true },
     reference: { dataType: "text", nullable: true },
+    latitude: { dataType: "numeric", nullable: true },
+    longitude: { dataType: "numeric", nullable: true },
     is_default: { dataType: "boolean", nullable: false },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  delivery_zones: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    district: { dataType: "text", nullable: true },
+    notes: { dataType: "text", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  delivery_rates: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    zone_id: { dataType: "uuid", nullable: false },
+    location_id: { dataType: "uuid", nullable: true },
+    fee_cents: { dataType: "bigint", nullable: false },
+    min_order_free_cents: { dataType: "bigint", nullable: true },
+    estimated_minutes: { dataType: "smallint", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  order_deliveries: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    order_id: { dataType: "uuid", nullable: false },
+    zone_id: { dataType: "uuid", nullable: true },
+    zone_name_snapshot: { dataType: "text", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
+    fee_cents: { dataType: "bigint", nullable: false },
+    address_line: { dataType: "text", nullable: false },
+    district: { dataType: "text", nullable: true },
+    city: { dataType: "text", nullable: true },
+    reference: { dataType: "text", nullable: true },
+    latitude: { dataType: "numeric", nullable: true },
+    longitude: { dataType: "numeric", nullable: true },
+    recipient_name: { dataType: "text", nullable: true },
+    recipient_phone: { dataType: "text", nullable: true },
+    notes: { dataType: "text", nullable: true },
+    courier_user_id: { dataType: "uuid", nullable: true },
+    assigned_at: { dataType: "timestamp with time zone", nullable: true },
+    dispatched_at: { dataType: "timestamp with time zone", nullable: true },
+    delivered_at: { dataType: "timestamp with time zone", nullable: true },
+    failed_at: { dataType: "timestamp with time zone", nullable: true },
+    cancelled_at: { dataType: "timestamp with time zone", nullable: true },
+    failure_reason: { dataType: "text", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  delivery_status_history: {
+    id: { dataType: "uuid", nullable: false },
+    delivery_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    from_status: { dataType: "USER-DEFINED", nullable: true },
+    to_status: { dataType: "USER-DEFINED", nullable: false },
+    reason: { dataType: "text", nullable: true },
+    changed_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
   },
   tenants: {
     id: { dataType: "uuid", nullable: false },
@@ -970,6 +1045,7 @@ describe("TEST-141: declared types match the real schema", () => {
       "product_images",
       "product_variants",
       "product_options",
+      "delivery_transitions",
     ];
     expect(rows.map((r) => r.tablename).sort()).toEqual(
       [...Object.keys(EXPECTED_COLUMNS), ...catalogueTables].sort(),

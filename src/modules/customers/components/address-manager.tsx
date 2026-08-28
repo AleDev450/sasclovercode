@@ -69,6 +69,39 @@ function AddressForm({ tenantSlug, customerId }: { tenantSlug: string; customerI
         </div>
       </div>
 
+      {/*
+       * Optional, and both or neither. Saved here so a delivery (Phase 19) can
+       * inherit them instead of asking for the same house on every order.
+       */}
+      <div className="grid gap-5 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="latitude">Latitud (opcional)</Label>
+          <Input
+            id="latitude"
+            name="latitude"
+            inputMode="decimal"
+            placeholder="-12.121500"
+            invalid={e.latitude !== undefined}
+          />
+          {e.latitude !== undefined ? (
+            <p className="text-destructive text-sm">{e.latitude[0]}</p>
+          ) : null}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="longitude">Longitud (opcional)</Label>
+          <Input
+            id="longitude"
+            name="longitude"
+            inputMode="decimal"
+            placeholder="-77.029700"
+            invalid={e.longitude !== undefined}
+          />
+          {e.longitude !== undefined ? (
+            <p className="text-destructive text-sm">{e.longitude[0]}</p>
+          ) : null}
+        </div>
+      </div>
+
       <div className="flex flex-col gap-2">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="isDefault" value="true" className="size-4" />

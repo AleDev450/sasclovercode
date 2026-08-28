@@ -80,6 +80,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
     segment: "/cocina",
     permission: PERMISSIONS.ORDERS_VIEW,
   },
+  /*
+   * Next to the kitchen board and for the same reason: both are screens
+   * somebody watches during service. `deliveries.view` and not
+   * `delivery_zones.view` - the price list is configuration and lives under
+   * Configuracion, the way domains and payment methods already do.
+   */
+  {
+    key: "delivery",
+    label: "Delivery",
+    segment: "/delivery",
+    permission: PERMISSIONS.DELIVERIES_VIEW,
+  },
   {
     key: "customers",
     label: "Clientes",
@@ -144,6 +156,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Series y proveedor",
     segment: "/configuracion/facturacion",
     permission: PERMISSIONS.BILLING_MANAGE,
+  },
+  /*
+   * Same shape again: `delivery_zones.view` reaches cashier and the rider,
+   * neither of whom holds `settings.manage`, so the price list needs its own
+   * entry rather than a link inside a page they cannot open.
+   */
+  {
+    key: "delivery-zones",
+    label: "Zonas de reparto",
+    segment: "/configuracion/delivery",
+    permission: PERMISSIONS.DELIVERY_ZONES_VIEW,
   },
   {
     key: "settings",
