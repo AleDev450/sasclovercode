@@ -39,6 +39,18 @@ type CashRegisterRow = Database["public"]["Tables"]["cash_registers"]["Row"];
 type CashSessionRow = Database["public"]["Tables"]["cash_sessions"]["Row"];
 type PaymentRow = Database["public"]["Tables"]["payments"]["Row"];
 type CashMovementRow = Database["public"]["Tables"]["cash_movements"]["Row"];
+type BillingDocumentRow = Database["public"]["Tables"]["billing_documents"]["Row"];
+type BillingDocumentTransitionRow = Database["public"]["Tables"]["billing_document_transitions"]["Row"];
+type BillingDocumentItemRow = Database["public"]["Tables"]["billing_document_items"]["Row"];
+type BillingEventRow = Database["public"]["Tables"]["billing_events"]["Row"];
+type BillingProviderConfigRow = Database["public"]["Tables"]["billing_provider_configs"]["Row"];
+type UnitRow = Database["public"]["Tables"]["units"]["Row"];
+type InventoryItemRow = Database["public"]["Tables"]["inventory_items"]["Row"];
+type SupplierRow = Database["public"]["Tables"]["suppliers"]["Row"];
+type PurchaseRow = Database["public"]["Tables"]["purchases"]["Row"];
+type StockMovementRow = Database["public"]["Tables"]["stock_movements"]["Row"];
+type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
+type RecipeItemRow = Database["public"]["Tables"]["recipe_items"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -308,6 +320,172 @@ export type _ProfileHasNoCredentials = Expect<
   Equal<Extract<keyof ProfileRow, "password" | "password_hash" | "encrypted_password">, never>
 >;
 
+export type _BillingDocumentKeys = Expect<
+  Equal<
+    keyof BillingDocumentRow,
+    | "id"
+    | "tenant_id"
+    | "order_id"
+    | "customer_id"
+    | "type"
+    | "status"
+    | "series"
+    | "number"
+    | "idempotency_key"
+    | "issuer_ruc_snapshot"
+    | "customer_name_snapshot"
+    | "customer_doc_type_snapshot"
+    | "customer_doc_number_snapshot"
+    | "subtotal_cents"
+    | "tax_cents"
+    | "total_cents"
+    | "related_document_id"
+    | "rejection_reason"
+    | "cancel_reason"
+    | "sent_at"
+    | "accepted_at"
+    | "rejected_at"
+    | "cancelled_at"
+    | "created_by"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _BillingDocumentTransitionKeys = Expect<
+  Equal<keyof BillingDocumentTransitionRow, "from_status" | "to_status">
+>;
+
+export type _BillingDocumentItemKeys = Expect<
+  Equal<
+    keyof BillingDocumentItemRow,
+    | "id"
+    | "billing_document_id"
+    | "tenant_id"
+    | "order_item_id"
+    | "description_snapshot"
+    | "quantity"
+    | "unit_price_cents"
+    | "discount_cents"
+    | "total_cents"
+    | "subtotal_cents"
+    | "tax_cents"
+    | "position"
+    | "created_at"
+  >
+>;
+
+export type _BillingEventKeys = Expect<
+  Equal<
+    keyof BillingEventRow,
+    | "id"
+    | "billing_document_id"
+    | "tenant_id"
+    | "from_status"
+    | "to_status"
+    | "message"
+    | "created_by"
+    | "created_at"
+  >
+>;
+
+export type _BillingProviderConfigKeys = Expect<
+  Equal<
+    keyof BillingProviderConfigRow,
+    | "tenant_id"
+    | "provider_name"
+    | "is_active"
+    | "series_boleta"
+    | "series_factura"
+    | "series_nota_credito"
+    | "series_nota_debito"
+    | "credentials_secret_id"
+    | "credentials_updated_at"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _UnitKeys = Expect<
+  Equal<
+    keyof UnitRow,
+    "id" | "tenant_id" | "name" | "abbreviation" | "is_active" | "created_at" | "updated_at"
+  >
+>;
+
+export type _InventoryItemKeys = Expect<
+  Equal<
+    keyof InventoryItemRow,
+    "id" | "tenant_id" | "unit_id" | "name" | "sku" | "is_active" | "created_at" | "updated_at"
+  >
+>;
+
+export type _SupplierKeys = Expect<
+  Equal<
+    keyof SupplierRow,
+    | "id"
+    | "tenant_id"
+    | "name"
+    | "tax_id"
+    | "contact_name"
+    | "phone"
+    | "email"
+    | "address"
+    | "notes"
+    | "is_active"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _PurchaseKeys = Expect<
+  Equal<
+    keyof PurchaseRow,
+    | "id"
+    | "tenant_id"
+    | "supplier_id"
+    | "location_id"
+    | "reference"
+    | "purchased_at"
+    | "notes"
+    | "total_cost_cents"
+    | "created_by"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _StockMovementKeys = Expect<
+  Equal<
+    keyof StockMovementRow,
+    | "id"
+    | "tenant_id"
+    | "inventory_item_id"
+    | "location_id"
+    | "type"
+    | "quantity"
+    | "unit_cost_cents"
+    | "purchase_id"
+    | "order_id"
+    | "order_item_id"
+    | "transfer_group_id"
+    | "reason"
+    | "created_by"
+    | "created_at"
+  >
+>;
+
+export type _RecipeKeys = Expect<
+  Equal<keyof RecipeRow, "id" | "tenant_id" | "product_id" | "notes" | "is_active" | "created_at" | "updated_at">
+>;
+
+export type _RecipeItemKeys = Expect<
+  Equal<
+    keyof RecipeItemRow,
+    "id" | "recipe_id" | "tenant_id" | "inventory_item_id" | "quantity" | "position" | "created_at"
+  >
+>;
+
 // --- Run-time half ----------------------------------------------------------
 
 interface ColumnSpec {
@@ -512,6 +690,156 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },
+  billing_documents: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    order_id: { dataType: "uuid", nullable: false },
+    customer_id: { dataType: "uuid", nullable: true },
+    type: { dataType: "USER-DEFINED", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
+    series: { dataType: "text", nullable: false },
+    number: { dataType: "integer", nullable: false },
+    idempotency_key: { dataType: "uuid", nullable: false },
+    issuer_ruc_snapshot: { dataType: "text", nullable: false },
+    customer_name_snapshot: { dataType: "text", nullable: true },
+    customer_doc_type_snapshot: { dataType: "USER-DEFINED", nullable: true },
+    customer_doc_number_snapshot: { dataType: "text", nullable: true },
+    subtotal_cents: { dataType: "bigint", nullable: false },
+    tax_cents: { dataType: "bigint", nullable: false },
+    total_cents: { dataType: "bigint", nullable: false },
+    related_document_id: { dataType: "uuid", nullable: true },
+    rejection_reason: { dataType: "text", nullable: true },
+    cancel_reason: { dataType: "text", nullable: true },
+    sent_at: { dataType: "timestamp with time zone", nullable: true },
+    accepted_at: { dataType: "timestamp with time zone", nullable: true },
+    rejected_at: { dataType: "timestamp with time zone", nullable: true },
+    cancelled_at: { dataType: "timestamp with time zone", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  billing_document_transitions: {
+    from_status: { dataType: "USER-DEFINED", nullable: false },
+    to_status: { dataType: "USER-DEFINED", nullable: false },
+  },
+  billing_document_items: {
+    id: { dataType: "uuid", nullable: false },
+    billing_document_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    order_item_id: { dataType: "uuid", nullable: true },
+    description_snapshot: { dataType: "text", nullable: false },
+    quantity: { dataType: "numeric", nullable: false },
+    unit_price_cents: { dataType: "bigint", nullable: false },
+    discount_cents: { dataType: "bigint", nullable: false },
+    total_cents: { dataType: "bigint", nullable: false },
+    subtotal_cents: { dataType: "bigint", nullable: false },
+    tax_cents: { dataType: "bigint", nullable: false },
+    position: { dataType: "smallint", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  billing_events: {
+    id: { dataType: "uuid", nullable: false },
+    billing_document_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    from_status: { dataType: "USER-DEFINED", nullable: true },
+    to_status: { dataType: "USER-DEFINED", nullable: false },
+    message: { dataType: "text", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  billing_provider_configs: {
+    tenant_id: { dataType: "uuid", nullable: false },
+    provider_name: { dataType: "text", nullable: false },
+    is_active: { dataType: "boolean", nullable: false },
+    series_boleta: { dataType: "text", nullable: true },
+    series_factura: { dataType: "text", nullable: true },
+    series_nota_credito: { dataType: "text", nullable: true },
+    series_nota_debito: { dataType: "text", nullable: true },
+    credentials_secret_id: { dataType: "uuid", nullable: true },
+    credentials_updated_at: { dataType: "timestamp with time zone", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  units: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    abbreviation: { dataType: "text", nullable: false },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  inventory_items: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    unit_id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    sku: { dataType: "text", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  suppliers: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    tax_id: { dataType: "text", nullable: true },
+    contact_name: { dataType: "text", nullable: true },
+    phone: { dataType: "text", nullable: true },
+    email: { dataType: "text", nullable: true },
+    address: { dataType: "text", nullable: true },
+    notes: { dataType: "text", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  purchases: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    supplier_id: { dataType: "uuid", nullable: false },
+    location_id: { dataType: "uuid", nullable: false },
+    reference: { dataType: "text", nullable: true },
+    purchased_at: { dataType: "timestamp with time zone", nullable: false },
+    notes: { dataType: "text", nullable: true },
+    total_cost_cents: { dataType: "bigint", nullable: false },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  stock_movements: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    inventory_item_id: { dataType: "uuid", nullable: false },
+    location_id: { dataType: "uuid", nullable: false },
+    type: { dataType: "USER-DEFINED", nullable: false },
+    quantity: { dataType: "numeric", nullable: false },
+    unit_cost_cents: { dataType: "bigint", nullable: true },
+    purchase_id: { dataType: "uuid", nullable: true },
+    order_id: { dataType: "uuid", nullable: true },
+    order_item_id: { dataType: "uuid", nullable: true },
+    transfer_group_id: { dataType: "uuid", nullable: true },
+    reason: { dataType: "text", nullable: true },
+    created_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  recipes: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    product_id: { dataType: "uuid", nullable: false },
+    notes: { dataType: "text", nullable: true },
+    is_active: { dataType: "boolean", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  recipe_items: {
+    id: { dataType: "uuid", nullable: false },
+    recipe_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    inventory_item_id: { dataType: "uuid", nullable: false },
+    quantity: { dataType: "numeric", nullable: false },
+    position: { dataType: "smallint", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+  },
 };
 
 let db: TestDatabase;
@@ -575,6 +903,11 @@ describe("TEST-141: declared types match the real schema", () => {
       // The six of master section 33 (Phase 13), in its order.
       order_status: ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"],
       order_source: ["web", "pos", "manual", "whatsapp", "delivery"],
+      // Master section 33 (Phase 17), textual.
+      billing_document_type: ["boleta", "factura", "nota_credito", "nota_debito"],
+      billing_document_status: ["pending", "sent", "accepted", "rejected", "cancelled"],
+      // Master section 33 (Phase 18), textual.
+      stock_movement_type: ["purchase", "sale", "adjustment", "waste", "return", "transfer"],
     };
 
     for (const [name, values] of Object.entries(declared)) {

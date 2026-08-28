@@ -28,6 +28,8 @@ Status.
 | 018 | [Payment voiding and the cash ledger](./018-payment-void-and-cash-ledger.md)   | ACCEPTED | 14    |
 | 019 | [POS actions as RPC, ephemeral cart](./019-pos-actions-as-rpc-and-ephemeral-cart.md) | ACCEPTED | 15    |
 | 020 | [KDS station snapshot and Realtime as refetch](./020-kds-station-snapshot-and-realtime-as-refetch.md) | ACCEPTED | 16    |
+| 021 | [Billing provider abstraction and Vault credentials](./021-billing-provider-abstraction-and-vault-credentials.md) | ACCEPTED | 17    |
+| 022 | [Derived stock and completion-triggered consumption](./022-derived-stock-and-completion-triggered-consumption.md) | ACCEPTED | 18    |
 
 ## Planned
 
@@ -36,7 +38,7 @@ Decisions the master document calls out that belong to a later phase:
 | Topic                        | Phase                         |
 | ---------------------------- | ----------------------------- |
 | Vercel provider adapter      | when a token exists (ADR-013) |
-| Billing provider abstraction | 17                            |
+| A real BillingProvider (Nubefact, Efact, SUNAT API) | when real credentials exist (ADR-021) |
 
 A relevant architectural change without an ADR makes the phase incomplete
 (section 61).

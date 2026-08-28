@@ -52,6 +52,13 @@ export type CashMovementType = "sale" | "payout" | "deposit" | "adjustment";
 /** Master section 33 (Phase 16). Snapshotted onto order_items at insert (ADR-020). */
 export type KitchenStation = "kitchen" | "bar" | "sushi" | "desserts";
 
+/** Master section 33 (Phase 17). */
+export type BillingDocumentType = "boleta" | "factura" | "nota_credito" | "nota_debito";
+export type BillingDocumentStatus = "pending" | "sent" | "accepted" | "rejected" | "cancelled";
+
+/** Master section 33 (Phase 18). */
+export type StockMovementType = "purchase" | "sale" | "adjustment" | "waste" | "return" | "transfer";
+
 export type Database = {
   public: {
     Tables: {
@@ -857,6 +864,454 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      billing_documents: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the order; never trusted from a client. */
+          tenant_id: string;
+          order_id: string;
+          customer_id: string | null;
+          type: BillingDocumentType;
+          status: BillingDocumentStatus;
+          /** Assigned by trigger from billing_provider_configs; never sent by a client. */
+          series: string;
+          number: number;
+          idempotency_key: string;
+          issuer_ruc_snapshot: string;
+          customer_name_snapshot: string | null;
+          customer_doc_type_snapshot: CustomerDocType | null;
+          customer_doc_number_snapshot: string | null;
+          subtotal_cents: number;
+          tax_cents: number;
+          total_cents: number;
+          related_document_id: string | null;
+          rejection_reason: string | null;
+          cancel_reason: string | null;
+          sent_at: string | null;
+          accepted_at: string | null;
+          rejected_at: string | null;
+          cancelled_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          order_id: string;
+          customer_id?: string | null;
+          type: BillingDocumentType;
+          status?: BillingDocumentStatus;
+          related_document_id?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["billing_documents"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "billing_documents_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "billing_documents_customer_id_fkey";
+            columns: ["customer_id"];
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "billing_documents_related_document_id_fkey";
+            columns: ["related_document_id"];
+            referencedRelation: "billing_documents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_document_transitions: {
+        Row: {
+          from_status: BillingDocumentStatus;
+          to_status: BillingDocumentStatus;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      billing_document_items: {
+        Row: {
+          id: string;
+          billing_document_id: string;
+          tenant_id: string;
+          order_item_id: string | null;
+          description_snapshot: string;
+          /** numeric(10,3): a quantity, never money. ADR-015 is untouched. */
+          quantity: number;
+          unit_price_cents: number;
+          discount_cents: number;
+          total_cents: number;
+          subtotal_cents: number;
+          tax_cents: number;
+          position: number;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "billing_document_items_document_id_fkey";
+            columns: ["billing_document_id"];
+            referencedRelation: "billing_documents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "billing_document_items_order_item_id_fkey";
+            columns: ["order_item_id"];
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_events: {
+        Row: {
+          id: string;
+          billing_document_id: string;
+          tenant_id: string;
+          from_status: BillingDocumentStatus | null;
+          to_status: BillingDocumentStatus;
+          message: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "billing_events_document_id_fkey";
+            columns: ["billing_document_id"];
+            referencedRelation: "billing_documents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_provider_configs: {
+        Row: {
+          tenant_id: string;
+          provider_name: string;
+          is_active: boolean;
+          series_boleta: string | null;
+          series_factura: string | null;
+          series_nota_credito: string | null;
+          series_nota_debito: string | null;
+          /** A Supabase Vault secret id. No function reads the credential back (ADR-021). */
+          credentials_secret_id: string | null;
+          credentials_updated_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          provider_name?: string;
+          is_active?: boolean;
+          series_boleta?: string | null;
+          series_factura?: string | null;
+          series_nota_credito?: string | null;
+          series_nota_debito?: string | null;
+        };
+        Update: Partial<
+          Omit<
+            Database["public"]["Tables"]["billing_provider_configs"]["Row"],
+            "credentials_secret_id" | "credentials_updated_at"
+          >
+        >;
+        Relationships: [
+          {
+            foreignKeyName: "billing_provider_configs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      units: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          abbreviation: string;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          abbreviation: string;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["units"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "units_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      inventory_items: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          unit_id: string;
+          name: string;
+          sku: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          unit_id: string;
+          name: string;
+          sku?: string | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["inventory_items"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "inventory_items_unit_id_fkey";
+            columns: ["unit_id"];
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      suppliers: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          tax_id: string | null;
+          contact_name: string | null;
+          phone: string | null;
+          email: string | null;
+          address: string | null;
+          notes: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          tax_id?: string | null;
+          contact_name?: string | null;
+          phone?: string | null;
+          email?: string | null;
+          address?: string | null;
+          notes?: string | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["suppliers"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "suppliers_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      purchases: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          supplier_id: string;
+          location_id: string;
+          reference: string | null;
+          purchased_at: string;
+          notes: string | null;
+          /** Summed by trigger from this purchase's own stock_movements. Never sent by a client. */
+          total_cost_cents: number;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          supplier_id: string;
+          location_id: string;
+          reference?: string | null;
+          purchased_at?: string;
+          notes?: string | null;
+          created_by?: string | null;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "purchases_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchases_supplier_id_fkey";
+            columns: ["supplier_id"];
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "purchases_location_id_fkey";
+            columns: ["location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_movements: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the inventory item; never trusted from a client. */
+          tenant_id: string;
+          inventory_item_id: string;
+          location_id: string;
+          type: StockMovementType;
+          /** Signed: stock in is positive, stock out is negative. */
+          quantity: number;
+          /** Set only for type=purchase. */
+          unit_cost_cents: number | null;
+          purchase_id: string | null;
+          /** Set only for type=sale, written exclusively by the order-completion trigger. */
+          order_id: string | null;
+          order_item_id: string | null;
+          /** Set only for type=transfer; the two rows of one transfer share this id. */
+          transfer_group_id: string | null;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          inventory_item_id: string;
+          location_id: string;
+          type: StockMovementType;
+          quantity: number;
+          unit_cost_cents?: number | null;
+          purchase_id?: string | null;
+          order_id?: string | null;
+          order_item_id?: string | null;
+          transfer_group_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+        };
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_inventory_item_id_fkey";
+            columns: ["inventory_item_id"];
+            referencedRelation: "inventory_items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_location_id_fkey";
+            columns: ["location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_purchase_id_fkey";
+            columns: ["purchase_id"];
+            referencedRelation: "purchases";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movements_order_item_id_fkey";
+            columns: ["order_item_id"];
+            referencedRelation: "order_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      recipes: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the product; never trusted from a client. */
+          tenant_id: string;
+          product_id: string;
+          notes: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          product_id: string;
+          notes?: string | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["recipes"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "recipes_product_id_fkey";
+            columns: ["product_id"];
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      recipe_items: {
+        Row: {
+          id: string;
+          recipe_id: string;
+          /** Derived by a trigger from the recipe; never trusted from a client. */
+          tenant_id: string;
+          inventory_item_id: string;
+          /** Always in inventory_item_id's own unit - no conversion (ADR-022). */
+          quantity: number;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recipe_id: string;
+          tenant_id?: string;
+          inventory_item_id: string;
+          quantity: number;
+          position?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["recipe_items"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "recipe_items_recipe_id_fkey";
+            columns: ["recipe_id"];
+            referencedRelation: "recipes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "recipe_items_inventory_item_id_fkey";
+            columns: ["inventory_item_id"];
+            referencedRelation: "inventory_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       payment_methods: {
         Row: {
           id: string;
@@ -1147,7 +1602,18 @@ export type Database = {
         ];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      /** Current stock per item per location, summed live from stock_movements. Never a stored value (ADR-022). */
+      inventory_stock_levels: {
+        Row: {
+          tenant_id: string;
+          inventory_item_id: string;
+          location_id: string;
+          quantity_on_hand: number;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       resolve_tenant_by_domain: {
         Args: { p_hostname: string };
@@ -1261,6 +1727,18 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: { permission: string }[];
       };
+      set_billing_credentials: {
+        Args: { p_tenant_id: string; p_credentials: string };
+        Returns: undefined;
+      };
+      has_billing_credentials: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      clear_billing_credentials: {
+        Args: { p_tenant_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       tenant_status: TenantStatus;
@@ -1278,6 +1756,9 @@ export type Database = {
       payment_method_type: PaymentMethodType;
       cash_movement_type: CashMovementType;
       kitchen_station: KitchenStation;
+      billing_document_type: BillingDocumentType;
+      billing_document_status: BillingDocumentStatus;
+      stock_movement_type: StockMovementType;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

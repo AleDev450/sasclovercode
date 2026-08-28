@@ -1,6 +1,6 @@
 # Database
 
-> Current as of Phase 14.
+> Current as of Phase 18.
 
 One PostgreSQL database, one `public` schema, one migration history, hosted on
 Supabase. Rationale: [ADR-001](../adr/001-single-database-multitenancy.md).
@@ -25,9 +25,10 @@ Rules (master section 22):
 
 ### Current history
 
-48 files across 14 phases. `src/tests/database/schema.test.ts` asserts this
-exact list and order, so it cannot silently drift from what is actually
-applied.
+66 files across 17 phases (Phase 15 added none — POS reuses `orders`' and
+`payments`' existing tables and Server Actions). `src/tests/database/
+schema.test.ts` asserts this exact list and order, so it cannot silently
+drift from what is actually applied.
 
 | Phase | File | Adds |
 |---|---|---|
@@ -81,6 +82,22 @@ applied.
 | 14 | `20260827140300_create_cash_sessions.sql` | One open-to-close cycle; close computes the diff |
 | 14 | `20260827140400_create_payments_and_movements.sql` | Payments, capped at balance; the till's own ledger |
 | 14 | `20260827140500_extend_orders_paid_cents.sql` | `orders.paid_cents`, kept in step by trigger |
+| 16 | `20260827160000_extend_categories_kitchen_station.sql` | `kitchen_station` enum, `categories.kitchen_station` |
+| 16 | `20260827160100_extend_order_items_station.sql` | `order_items.station`, snapshotted at insert |
+| 16 | `20260827160200_enable_kds_realtime.sql` | `order_items`/`orders` added to the `supabase_realtime` publication |
+| 17 | `20260827170000_create_billing_permissions.sql` | `billing.manage` (`billing.view`/`create`/`cancel` pre-seeded in 03) |
+| 17 | `20260827170100_create_billing_documents.sql` | `billing_documents`, `billing_document_transitions` (the FSM as data) |
+| 17 | `20260827170200_create_billing_document_items.sql` | Lines, the IGV split, computed totals |
+| 17 | `20260827170300_create_billing_events.sql` | Append-only audit trail of a document's lifecycle |
+| 17 | `20260827170400_create_billing_provider_configs.sql` | Provider/series config; Vault-backed credential functions |
+| 18 | `20260827180000_create_inventory_permissions.sql` | `inventory.*`, `suppliers.*`, `purchases.*` |
+| 18 | `20260827180100_create_units.sql` | Units of measure; `create_tenant_defaults()` seeds a starter set |
+| 18 | `20260827180200_create_inventory_items.sql` | What a business buys and consumes, not what it sells |
+| 18 | `20260827180300_create_suppliers.sql` | Who a business buys stock from |
+| 18 | `20260827180400_create_purchases.sql` | An immutable receipt; no purchase-order workflow (ADR-022) |
+| 18 | `20260827180500_create_stock_movements.sql` | The ledger; `inventory_stock_levels` (a VIEW, never a stored balance) |
+| 18 | `20260827180600_create_recipes.sql` | What one unit of a product consumes, by inventory item |
+| 18 | `20260827180700_extend_orders_stock_consumption.sql` | Writes `sale` movements when an order reaches `completed` |
 
 ## Conventions
 
@@ -132,6 +149,7 @@ duplicated here, where it would drift. A few structurally important examples:
 | `cash_sessions_one_open_per_register` (unique, partial) | At most one open session per till, same arbitration-by-index move |
 | `orders_tenant_location_placed_idx` | "Today, in this branch" — the query the dashboard runs all day |
 | `order_items_tenant_product_idx` (partial) | "How many times did we sell this" without a full scan |
+| `billing_documents_one_live_per_order_type` (unique, partial) | At most one live (`pending`/`sent`/`accepted`) document per order+type — idempotency arbitrated by the index, same move as the two rows above |
 
 `tenants.status` is deliberately **not** indexed: three values over a small
 table means a sequential scan wins, and a test asserts the index stays absent
@@ -171,17 +189,40 @@ every migration applied.
 | 14 | `cash_sessions` | select viewer, insert opener, update closer | No DELETE; UPDATE only ever closes a session (trigger-guarded) |
 | 14 | `payments` | select viewer, insert operator, update voider | No DELETE; UPDATE only ever voids (trigger-guarded, ADR-018) |
 | 14 | `cash_movements` | select viewer, insert manager (payout/deposit/adjustment only, no `sale`) | No UPDATE, no DELETE — append-only ledger; the `sale` row and a void's compensating row are written by a SECURITY DEFINER trigger, which bypasses this policy entirely |
+| 17 | `billing_document_transitions` | select, `using (true)` | The document lifecycle as data — same shape and reasoning as `order_transitions`; product data, not any tenant's |
+| 17 | `billing_documents` | select member, insert creator, update operator (`create` OR `cancel`) | No DELETE — a tax document is anulled, never removed |
+| 17 | `billing_document_items` | select member | No INSERT/UPDATE/DELETE policy for a direct caller — only the SECURITY DEFINER trigger that populates them writes, bypassing this policy entirely |
+| 17 | `billing_events` | select member, insert operator | No UPDATE, no DELETE — an audit trail |
+| 17 | `billing_provider_configs` | select/update manager (`billing.manage`) | No INSERT policy — every tenant is provisioned a row automatically; no DELETE — a tenant reconfigures by updating |
+| 18 | `units`, `inventory_items` | select member, insert/update manager (`inventory.manage`) | No DELETE — deactivated, referenced by `stock_movements`/`recipe_items` RESTRICT against it |
+| 18 | `suppliers` | select viewer, insert/update manager (`suppliers.manage`) | No DELETE |
+| 18 | `purchases` | select viewer, insert creator (`purchases.create`) | No UPDATE for a direct caller — `total_cost_cents` is trigger-only; no DELETE, ever — a receipt |
+| 18 | `stock_movements` | select member, insert operator (split by type: `purchase` needs `purchases.create`; `adjustment`/`waste`/`return`/`transfer` need `inventory.manage`) | `sale` matches neither branch — refused for every direct caller, verified live; no UPDATE/DELETE, ever |
+| 18 | `recipes`, `recipe_items` | select member, insert/update/**delete** manager (`inventory.manage`) | A hard DELETE, like `categories`/`products` (Phase 11) — a recipe is inventory data, not a financial ledger |
 
 **`using (true)` on a table holding tenant data is forbidden**, and a test
 (`isolation.test.ts`) asserts nothing outside `roles`/`permissions`/
-`role_permissions` and `order_transitions` uses it — both exceptions hold
-product-wide reference data, never a business's own rows, and both are
-read-only.
+`role_permissions`, `order_transitions` and `billing_document_transitions`
+uses it — all four exceptions hold product-wide reference data, never a
+business's own rows, and all four are read-only.
 
 Authorization is resolved by `has_permission(tenant_id, permission)`, which
 both the policies and the application call. Full model:
 [authorization.md](./authorization.md), rationale:
 [ADR-010](../adr/010-rbac-authorization.md).
+
+### Views
+
+`inventory_stock_levels` (Phase 18) is the first `VIEW` in this schema —
+current stock, summed live from `stock_movements` rather than stored on a
+row, because a (item, location) balance has no table of its own among
+Phase 18's seven ([ADR-022](../adr/022-derived-stock-and-completion-triggered-consumption.md)).
+It is declared `with (security_invoker = true)`, which is not the
+default: without it, a view runs with its **owner's** privileges (the
+migration role), not the querying user's, and would bypass every RLS
+policy on the table it reads — silently returning every tenant's stock to
+anyone. Verified live against a real Supabase instance that the flag
+does what it claims.
 
 ### SECURITY DEFINER functions
 
@@ -193,10 +234,20 @@ for every `SECURITY DEFINER` function in the schema, not just
 A `SECURITY DEFINER` trigger that writes into a table **other than** the one
 it fired on also bypasses that other table's RLS (the owner-bypass applies to
 every statement the function runs). This is deliberate and is how, for
-example, `recompute_order_totals()` (Phase 13) updates `orders` and
-`record_payment_cash_movement()` (Phase 14) inserts into `cash_movements`
-without either target table needing a policy that would let an ordinary
-caller do the same thing directly.
+example, `recompute_order_totals()` (Phase 13) updates `orders`,
+`record_payment_cash_movement()` (Phase 14) inserts into `cash_movements`,
+and `populate_billing_document_items()` (Phase 17) inserts into
+`billing_document_items` — none of the three target tables needs a policy
+that would let an ordinary caller do the same thing directly.
+
+Phase 17 is also the first to hold a real external secret. Three narrow
+`SECURITY DEFINER` functions (`set_billing_credentials`,
+`has_billing_credentials`, `clear_billing_credentials`) are the *only* code
+in the schema that touches Supabase Vault (`vault.create_secret`,
+`vault.update_secret`, a direct `DELETE` from `vault.secrets` — this Vault
+version ships no `delete_secret()` wrapper, confirmed against a real
+Supabase stack). No function anywhere reads a stored credential back; see
+[ADR-021](../adr/021-billing-provider-abstraction-and-vault-credentials.md).
 
 ## Types
 

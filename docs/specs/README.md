@@ -25,7 +25,9 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 14    | Payments + Cash         | [phase-14-payments-cash.md](./phase-14-payments-cash.md)                     | COMPLETED |
 | 15    | POS                     | [phase-15-pos.md](./phase-15-pos.md)                                         | COMPLETED |
 | 16    | Kitchen / KDS           | [phase-16-kitchen-kds.md](./phase-16-kitchen-kds.md)                         | COMPLETED |
-| 17-28 | see master document     | _not written_                                                                | -         |
+| 17    | Electronic Billing / SUNAT | [phase-17-billing-sunat.md](./phase-17-billing-sunat.md)                 | COMPLETED |
+| 18    | Inventory               | [phase-18-inventory.md](./phase-18-inventory.md)                             | COMPLETED |
+| 19-28 | see master document     | _not written_                                                                | -         |
 
 ## Required contents
 

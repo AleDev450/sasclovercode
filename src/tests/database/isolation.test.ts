@@ -170,9 +170,18 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     // does not get to invent a path from `completed` back to `pending`. It
     // holds two enum columns and no tenant data.
     //
+    // Phase 17 added `billing_document_transitions` on the identical grounds:
+    // the billing document lifecycle, not any tenant's own documents.
+    //
     // Anything added here must satisfy the next test as well: an exception is
     // only safe while it stays read-only.
-    const CATALOGUE = ["roles", "permissions", "role_permissions", "order_transitions"];
+    const CATALOGUE = [
+      "roles",
+      "permissions",
+      "role_permissions",
+      "order_transitions",
+      "billing_document_transitions",
+    ];
 
     const rows = await db.query<{ tablename: string; qual: string | null }>(
       "select tablename, qual from pg_policies where schemaname = 'public'",
@@ -186,9 +195,10 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     const rows = await db.query<{ cmd: string }>(
       `select cmd from pg_policies
        where schemaname = 'public'
-         and tablename in ('roles','permissions','role_permissions','order_transitions')`,
+         and tablename in ('roles','permissions','role_permissions','order_transitions',
+                           'billing_document_transitions')`,
     );
-    expect(rows).toHaveLength(4);
+    expect(rows).toHaveLength(5);
     expect(rows.every((r) => r.cmd === "SELECT")).toBe(true);
   });
 });

@@ -111,6 +111,21 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260827160000_extend_categories_kitchen_station.sql",
       "20260827160100_extend_order_items_station.sql",
       "20260827160200_enable_kds_realtime.sql",
+      // Phase 17
+      "20260827170000_create_billing_permissions.sql",
+      "20260827170100_create_billing_documents.sql",
+      "20260827170200_create_billing_document_items.sql",
+      "20260827170300_create_billing_events.sql",
+      "20260827170400_create_billing_provider_configs.sql",
+      // Phase 18
+      "20260827180000_create_inventory_permissions.sql",
+      "20260827180100_create_units.sql",
+      "20260827180200_create_inventory_items.sql",
+      "20260827180300_create_suppliers.sql",
+      "20260827180400_create_purchases.sql",
+      "20260827180500_create_stock_movements.sql",
+      "20260827180600_create_recipes.sql",
+      "20260827180700_extend_orders_stock_consumption.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -122,12 +137,18 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.map((t) => t.tablename)).toEqual([
+      "billing_document_items",
+      "billing_document_transitions",
+      "billing_documents",
+      "billing_events",
+      "billing_provider_configs",
       "cash_movements",
       "cash_registers",
       "cash_sessions",
       "categories",
       "customer_addresses",
       "customers",
+      "inventory_items",
       "location_hours",
       "locations",
       "navigation_items",
@@ -146,8 +167,13 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "product_variants",
       "products",
       "profiles",
+      "purchases",
+      "recipe_items",
+      "recipes",
       "role_permissions",
       "roles",
+      "stock_movements",
+      "suppliers",
       "tenant_domains",
       "tenant_members",
       "tenant_seo",
@@ -155,6 +181,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "tenant_social_links",
       "tenant_themes",
       "tenants",
+      "units",
     ]);
 
     const enums = await db.query<{ typname: string }>(
@@ -163,6 +190,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
        where n.nspname = 'public' and t.typtype = 'e' order by t.typname`,
     );
     expect(enums.map((e) => e.typname)).toEqual([
+      "billing_document_status",
+      "billing_document_type",
       "cash_movement_type",
       "customer_doc_type",
       "domain_provider_status",
@@ -178,6 +207,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "product_status",
       "section_type",
       "social_platform",
+      "stock_movement_type",
       "tenant_domain_type",
       "tenant_role",
       "tenant_status",

@@ -93,10 +93,27 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.CASH_VIEW,
   },
   {
+    key: "billing",
+    label: "Facturacion",
+    segment: "/facturacion",
+    permission: PERMISSIONS.BILLING_VIEW,
+  },
+  {
     key: "locations",
     label: "Sedes",
     segment: "/sedes",
     permission: PERMISSIONS.LOCATIONS_VIEW,
+  },
+  /*
+   * Proveedores and compras are reached as links from within this screen,
+   * not separate nav entries - the same posture `/pedidos/{id}` and
+   * `/caja/{sessionId}` already take toward their own detail routes.
+   */
+  {
+    key: "inventory",
+    label: "Inventario",
+    segment: "/inventario",
+    permission: PERMISSIONS.INVENTORY_VIEW,
   },
   /*
    * Its own entry rather than a link inside Configuracion, because the two are
@@ -116,6 +133,17 @@ export const NAV_ITEMS: readonly NavItem[] = [
     label: "Metodos de pago",
     segment: "/configuracion/pagos",
     permission: PERMISSIONS.PAYMENT_METHODS_VIEW,
+  },
+  /*
+   * Same shape as domains/payment-methods above: `billing.manage` is granted
+   * to owner and admin only (ADR-021), not folded into settings.manage, so
+   * this needs its own entry too.
+   */
+  {
+    key: "billing-config",
+    label: "Series y proveedor",
+    segment: "/configuracion/facturacion",
+    permission: PERMISSIONS.BILLING_MANAGE,
   },
   {
     key: "settings",

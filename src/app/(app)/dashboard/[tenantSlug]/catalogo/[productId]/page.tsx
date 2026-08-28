@@ -14,6 +14,8 @@ import {
   ProductStatusForms,
 } from "@/modules/catalog/components/catalog-forms";
 import { getProductDetail, listCategories } from "@/modules/catalog/server/queries";
+import { RecipeForm } from "@/modules/inventory/components/recipe-form";
+import { getRecipeForProduct, listInventoryItems } from "@/modules/inventory/server/queries";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
 
 export const metadata = { title: "Producto" };
@@ -37,9 +39,14 @@ export default async function ProductDetailPage({
   if (product === null) notFound();
 
   const canManage = await hasPermission(tenant.id, PERMISSIONS.PRODUCTS_UPDATE);
-  const [categories, settings] = await Promise.all([
+  const canManageInventory = await hasPermission(tenant.id, PERMISSIONS.INVENTORY_MANAGE);
+  const canViewInventory = canManageInventory || (await hasPermission(tenant.id, PERMISSIONS.INVENTORY_VIEW));
+
+  const [categories, settings, recipe, inventoryItems] = await Promise.all([
     listCategories(tenant.id),
     getBusinessSettings(tenant.id),
+    canViewInventory ? getRecipeForProduct(tenant.id, product.id) : Promise.resolve(null),
+    canManageInventory ? listInventoryItems(tenant.id, { activeOnly: true }) : Promise.resolve([]),
   ]);
 
   // Options are stored flat with the group label repeated per row (Phase 11
@@ -233,6 +240,52 @@ export default async function ProductDetailPage({
           {canManage ? <AddOptionForm tenantSlug={tenant.slug} productId={product.id} /> : null}
         </CardContent>
       </Card>
+
+      {canViewInventory ? (
+        <Card>
+          <CardHeader>
+            <CardTitle as="h2">Receta</CardTitle>
+            <CardDescription>
+              Lo que consume una unidad vendida. Al completar un pedido con este producto, el stock
+              se descuenta solo.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {canManageInventory ? (
+              <RecipeForm
+                tenantSlug={tenant.slug}
+                productId={product.id}
+                items={inventoryItems.map((item) => ({
+                  id: item.id,
+                  name: item.name,
+                  unitAbbreviation: item.unitAbbreviation,
+                }))}
+                initial={{
+                  notes: recipe?.notes ?? null,
+                  isActive: recipe?.isActive ?? true,
+                  lines: (recipe?.items ?? []).map((item) => ({
+                    inventoryItemId: item.inventoryItemId,
+                    quantity: item.quantity,
+                  })),
+                }}
+              />
+            ) : recipe === null ? (
+              <p className="text-muted-foreground text-sm">Este producto no tiene receta.</p>
+            ) : (
+              <ul className="flex flex-col gap-1 text-sm">
+                {recipe.items.map((item) => (
+                  <li key={item.inventoryItemId} className="flex items-center justify-between">
+                    <span>{item.inventoryItemName}</span>
+                    <span className="text-muted-foreground font-mono">
+                      {item.quantity} {item.unitAbbreviation}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Link
         href={`/dashboard/${tenant.slug}/catalogo`}

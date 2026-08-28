@@ -1,6 +1,6 @@
 # CloverCode — Architecture overview
 
-> Scope note: this document reflects what exists **today** (end of Phase 16).
+> Scope note: this document reflects what exists **today** (end of Phase 18).
 > Sections describing later phases are marked as such and are stated as intent,
 > not as implemented behaviour. It is updated at the end of every phase.
 
@@ -49,7 +49,7 @@ app  ->  modules  ->  lib  ->  config / types
 module's internals — only its own `schemas.ts`, `lifecycle.ts`/`constants.ts`,
 `server/actions.ts`, `server/queries.ts` and `components/`.
 
-## Modules, as of Phase 16
+## Modules, as of Phase 18
 
 ```text
 src/modules/
@@ -67,13 +67,15 @@ src/modules/
 ├── payments/                     payments, cash registers/sessions (Phase 14)
 ├── pos/                            touch till over orders+payments (Phase 15)
 ├── kitchen/                         live board over orders+order_items (Phase 16)
-└── platform/                          super-admin: operators, provisioning
+├── billing/                          SUNAT documents, BillingProvider (Phase 17)
+├── inventory/                          items, recipes, stock ledger (Phase 18)
+└── platform/                              super-admin: operators, provisioning
 ```
 
 Each holds `schemas.ts` (Zod), `server/actions.ts` (Server Actions,
 `requirePermission` first), `server/queries.ts` (server-only reads), and
 `components/`. A module with a small closed state machine also carries
-`lifecycle.ts` (orders) or documents why it doesn't need one
+`lifecycle.ts` (orders, billing) or documents why it doesn't need one
 ([ADR-018](../adr/018-payment-void-and-cash-ledger.md), payments). `pos` is
 the first module with no `schemas.ts` of its own and no new database writes
 at all — it calls `orders`' and `payments`' existing Server Actions directly
@@ -84,6 +86,20 @@ at all — one `postgres_changes` subscription per open board, triggering a
 `router.refresh()` rather than carrying data itself
 ([ADR-020](../adr/020-kds-station-snapshot-and-realtime-as-refetch.md)); it
 also has no `server/actions.ts` of its own, reusing `orders`' unmodified.
+`billing` is the first module to hold a `provider.ts`: an interface
+(`BillingProvider`) with a single shipped implementation
+(`ManualBillingProvider`) rather than an integration against a real PSE —
+no credentials or sandbox exist in this environment to build or verify one
+against ([ADR-021](../adr/021-billing-provider-abstraction-and-vault-credentials.md),
+the same posture [ADR-013](../adr/013-domain-verification-and-provider.md)
+took toward an unverifiable Vercel integration). It is also the first
+module to touch Supabase Vault, through three narrow functions that write
+or check a credential and never read one back. `inventory` is the first
+module to declare a database `VIEW` (`inventory_stock_levels`) rather
+than a stored column for a derived value — with `security_invoker = true`
+stated explicitly, since a view otherwise runs with its owner's
+privileges, not the querying user's, and would bypass RLS
+([ADR-022](../adr/022-derived-stock-and-completion-triggered-consumption.md)).
 
 ## What exists, by capability
 
@@ -109,6 +125,8 @@ also has no `server/actions.ts` of its own, reusing `orders`' unmodified.
 | Payments, cash registers/sessions | `src/modules/payments` | 14 |
 | POS: touch till, no new writes of its own | `src/modules/pos` | 15 |
 | Kitchen/KDS: live board, Realtime (first use) | `src/modules/kitchen` | 16 |
+| Electronic billing: SUNAT documents, BillingProvider, Vault credentials (first use) | `src/modules/billing` | 17 |
+| Inventory: items, suppliers, purchases, recipes, stock ledger + derived view (first use) | `src/modules/inventory` | 18 |
 | Health probe (liveness only) | `src/app/api/health` | 00 |
 
 Deeper reference for the database itself — every migration, every RLS policy,

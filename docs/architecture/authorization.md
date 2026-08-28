@@ -1,6 +1,6 @@
 # Authorization
 
-> Current as of Phase 14.
+> Current as of Phase 18.
 
 How CloverCode decides **what** an authenticated member may do. Identity —
 *who* is making the request — is [authentication.md](./authentication.md) and
@@ -77,7 +77,7 @@ you" rule be expressed without naming roles (0 = highest authority).
 | `waiter` | 40 | Takes and updates orders only |
 | `kitchen` | 50 | Reads and advances order status only |
 | `delivery` | 60 | Manages assigned deliveries |
-| `accountant` | 70 | Reads reports and billing documents; writes nothing operational |
+| `accountant` | 70 | Reads reports; issues and cancels billing documents (17), writes nothing else operational |
 
 `owner` and `admin` do **not** inherit new permissions automatically. Phase
 03's migration granted each a snapshot of the catalogue as it stood then;
@@ -99,7 +99,8 @@ Phase 13) and `cash.open`/`cash.close` (used from Phase 14).
 | `customers` | view, manage | 03 | 12 |
 | `cash` | open, close | 03 | 14 |
 | `cash` | view, manage | 14 | 14 |
-| `billing` | view, create, cancel | 03 | *pending (17)* |
+| `billing` | view, create, cancel | 03 | 17 |
+| `billing` | manage | 17 | 17 |
 | `reports` | view | 03 | *pending (23)* |
 | `employees` | manage | 03 | *pending* |
 | `settings` | manage | 03 | 06 |
@@ -109,13 +110,30 @@ Phase 13) and `cash.open`/`cash.close` (used from Phase 14).
 | `locations` | view, manage | 10 | 10 |
 | `payment_methods` | view, manage | 14 | 14 |
 | `payments` | view, create, void | 14 | 14 |
+| `inventory` | view, manage | 18 | 18 |
+| `suppliers` | view, manage | 18 | 18 |
+| `purchases` | view, create | 18 | 18 |
 
 `members.view`/`members.manage` are not in master section 12's own example
 list (which is explicitly "ejemplos"); Phase 03 added them because it needed
 something to govern `tenant_members` itself. Every phase since that needed a
 permission master's list did not name has followed the same move:
 `locations.*` (10), `domains.*` (09), `payment_methods.*` and `cash.view`/
-`cash.manage` (14).
+`cash.manage` (14), `billing.manage` (17), `inventory.*`/`suppliers.*`/
+`purchases.*` (18).
+
+`purchases` has no `.manage` code, unlike every other resource this
+pattern produced: a purchase is a receipt, written once and never edited
+or cancelled ([ADR-022](../adr/022-derived-stock-and-completion-triggered-consumption.md)
+decision 2), so there is no second action for a `.manage` code to gate.
+
+`billing.manage` is the first permission added *after* its resource's other
+codes had already sat unused for fourteen phases (`billing.view`/`create`/
+`cancel` were pre-seeded in Phase 03, alongside `orders.*`, for exactly this
+kind of gap — see [ADR-021](../adr/021-billing-provider-abstraction-and-vault-credentials.md)).
+Configuring a provider and its credentials is a more sensitive action than
+issuing or cancelling a document, so it earned its own code rather than
+folding into `billing.create`.
 
 `src/lib/permissions/permissions.ts`'s `PERMISSIONS` / `ROLES` constants
 mirror this table exactly. `src/tests/database/authorization-schema.test.ts`
@@ -214,6 +232,11 @@ this document owns the *model*, that one owns the *inventory*.
   permission separate from updating (Phase 13's version of the pattern).
 - [ADR-018](../adr/018-payment-void-and-cash-ledger.md) — voiding a payment as
   a permission separate from creating one (Phase 14's version).
+- [ADR-021](../adr/021-billing-provider-abstraction-and-vault-credentials.md) —
+  `billing.manage`, gating who may write a Vault-backed credential.
+- [ADR-022](../adr/022-derived-stock-and-completion-triggered-consumption.md) —
+  why `stock_movements`' own INSERT policy is split by movement type
+  rather than one permission per table.
 - `src/tests/database/authorization.test.ts`,
   `authorization-schema.test.ts` — the catalogue and its RLS, executed.
 - `src/tests/database/isolation.test.ts` — TEST-331 walks every role in the

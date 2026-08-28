@@ -149,6 +149,61 @@ describe("the payment methods entry (Phase 14)", () => {
   });
 });
 
+describe("the billing entry (Phase 17)", () => {
+  const withBilling = new Set<Permission>([PERMISSIONS.BILLING_VIEW]);
+
+  it("appears for a holder of billing.view", () => {
+    expect(visibleNavItems(withBilling).map((i) => i.key)).toContain("billing");
+  });
+
+  it("is hidden without it", () => {
+    expect(visibleNavItems(none).map((i) => i.key)).not.toContain("billing");
+  });
+
+  it("points at /facturacion", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "billing")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/facturacion");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/facturacion")).toBe("billing");
+  });
+});
+
+describe("the billing config entry (Phase 17)", () => {
+  const withManage = new Set<Permission>([PERMISSIONS.BILLING_MANAGE]);
+
+  it("appears for a holder of billing.manage, independent of settings.manage", () => {
+    // Same posture as domains and payment-methods (Phase 09/14): admin holds
+    // billing.manage but not settings.manage (ADR-021).
+    expect(visibleNavItems(withManage).map((i) => i.key)).toContain("billing-config");
+    expect(visibleNavItems(withManage).map((i) => i.key)).not.toContain("settings");
+  });
+
+  it("points at /configuracion/facturacion, distinct from /facturacion", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "billing-config")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/configuracion/facturacion");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/configuracion/facturacion")).toBe(
+      "billing-config",
+    );
+  });
+});
+
+describe("the inventory entry (Phase 18)", () => {
+  const withInventory = new Set<Permission>([PERMISSIONS.INVENTORY_VIEW]);
+
+  it("appears for a holder of inventory.view", () => {
+    expect(visibleNavItems(withInventory).map((i) => i.key)).toContain("inventory");
+  });
+
+  it("is hidden without it", () => {
+    expect(visibleNavItems(none).map((i) => i.key)).not.toContain("inventory");
+  });
+
+  it("points at /inventario", () => {
+    const item = NAV_ITEMS.find((i) => i.key === "inventory")!;
+    expect(navItemHref("sugurolls", item)).toBe("/dashboard/sugurolls/inventario");
+    expect(activeNavKey("sugurolls", "/dashboard/sugurolls/inventario/proveedores")).toBe("inventory");
+  });
+});
+
 describe("navItemHref", () => {
   it("builds a tenant-scoped path", () => {
     const home = NAV_ITEMS.find((i) => i.key === "home")!;

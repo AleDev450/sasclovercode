@@ -17,6 +17,13 @@ import { listOpenSessionsForLocation, listPaymentMethods } from "@/modules/payme
 import { PrintButton } from "@/modules/pos/components/print-button";
 import { Receipt } from "@/modules/pos/components/receipt";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
+import { BillingDocumentsList } from "@/modules/billing/components/billing-documents-list";
+import {
+  IssueBillingDocumentForm,
+  type RelatableDocument,
+} from "@/modules/billing/components/issue-billing-document-form";
+import { BILLING_DOCUMENT_TYPE_LABELS } from "@/modules/billing/lifecycle";
+import { listBillingDocumentsForOrder } from "@/modules/billing/server/queries";
 
 export const metadata = { title: "Pedido" };
 
@@ -32,16 +39,29 @@ export default async function OrderDetailPage({
     notFound();
   }
 
-  const [order, settings, canUpdate, canCancel, canViewPayments, canCreatePayment, canVoidPayment] =
-    await Promise.all([
-      getOrderDetail(tenant.id, orderId),
-      getBusinessSettings(tenant.id),
-      hasPermission(tenant.id, PERMISSIONS.ORDERS_UPDATE),
-      hasPermission(tenant.id, PERMISSIONS.ORDERS_CANCEL),
-      hasPermission(tenant.id, PERMISSIONS.PAYMENTS_VIEW),
-      hasPermission(tenant.id, PERMISSIONS.PAYMENTS_CREATE),
-      hasPermission(tenant.id, PERMISSIONS.PAYMENTS_VOID),
-    ]);
+  const [
+    order,
+    settings,
+    canUpdate,
+    canCancel,
+    canViewPayments,
+    canCreatePayment,
+    canVoidPayment,
+    canViewBilling,
+    canCreateBilling,
+    canCancelBilling,
+  ] = await Promise.all([
+    getOrderDetail(tenant.id, orderId),
+    getBusinessSettings(tenant.id),
+    hasPermission(tenant.id, PERMISSIONS.ORDERS_UPDATE),
+    hasPermission(tenant.id, PERMISSIONS.ORDERS_CANCEL),
+    hasPermission(tenant.id, PERMISSIONS.PAYMENTS_VIEW),
+    hasPermission(tenant.id, PERMISSIONS.PAYMENTS_CREATE),
+    hasPermission(tenant.id, PERMISSIONS.PAYMENTS_VOID),
+    hasPermission(tenant.id, PERMISSIONS.BILLING_VIEW),
+    hasPermission(tenant.id, PERMISSIONS.BILLING_CREATE),
+    hasPermission(tenant.id, PERMISSIONS.BILLING_CANCEL),
+  ]);
 
   // An order that does not exist and one belonging to another business give the
   // same answer, for the reason Phase 12 gave: telling them apart lets someone
@@ -54,6 +74,14 @@ export default async function OrderDetailPage({
         listOpenSessionsForLocation(tenant.id, order.locationId),
       ])
     : [[], []];
+
+  const billingDocuments = canViewBilling ? await listBillingDocumentsForOrder(tenant.id, order.id) : [];
+  const relatableDocuments: readonly RelatableDocument[] = billingDocuments
+    .filter((doc) => doc.type === "boleta" || doc.type === "factura")
+    .map((doc) => ({
+      id: doc.id,
+      label: `${BILLING_DOCUMENT_TYPE_LABELS[doc.type]} ${doc.series}-${String(doc.number).padStart(6, "0")}`,
+    }));
 
   const money = (cents: number): string => formatCurrency(cents, settings.currency);
 
@@ -192,6 +220,37 @@ export default async function OrderDetailPage({
                 balanceCents={order.balanceCents}
                 methods={methods}
                 openSessions={openSessions}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {canViewBilling ? (
+        <Card>
+          <CardHeader>
+            <CardTitle as="h2">Comprobante</CardTitle>
+            <CardDescription>Boletas, facturas y notas emitidas para este pedido.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-5">
+            <BillingDocumentsList
+              tenantSlug={tenant.slug}
+              orderId={order.id}
+              documents={billingDocuments}
+              currency={settings.currency}
+              canCreate={canCreateBilling}
+              canCancel={canCancelBilling}
+            />
+            {canCreateBilling && order.status !== "cancelled" ? (
+              <IssueBillingDocumentForm
+                tenantSlug={tenant.slug}
+                orderId={order.id}
+                initialCustomer={
+                  order.customerId !== null && order.customerName !== null
+                    ? { id: order.customerId, name: order.customerName }
+                    : null
+                }
+                relatableDocuments={relatableDocuments}
               />
             ) : null}
           </CardContent>

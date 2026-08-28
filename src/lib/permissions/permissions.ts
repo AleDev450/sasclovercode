@@ -39,6 +39,7 @@ export const PERMISSIONS = {
   BILLING_VIEW: "billing.view",
   BILLING_CREATE: "billing.create",
   BILLING_CANCEL: "billing.cancel",
+  BILLING_MANAGE: "billing.manage",
 
   REPORTS_VIEW: "reports.view",
 
@@ -57,6 +58,15 @@ export const PERMISSIONS = {
 
   MEMBERS_VIEW: "members.view",
   MEMBERS_MANAGE: "members.manage",
+
+  INVENTORY_VIEW: "inventory.view",
+  INVENTORY_MANAGE: "inventory.manage",
+
+  SUPPLIERS_VIEW: "suppliers.view",
+  SUPPLIERS_MANAGE: "suppliers.manage",
+
+  PURCHASES_VIEW: "purchases.view",
+  PURCHASES_CREATE: "purchases.create",
 } as const;
 
 /**
