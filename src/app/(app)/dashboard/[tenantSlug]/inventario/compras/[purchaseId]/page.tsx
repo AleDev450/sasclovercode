@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui";
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { getPurchaseDetail } from "@/modules/inventory/server/queries";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
@@ -17,6 +19,13 @@ export default async function PurchaseDetailPage({
 }) {
   const { tenantSlug, purchaseId } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.INVENTORY))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.PURCHASES_VIEW))) {
     notFound();

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import {
   CreateSupplierForm,
@@ -19,6 +21,13 @@ export default async function SuppliersPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.INVENTORY))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.SUPPLIERS_VIEW))) {
     notFound();
@@ -68,7 +77,9 @@ export default async function SuppliersPage({
             {suppliers.map((supplier) => (
               <tr key={supplier.id} className="border-border border-b last:border-0">
                 <td className="px-4 py-3 font-medium">{supplier.name}</td>
-                <td className="text-muted-foreground px-4 py-3 font-mono">{supplier.taxId ?? "—"}</td>
+                <td className="text-muted-foreground px-4 py-3 font-mono">
+                  {supplier.taxId ?? "—"}
+                </td>
                 <td className="text-muted-foreground px-4 py-3">
                   {supplier.contactName ?? supplier.phone ?? supplier.email ?? "—"}
                 </td>
@@ -99,7 +110,9 @@ export default async function SuppliersPage({
         <Card>
           <CardHeader>
             <CardTitle as="h2">Nuevo proveedor</CardTitle>
-            <CardDescription>Un vendedor sin RUC formal es un registro tan valido como uno con el.</CardDescription>
+            <CardDescription>
+              Un vendedor sin RUC formal es un registro tan valido como uno con el.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <CreateSupplierForm tenantSlug={tenant.slug} />

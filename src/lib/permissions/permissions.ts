@@ -73,6 +73,12 @@ export const PERMISSIONS = {
 
   DELIVERIES_VIEW: "deliveries.view",
   DELIVERIES_MANAGE: "deliveries.manage",
+
+  PROMOTIONS_VIEW: "promotions.view",
+  PROMOTIONS_MANAGE: "promotions.manage",
+
+  LOYALTY_VIEW: "loyalty.view",
+  LOYALTY_MANAGE: "loyalty.manage",
 } as const;
 
 /**

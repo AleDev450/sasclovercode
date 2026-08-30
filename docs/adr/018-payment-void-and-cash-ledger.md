@@ -13,13 +13,13 @@ Master section 14 gives Phase 14 four sentences and a table list: `payments`,
 `Order`, `Payment` and `Invoice` separate; prepare efectivo, Yape, Plin,
 tarjeta, transferencia and future gateways.
 
-Phase 13 (ADR-017) already decided how CloverCode records an *event*: a line
+Phase 13 (ADR-017) already decided how CloverCode records an _event_: a line
 owns its price, a trigger computes totals, and a state machine lives in the
 database as data the UI can read. Phase 14 inherits that posture directly —
 `orders.total_cents` is exact and does not move, which is precisely what a
 payment needs to reconcile against — but it is not a re-run of Phase 13. A
 payment's own lifecycle has one edge, not eight, and cash introduces something
-Phase 13 never had: a *ledger*, where what matters is not one row's status but
+Phase 13 never had: a _ledger_, where what matters is not one row's status but
 a running sum across many rows.
 
 ## Decision
@@ -49,7 +49,7 @@ is null; there is no third state.
 A trigger on `payments` computes what `orders.paid_cents` would become and
 refuses the insert if it would exceed `total_cents`. `orders` itself carries
 `CHECK (paid_cents <= total_cents)`, so the invariant holds even when the
-*other* side moves — Phase 13 allows editing lines on a still-`pending` order
+_other_ side moves — Phase 13 allows editing lines on a still-`pending` order
 (FR-1315), which can shrink `total_cents` after a payment already raised
 `paid_cents`. Without the CHECK on `orders`, that edit would silently leave
 an order that owes less than it already collected. With it, the line edit is
@@ -61,7 +61,7 @@ disappear.
 
 A cash payment does not skip a movement row "because the payment row already
 has the amount." It gets one, written by a trigger, because a till's
-count at closing time is the sum of a *ledger* — sales, payouts, deposits,
+count at closing time is the sum of a _ledger_ — sales, payouts, deposits,
 adjustments — and a query that reconstructs that sum by re-deriving it from
 `payments` on every close would have to know, forever, every future kind of
 cash movement that is not a payment (a payout for petty cash, a deposit from
@@ -78,7 +78,7 @@ payment turned out to be a mistake" is itself something that happened.
 ### 4. Cash payments require an open session; other rails refuse one
 
 `payment_methods.type = 'cash'` requires `payments.cash_session_id` to name
-an *open* session on a register at the order's own location. Every other
+an _open_ session on a register at the order's own location. Every other
 type requires `cash_session_id IS NULL`.
 
 This is not a modelling convenience, it is what the till actually is: a

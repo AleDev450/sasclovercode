@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { listCategories, listProductsWithVariants } from "@/modules/catalog/server/queries";
 import { listLocations } from "@/modules/locations/server/queries";
@@ -29,6 +31,13 @@ export default async function PosPage({
   const { tenantSlug } = await params;
   const { sede } = await searchParams;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.POS))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.ORDERS_CREATE))) {
     notFound();
@@ -90,7 +99,9 @@ export default async function PosPage({
   const openSessions = canCheckout
     ? await listOpenSessionsForLocation(tenant.id, resolvedLocation.id)
     : [];
-  const paymentMethods = canCheckout ? await listPaymentMethods(tenant.id, { activeOnly: true }) : [];
+  const paymentMethods = canCheckout
+    ? await listPaymentMethods(tenant.id, { activeOnly: true })
+    : [];
 
   return (
     <PosScreen

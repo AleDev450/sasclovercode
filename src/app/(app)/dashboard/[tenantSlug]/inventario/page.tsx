@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import {
   CreateInventoryItemForm,
@@ -25,6 +27,13 @@ export default async function InventoryPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.INVENTORY))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.INVENTORY_VIEW))) {
     notFound();
@@ -54,7 +63,10 @@ export default async function InventoryPage({
           </p>
         </div>
         <div className="flex gap-4 text-sm">
-          <Link href={`/dashboard/${tenant.slug}/inventario/proveedores`} className="hover:underline">
+          <Link
+            href={`/dashboard/${tenant.slug}/inventario/proveedores`}
+            className="hover:underline"
+          >
             Proveedores
           </Link>
           <Link href={`/dashboard/${tenant.slug}/inventario/compras`} className="hover:underline">
@@ -101,7 +113,11 @@ export default async function InventoryPage({
                   </td>
                   {canManage ? (
                     <td className="px-2 py-2">
-                      <SetUnitActiveForm tenantSlug={tenant.slug} unitId={unit.id} isActive={unit.isActive} />
+                      <SetUnitActiveForm
+                        tenantSlug={tenant.slug}
+                        unitId={unit.id}
+                        isActive={unit.isActive}
+                      />
                     </td>
                   ) : null}
                 </tr>
@@ -150,7 +166,9 @@ export default async function InventoryPage({
                       {item.name}
                     </Link>
                   </td>
-                  <td className="text-muted-foreground px-2 py-2 font-mono">{item.unitAbbreviation}</td>
+                  <td className="text-muted-foreground px-2 py-2 font-mono">
+                    {item.unitAbbreviation}
+                  </td>
                   <td className="text-muted-foreground px-2 py-2">{item.sku ?? "—"}</td>
                   <td className="px-2 py-2">
                     <Badge variant={item.isActive ? "success" : "neutral"}>
@@ -173,7 +191,9 @@ export default async function InventoryPage({
           {items.length === 0 ? (
             <p className="text-muted-foreground text-sm">Todavia no hay insumos.</p>
           ) : null}
-          {canManage ? <CreateInventoryItemForm tenantSlug={tenant.slug} units={activeUnits} /> : null}
+          {canManage ? (
+            <CreateInventoryItemForm tenantSlug={tenant.slug} units={activeUnits} />
+          ) : null}
         </CardContent>
       </Card>
 

@@ -58,7 +58,7 @@ once, at insert, from the same product row), not evidence they are the same
 kind of decision. If a category's station is corrected next week, new
 tickets route correctly and old, already-fired lines keep whatever station
 they were created with — which is also the right behaviour for a screen
-about *what's cooking right now*, not a historical report.
+about _what's cooking right now_, not a historical report.
 
 ### 2. Realtime triggers a refetch. It does not carry data.
 
@@ -79,7 +79,7 @@ it would be a duplicated query instead of a duplicated FSM.
 A kitchen produces a handful of events a minute at the busiest hour. A full
 `router.refresh()` per event re-runs one indexed query
 (`orders_tenant_status_idx`, Phase 13) and re-renders one screen — cheap,
-and always exactly as correct as the page's first load, because it *is* the
+and always exactly as correct as the page's first load, because it _is_ the
 page's first load, run again. This is the concrete answer to "solo utilizar
 realtime donde aporte valor real": the value Realtime adds here is
 **knowing when to ask again**, not carrying the answer itself.
@@ -135,7 +135,7 @@ did not reopen that question.
 - A category's station change is not retroactive to lines already snapshotted
   — correct for "what's cooking now", but means a report built later that
   asks "how much did the sushi station make last month" has to know the
-  snapshot can disagree with the category's *current* station. Not a
+  snapshot can disagree with the category's _current_ station. Not a
   concern this phase has a reader for yet.
 - A `router.refresh()` per event re-renders the whole board rather than
   patching one card. Accepted as the simpler, correct-by-construction choice

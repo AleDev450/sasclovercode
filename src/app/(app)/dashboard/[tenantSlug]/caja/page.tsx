@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { listLocations } from "@/modules/locations/server/queries";
 import { CashRegisterCard } from "@/modules/payments/components/cash-register-card";
@@ -11,13 +13,16 @@ import { getBusinessSettings } from "@/modules/settings/server/queries";
 
 export const metadata = { title: "Caja" };
 
-export default async function CashPage({
-  params,
-}: {
-  params: Promise<{ tenantSlug: string }>;
-}) {
+export default async function CashPage({ params }: { params: Promise<{ tenantSlug: string }> }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.ORDERS))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.CASH_VIEW))) {
     notFound();
@@ -32,7 +37,10 @@ export default async function CashPage({
 
   const recentSessionsByRegister = new Map(
     await Promise.all(
-      registers.map(async (register) => [register.id, await listCashSessions(tenant.id, register.id, 5)] as const),
+      registers.map(
+        async (register) =>
+          [register.id, await listCashSessions(tenant.id, register.id, 5)] as const,
+      ),
     ),
   );
 
@@ -45,8 +53,8 @@ export default async function CashPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Caja</h1>
         <p className="text-muted-foreground text-sm">
-          Cada caja se abre con un monto inicial y se cierra contando el efectivo. Lo que el
-          sistema espera encontrar lo calcula la venta registrada, no lo que se escriba aqui.
+          Cada caja se abre con un monto inicial y se cierra contando el efectivo. Lo que el sistema
+          espera encontrar lo calcula la venta registrada, no lo que se escriba aqui.
         </p>
       </div>
 

@@ -1,12 +1,25 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, EmptyState } from "@/components/ui";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+} from "@/components/ui";
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { RecordPurchaseForm } from "@/modules/inventory/components/purchase-form";
-import { listInventoryItems, listPurchases, listSuppliers } from "@/modules/inventory/server/queries";
+import {
+  listInventoryItems,
+  listPurchases,
+  listSuppliers,
+} from "@/modules/inventory/server/queries";
 import { listLocations } from "@/modules/locations/server/queries";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
 
@@ -21,6 +34,13 @@ export default async function PurchasesPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.INVENTORY))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.PURCHASES_VIEW))) {
     notFound();
@@ -152,8 +172,14 @@ export default async function PurchasesPage({
             <RecordPurchaseForm
               tenantSlug={tenant.slug}
               suppliers={suppliers.map((s) => ({ id: s.id, name: s.name }))}
-              locations={locations.filter((l) => l.isActive).map((l) => ({ id: l.id, name: l.name }))}
-              items={items.map((i) => ({ id: i.id, name: i.name, unitAbbreviation: i.unitAbbreviation }))}
+              locations={locations
+                .filter((l) => l.isActive)
+                .map((l) => ({ id: l.id, name: l.name }))}
+              items={items.map((i) => ({
+                id: i.id,
+                name: i.name,
+                unitAbbreviation: i.unitAbbreviation,
+              }))}
             />
           </CardContent>
         </Card>

@@ -30,7 +30,12 @@ phase must follow so the structure stays uniform.
 | `billing`   | 17    | Created.                                                                                                                           |
 | `inventory` | 18    | Created.                                                                                                                           |
 | `delivery`  | 19    | Created.                                                                                                                           |
+| `loyalty`   | 20    | Created. Covers promotions AND points: they share `order_promotions`, the same checkout screen, and one SaaS module.               |
 | `reports`   | 23    | Planned.                                                                                                                           |
+
+Phase 21 created no module of its own: the plan model is governed by the Super
+Admin, so its actions live in `platform` and its evaluation layer in
+`src/lib/features` — the same shape Phase 03 used for `src/lib/permissions`.
 
 This table was corrected in Phase 12. It still said "Planned" for modules that
 had existed for several phases; `dashboard`, `settings`, `seo` and `domains`

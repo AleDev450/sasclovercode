@@ -11,6 +11,8 @@ import {
 } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { DeleteSectionForm, SectionEditor } from "@/modules/cms/components/section-editor";
 import { getPageWithSections } from "@/modules/cms/server/admin-queries";
@@ -26,6 +28,13 @@ export default async function PageEditorPage({
 }) {
   const { tenantSlug, pageId } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.WEBSITE))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.CONTENT_MANAGE))) {
     notFound();

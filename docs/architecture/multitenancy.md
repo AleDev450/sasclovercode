@@ -1,6 +1,6 @@
 # Multi-tenancy
 
-> Current as of Phase 19.
+> Current as of Phase 21.
 
 ## The rule
 
@@ -134,7 +134,8 @@ another tenant's data (TEST-140), and — table by table, across every phase —
 that no business table is reachable across a tenant boundary. It is the suite
 the product rests on, and it grows with every phase; Phase 18 added its seven
 new tables (and its one view) to the same invariant rather than a parallel one,
-and Phase 19 added its four the same way.
+Phase 19 added its four the same way, Phase 20 its five, and Phase 21 the two
+of its five that hold tenant data — the other three are product catalogue.
 
 `authorization.test.ts` (Phase 03) walks **every role in the catalogue** and
 proves none of them reaches another tenant, reading or writing (TEST-331) —

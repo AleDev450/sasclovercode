@@ -4,6 +4,8 @@ import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from
 import { formatCurrency, formatMoney } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import {
   AddImageForm,
@@ -31,6 +33,13 @@ export default async function ProductDetailPage({
   const { tenantSlug, productId } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
 
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.CATALOG))) {
+    notFound();
+  }
+
   if (!(await hasPermission(tenant.id, PERMISSIONS.PRODUCTS_VIEW))) {
     notFound();
   }
@@ -40,7 +49,8 @@ export default async function ProductDetailPage({
 
   const canManage = await hasPermission(tenant.id, PERMISSIONS.PRODUCTS_UPDATE);
   const canManageInventory = await hasPermission(tenant.id, PERMISSIONS.INVENTORY_MANAGE);
-  const canViewInventory = canManageInventory || (await hasPermission(tenant.id, PERMISSIONS.INVENTORY_VIEW));
+  const canViewInventory =
+    canManageInventory || (await hasPermission(tenant.id, PERMISSIONS.INVENTORY_VIEW));
 
   const [categories, settings, recipe, inventoryItems] = await Promise.all([
     listCategories(tenant.id),

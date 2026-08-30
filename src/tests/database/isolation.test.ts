@@ -176,6 +176,11 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
     // Phase 19 added `delivery_transitions`, same again: how a delivery moves
     // is a fact about the product, not about any business' own deliveries.
     //
+    // Phase 21 added the three catalogue tables of the plan model. They are the
+    // product's price list - as public as its marketing page - and hold no
+    // tenant data at all. The tenant-scoped half of that phase
+    // (`subscriptions`, `tenant_modules`) is predicated and is NOT here.
+    //
     // Anything added here must satisfy the next test as well: an exception is
     // only safe while it stays read-only.
     const CATALOGUE = [
@@ -185,6 +190,9 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
       "order_transitions",
       "billing_document_transitions",
       "delivery_transitions",
+      "modules",
+      "plans",
+      "plan_modules",
     ];
 
     const rows = await db.query<{ tablename: string; qual: string | null }>(
@@ -200,9 +208,10 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
       `select cmd from pg_policies
        where schemaname = 'public'
          and tablename in ('roles','permissions','role_permissions','order_transitions',
-                           'billing_document_transitions','delivery_transitions')`,
+                           'billing_document_transitions','delivery_transitions',
+                           'modules','plans','plan_modules')`,
     );
-    expect(rows).toHaveLength(6);
+    expect(rows).toHaveLength(9);
     expect(rows.every((r) => r.cmd === "SELECT")).toBe(true);
   });
 });

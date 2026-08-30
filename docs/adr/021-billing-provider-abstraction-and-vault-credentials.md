@@ -33,7 +33,7 @@ is the first table in the whole project that has to hold a real external
 secret (a PSE's API key or certificate). Every credential-adjacent decision
 so far (`service_role`, ADR-011; the Vercel API token, ADR-013) has been
 "we don't have one yet, so we don't build the thing that would need it." This
-phase cannot make that same move for the *schema* — master explicitly asks
+phase cannot make that same move for the _schema_ — master explicitly asks
 for `billing_provider_configs` to exist — but it still applies to what goes
 inside it.
 
@@ -69,6 +69,7 @@ once real credentials and a way to exercise them exist — the interface is
 what makes adding one an addition, not a rewrite.
 
 ### 2. The document lifecycle is a transitions table, like `orders`, not a
+
 nullable pair like `payments`
 
 Five real edges: `pending→sent`, `pending→cancelled`, `sent→accepted`,
@@ -90,13 +91,13 @@ infrastructure (queues, external retry frameworks) without a measured
 problem this system actually has. Two concurrent attempts to bill the same
 order collide on the index — the same "let the index arbitrate the race"
 move Phase 13 used for order numbers and Phase 14 for one-open-cash-session.
-Because the index only covers *live* documents, a `rejected` one does not
+Because the index only covers _live_ documents, a `rejected` one does not
 block the corrected retry SUNAT's own process requires.
 
 A separate `idempotency_key` column (a UUID generated once at creation,
 unchanged across retries) exists for the OTHER kind of idempotency a real
 provider integration will eventually need: sending the same key on every
-retry of the *same* attempt so the provider's own system can deduplicate a
+retry of the _same_ attempt so the provider's own system can deduplicate a
 request that succeeded but whose response was lost. The unique index and the
 key solve two different races — the caller retrying the whole action, and a
 single network call being retried — and both are needed even though only
@@ -114,11 +115,11 @@ matching read function for the raw value; a caller can ask
 "edits" a saved credential re-enters it — it is never pre-filled from a
 decrypted read, so a screenshot of the settings page can never leak one.
 
-Master's own words for this phase — *"Credenciales deben almacenarse de
-manera segura. No exponerlas al frontend"* — describe exactly this shape.
+Master's own words for this phase — _"Credenciales deben almacenarse de
+manera segura. No exponerlas al frontend"_ — describe exactly this shape.
 `supabase_vault` (encryption at rest, decryption gated by its own access
 model) is what a `jsonb` column protected only by RLS cannot give: RLS stops
-a *different tenant* or a caller without `billing.manage` from reading the
+a _different tenant_ or a caller without `billing.manage` from reading the
 row, but it does not stop the row's own owner from being able to read back a
 value that a compromised session, a support screenshot, or a future
 read-adding bug could then leak in plaintext. Vault removes the plaintext
@@ -130,11 +131,11 @@ from the row entirely.
 it, and the project's test harness (`src/tests/helpers/database.ts`,
 ADR-007) creates only the three bootstrap roles and the `auth` schema shim —
 no `vault` schema. Because PL/pgSQL function bodies are not resolved until
-first execution, the migration that *defines*
+first execution, the migration that _defines_
 `set_billing_credentials()`/`has_billing_credentials()` applies cleanly
 under PGlite regardless (the same lazy-validation fact this project already
 relied on in Phase 14 for `cash_movements`' forward reference). What does
-**not** work under PGlite is actually *calling* either function — so, unlike
+**not** work under PGlite is actually _calling_ either function — so, unlike
 every other table this phase adds, there is no PGlite database test for the
 Vault path. It is verified once, by hand, against a real local Supabase
 instance (the same Docker procedure Phases 14–16 already used), and that
@@ -163,7 +164,7 @@ calls for once a real secret exists to protect.
 
 **Skipping `billing_provider_configs` entirely until a real provider is
 chosen.** Rejected: master explicitly lists it among the four tables this
-phase prepares, and the config table's *shape* (which provider, per-type
+phase prepares, and the config table's _shape_ (which provider, per-type
 series, whether credentials exist) is useful on its own — a business can set
 its series numbering today even though nothing sends a request yet.
 

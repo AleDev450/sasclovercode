@@ -6,6 +6,8 @@ import { hasPermission } from "@/lib/permissions/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { SettingsForm } from "@/modules/settings/components/settings-form";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
+import { LoyaltySettingsForm } from "@/modules/loyalty/components/loyalty-forms";
+import { getLoyaltyProgramme } from "@/modules/loyalty/server/queries";
 
 export const metadata = { title: "Configuracion" };
 
@@ -23,7 +25,10 @@ export default async function SettingsPage({
     notFound();
   }
 
-  const settings = await getBusinessSettings(tenant.id);
+  const [settings, programme] = await Promise.all([
+    getBusinessSettings(tenant.id),
+    getLoyaltyProgramme(tenant.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -51,6 +56,19 @@ export default async function SettingsPage({
         </CardHeader>
         <CardContent>
           <SettingsForm tenantSlug={tenant.slug} settings={settings} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Programa de puntos</CardTitle>
+          <CardDescription>
+            Cuando esta activo, cada pedido completado a nombre de un cliente le acumula puntos
+            segun esta tasa. Los puntos ya acumulados no cambian si la tasa cambia despues.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoyaltySettingsForm tenantSlug={tenant.slug} programme={programme} />
         </CardContent>
       </Card>
     </div>

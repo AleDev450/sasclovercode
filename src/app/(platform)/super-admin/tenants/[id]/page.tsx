@@ -14,6 +14,13 @@ import { listTenantDomains } from "@/modules/domains/server/queries";
 import { PlatformTenantDomains } from "@/modules/platform/components/tenant-domains";
 import { setTenantStatusAction } from "@/modules/platform/server/actions";
 import { getPlatformTenant } from "@/modules/platform/server/queries";
+import { TenantPlanCard } from "@/modules/platform/components/tenant-plan";
+import {
+  getTenantSubscription,
+  listModules,
+  listPlans,
+  listTenantModuleOverrides,
+} from "@/modules/platform/server/subscription-queries";
 
 const STATUS_LABEL = {
   active: "Activa",
@@ -73,7 +80,13 @@ export default async function PlatformTenantDetailPage({
   const tenant = await getPlatformTenant(id);
   // The platform SELECT policy on `tenant_domains` lets an operator read any
   // tenant's rows, so the same query the business uses serves this screen too.
-  const domains = await listTenantDomains(tenant.id);
+  const [domains, subscription, plans, modules, overrides] = await Promise.all([
+    listTenantDomains(tenant.id),
+    getTenantSubscription(tenant.id),
+    listPlans(),
+    listModules(),
+    listTenantModuleOverrides(tenant.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,6 +164,14 @@ export default async function PlatformTenantDetailPage({
           ) : null}
         </CardContent>
       </Card>
+
+      <TenantPlanCard
+        tenantId={tenant.id}
+        subscription={subscription}
+        plans={plans}
+        modules={modules}
+        overrides={overrides}
+      />
 
       <Link href="/super-admin/tenants" className="text-muted-foreground text-sm hover:underline">
         Volver al listado

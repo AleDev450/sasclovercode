@@ -28,7 +28,9 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 17    | Electronic Billing / SUNAT | [phase-17-billing-sunat.md](./phase-17-billing-sunat.md)                     | COMPLETED |
 | 18    | Inventory                  | [phase-18-inventory.md](./phase-18-inventory.md)                             | COMPLETED |
 | 19    | Delivery                   | [phase-19-delivery.md](./phase-19-delivery.md)                               | COMPLETED |
-| 20-28 | see master document        | _not written_                                                                | -         |
+| 20    | Loyalty + Promotions       | [phase-20-loyalty-promotions.md](./phase-20-loyalty-promotions.md)           | COMPLETED |
+| 21    | SaaS Modules + Plans       | [phase-21-saas-modules-plans.md](./phase-21-saas-modules-plans.md)           | COMPLETED |
+| 22-28 | see master document        | _not written_                                                                | -         |
 
 ## Required contents
 

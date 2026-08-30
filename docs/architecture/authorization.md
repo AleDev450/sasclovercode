@@ -1,6 +1,6 @@
 # Authorization
 
-> Current as of Phase 19.
+> Current as of Phase 21.
 
 How CloverCode decides **what** an authenticated member may do. Identity —
 _who_ is making the request — is [authentication.md](./authentication.md) and
@@ -122,7 +122,29 @@ something to govern `tenant_members` itself. Every phase since that needed a
 permission master's list did not name has followed the same move:
 `locations.*` (10), `domains.*` (09), `payment_methods.*` and `cash.view`/
 `cash.manage` (14), `billing.manage` (17), `inventory.*`/`suppliers.*`/
-`purchases.*` (18), `delivery_zones.*`/`deliveries.*` (19).
+`purchases.*` (18), `delivery_zones.*`/`deliveries.*` (19),
+`promotions.*`/`loyalty.*` (20).
+
+Phase 21 added **no permission at all**, and that is the point: what a
+business has contracted is governed by the Super Admin (master §29), not by
+a tenant role, and reading one's own plan already fits under
+`settings.manage`. A `subscription.manage` nobody could hold would be
+vocabulary without users ([ADR-025](../adr/025-central-module-resolution-and-non-destructive-provisioning.md)
+decision 6).
+
+### A second question, asked the same way
+
+From Phase 21 a capability needs **two** answers, not one:
+
+```text
+has_permission(tenant, 'orders.create')   does THIS PERSON may?
+has_module(tenant, 'pos')                 did THIS BUSINESS buy it?
+```
+
+`src/lib/features` mirrors `src/lib/permissions` deliberately, down to the
+names (`hasFeature`/`requireFeature`/`getMyModules`), so a reader who has
+seen one has seen both. The navigation filters on both; every page checks
+both again, because hiding is not access control (§45).
 
 `purchases` has no `.manage` code, unlike every other resource this
 pattern produced: a purchase is a receipt, written once and never edited

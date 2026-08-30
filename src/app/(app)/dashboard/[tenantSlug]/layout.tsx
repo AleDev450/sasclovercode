@@ -8,6 +8,7 @@ import { requireActiveTenant } from "@/lib/tenant/active";
 import { SignOutButton } from "@/modules/auth";
 import { DashboardNav } from "@/modules/dashboard/components/dashboard-nav";
 import { TenantSwitcher } from "@/modules/dashboard/components/tenant-switcher";
+import { getMyModules } from "@/lib/features/check";
 import { visibleNavItems } from "@/modules/dashboard/navigation";
 
 /**
@@ -28,13 +29,17 @@ export default async function TenantLayout({
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
 
-  const [user, memberships, permissions] = await Promise.all([
+  const [user, memberships, permissions, modules] = await Promise.all([
     getCurrentUser(),
     getMyMemberships(),
     getMyPermissions(tenant.id),
+    getMyModules(tenant.id),
   ]);
 
-  const navItems = visibleNavItems(permissions);
+  // Both sets, in one round trip each: the permission asks whether this person
+  // may, the module asks whether this business bought it. Every page the menu
+  // points at re-checks both, because hiding is not access control (§45).
+  const navItems = visibleNavItems(permissions, modules);
 
   return (
     <div className="min-h-dvh">

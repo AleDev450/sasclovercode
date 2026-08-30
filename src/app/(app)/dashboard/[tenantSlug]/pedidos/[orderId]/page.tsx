@@ -4,6 +4,8 @@ import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import {
   AdvanceOrderForm,
@@ -31,6 +33,20 @@ import {
   listDeliveryZones,
 } from "@/modules/delivery/server/queries";
 import { getCustomerDetail } from "@/modules/customers/server/queries";
+import { OrderDiscountsCard } from "@/modules/loyalty/components/order-discounts-card";
+import type { PromotionOption } from "@/modules/loyalty/components/loyalty-forms";
+import { maxRedeemablePoints } from "@/modules/loyalty/points";
+import {
+  discountFor,
+  ineligibilityReason,
+  INELIGIBILITY_LABELS,
+} from "@/modules/loyalty/promotions";
+import {
+  getAccountForCustomer,
+  getLoyaltyProgramme,
+  listOrderDiscounts,
+  listPromotions,
+} from "@/modules/loyalty/server/queries";
 
 export const metadata = { title: "Pedido" };
 
@@ -41,6 +57,13 @@ export default async function OrderDetailPage({
 }) {
   const { tenantSlug, orderId } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.ORDERS))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.ORDERS_VIEW))) {
     notFound();
@@ -59,6 +82,10 @@ export default async function OrderDetailPage({
     canCancelBilling,
     canViewDelivery,
     canManageDelivery,
+    canViewPromotions,
+    canManagePromotions,
+    canViewLoyalty,
+    canManageLoyalty,
   ] = await Promise.all([
     getOrderDetail(tenant.id, orderId),
     getBusinessSettings(tenant.id),
@@ -72,6 +99,10 @@ export default async function OrderDetailPage({
     hasPermission(tenant.id, PERMISSIONS.BILLING_CANCEL),
     hasPermission(tenant.id, PERMISSIONS.DELIVERIES_VIEW),
     hasPermission(tenant.id, PERMISSIONS.DELIVERIES_MANAGE),
+    hasPermission(tenant.id, PERMISSIONS.PROMOTIONS_VIEW),
+    hasPermission(tenant.id, PERMISSIONS.PROMOTIONS_MANAGE),
+    hasPermission(tenant.id, PERMISSIONS.LOYALTY_VIEW),
+    hasPermission(tenant.id, PERMISSIONS.LOYALTY_MANAGE),
   ]);
 
   // An order that does not exist and one belonging to another business give the
@@ -120,6 +151,50 @@ export default async function OrderDetailPage({
     }));
 
   const money = (cents: number): string => formatCurrency(cents, settings.currency);
+
+  // The discount side. `promotions` and the account are only needed to APPLY
+  // something, which takes `.manage` and a draft order - so a viewer pays for
+  // the list of postings and nothing else.
+  const orderDiscounts =
+    canViewPromotions || canViewLoyalty ? await listOrderDiscounts(tenant.id, order.id) : [];
+
+  const canApplyNow = canManagePromotions && order.status === "pending";
+
+  const [applicablePromotions, programme, loyaltyAccount] = await Promise.all([
+    canApplyNow ? listPromotions(tenant.id, { activeOnly: true }) : Promise.resolve([]),
+    canViewLoyalty ? getLoyaltyProgramme(tenant.id) : Promise.resolve(null),
+    canManageLoyalty && order.customerId !== null
+      ? getAccountForCustomer(tenant.id, order.customerId)
+      : Promise.resolve(null),
+  ]);
+
+  // What a discount is measured against: the goods, plus the shipping that
+  // `free_delivery` targets. The same two numbers `guard_order_promotion()`
+  // uses, so the preview and the refusal cannot disagree.
+  const discountBasis = {
+    goodsCents: order.lines.reduce((sum, line) => sum + line.totalCents, 0),
+    shippingCents: delivery?.feeCents ?? 0,
+  };
+
+  const promotionOptions: readonly PromotionOption[] = applicablePromotions.map((promotion) => {
+    const reason = ineligibilityReason(promotion, discountBasis);
+    return {
+      id: promotion.id,
+      label: `${promotion.name} · -${money(discountFor(promotion, discountBasis))}`,
+      blockedReason: reason === null ? null : INELIGIBILITY_LABELS[reason],
+    };
+  });
+
+  // Bounded by the balance, by what is still owed and by whole points, so the
+  // form cannot offer a number the RPC will refuse.
+  const alreadyDiscounted = orderDiscounts.reduce((sum, row) => sum + row.discountCents, 0);
+  const redeemablePoints =
+    programme === null || loyaltyAccount === null
+      ? 0
+      : maxRedeemablePoints(programme, {
+          balance: loyaltyAccount.pointsBalance,
+          payableCents: discountBasis.goodsCents + discountBasis.shippingCents - alreadyDiscounted,
+        });
 
   // Only the receipt itself is meant to come out of "Imprimir" - everything
   // else on this page (nav, forms, history) is print:hidden so a reprint
@@ -293,6 +368,22 @@ export default async function OrderDetailPage({
               ) : null}
             </CardContent>
           </Card>
+        ) : null}
+
+        {canViewPromotions || canViewLoyalty ? (
+          <OrderDiscountsCard
+            tenantSlug={tenant.slug}
+            orderId={order.id}
+            orderStatus={order.status}
+            discounts={orderDiscounts}
+            promotions={promotionOptions}
+            account={loyaltyAccount}
+            programme={programme ?? { enabled: false, pointsPerSol: 0, pointValueCents: 10 }}
+            maxRedeemablePoints={redeemablePoints}
+            currency={settings.currency}
+            canManagePromotions={canManagePromotions}
+            canManageLoyalty={canManageLoyalty}
+          />
         ) : null}
 
         {canViewDelivery ? (

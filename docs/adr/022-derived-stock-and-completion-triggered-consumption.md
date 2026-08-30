@@ -39,8 +39,8 @@ group by inventory_item_id, location_id;
 ```
 
 Master's own sentence is the argument: "el stock deberá derivarse de
-movimientos" reads most literally as *there is no number sitting at rest
-anywhere — the balance IS the sum of the ledger, always*. A trigger-kept
+movimientos" reads most literally as _there is no number sitting at rest
+anywhere — the balance IS the sum of the ledger, always_. A trigger-kept
 column (the shape this project already uses for `orders.paid_cents`,
 `cash_sessions.expected_cents`, `billing_documents.total_cents`) would still
 need somewhere to **live**, and a stock balance is inherently a fact about
@@ -90,6 +90,7 @@ argument that already justifies `orders.total_cents` (Phase 13) and
 `billing_documents.total_cents` (Phase 17) as stored, not computed on read.
 
 ### 3. Stock consumption from a recipe fires once, at `orders.status =
+
 'completed'`, and never needs to be reversed
 
 `completed` is the one status `order_transitions` (Phase 13) gives no

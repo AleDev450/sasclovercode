@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { BillingCredentialsForm } from "@/modules/billing/components/billing-credentials-form";
 import {
@@ -24,6 +26,13 @@ export default async function BillingConfigPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.BILLING))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.BILLING_MANAGE))) {
     notFound();

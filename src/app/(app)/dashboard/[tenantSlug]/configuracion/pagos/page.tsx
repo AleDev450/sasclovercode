@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { SetPaymentMethodActiveForm } from "@/modules/payments/components/payment-method-active-form";
 import { PaymentMethodForm } from "@/modules/payments/components/payment-method-form";
@@ -23,6 +25,13 @@ export default async function PaymentMethodsPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.ORDERS))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.PAYMENT_METHODS_VIEW))) {
     notFound();

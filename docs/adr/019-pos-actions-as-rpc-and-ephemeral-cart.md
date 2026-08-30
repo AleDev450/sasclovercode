@@ -78,7 +78,7 @@ if the same items had been entered through the plain `/pedidos` form.
 
 A "draft order" concept would be new state this phase has no requirement to
 justify, and would immediately raise the questions Phase 13 already resolved
-for a *real* order — can a draft be seen by another cashier, does it expire,
+for a _real_ order — can a draft be seen by another cashier, does it expire,
 does it collide with the correlative — for a screen that does not need any of
 that. Losing an in-progress cart on a refresh is a real cost, accepted and
 named rather than solved (see the SPEC's Known Limitations).

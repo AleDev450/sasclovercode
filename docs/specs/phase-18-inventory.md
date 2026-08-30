@@ -803,6 +803,7 @@ información operativa nueva, no un hecho de venta ya existente.
 ## 23. Implementation notes
 
 ### Por qué una VIEW y no una columna, incluso rompiendo el patrón de
+
 ### `paid_cents`/`total_cents`
 
 Todas las fases anteriores que necesitaron un total derivado

@@ -60,6 +60,27 @@ export type BillingDocumentStatus = "pending" | "sent" | "accepted" | "rejected"
 export type StockMovementType =
   "purchase" | "sale" | "adjustment" | "waste" | "return" | "transfer";
 
+/** Master section 33 (Phase 21). The ten modules CloverCode can sell. */
+export type ModuleCode =
+  | "website"
+  | "catalog"
+  | "orders"
+  | "pos"
+  | "inventory"
+  | "billing"
+  | "delivery"
+  | "loyalty"
+  | "multi_location"
+  | "reports";
+export type PlanInterval = "monthly" | "yearly";
+export type SubscriptionStatus = "trialing" | "active" | "past_due" | "suspended" | "cancelled";
+
+/** Master section 33 (Phase 20). */
+export type PromotionType = "percentage" | "fixed_amount" | "free_delivery";
+export type LoyaltyTransactionType = "earn" | "redeem" | "campaign" | "adjustment" | "expiry";
+/** Not an enum in SQL - a CHECKed text column, so the union lives only here. */
+export type OrderPromotionSource = "promotion" | "coupon" | "loyalty";
+
 /** Master section 33 (Phase 19). Transitions are declared in delivery_transitions. */
 export type DeliveryStatus =
   "pending" | "assigned" | "in_transit" | "delivered" | "failed" | "cancelled";
@@ -386,6 +407,10 @@ export type Database = {
           city: string | null;
           currency: string;
           timezone: string;
+          /** Phase 20: the points programme. Off by default. */
+          loyalty_enabled: boolean;
+          loyalty_points_per_sol: number;
+          loyalty_point_value_cents: number;
           created_at: string;
           updated_at: string;
         };
@@ -741,6 +766,8 @@ export type Database = {
           discount_cents: number;
           tax_cents: number;
           shipping_cents: number;
+          /** Order-level discount, maintained by trigger from order_promotions (ADR-024). */
+          promotion_discount_cents: number;
           total_cents: number;
           /** Sum of non-voided payments (Phase 14). Computed by trigger; never sent by a client. */
           paid_cents: number;
@@ -1513,6 +1540,348 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      promotions: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          name: string;
+          description: string | null;
+          type: PromotionType;
+          /** Set only for type=percentage. */
+          percent_off: number | null;
+          /** Set only for type=fixed_amount. Minor units (ADR-015). */
+          amount_off_cents: number | null;
+          min_order_cents: number;
+          starts_at: string | null;
+          ends_at: string | null;
+          max_redemptions: number | null;
+          /** Maintained by trigger from order_promotions. Never sent by a client. */
+          times_redeemed: number;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          name: string;
+          description?: string | null;
+          type: PromotionType;
+          percent_off?: number | null;
+          amount_off_cents?: number | null;
+          min_order_cents?: number;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          max_redemptions?: number | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["promotions"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "promotions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      coupons: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the promotion; never trusted from a client. */
+          tenant_id: string;
+          promotion_id: string;
+          code: string;
+          max_redemptions: number | null;
+          /** Maintained by trigger from order_promotions. */
+          times_redeemed: number;
+          expires_at: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          promotion_id: string;
+          code: string;
+          max_redemptions?: number | null;
+          expires_at?: string | null;
+          is_active?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["coupons"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "coupons_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "coupons_promotion_id_fkey";
+            columns: ["promotion_id"];
+            referencedRelation: "promotions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_promotions: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the order; never trusted from a client. */
+          tenant_id: string;
+          order_id: string;
+          promotion_id: string | null;
+          coupon_id: string | null;
+          loyalty_transaction_id: string | null;
+          source: OrderPromotionSource;
+          /** What the ticket said, so deleting the promotion never rewrites history. */
+          label_snapshot: string;
+          /** Minor units (ADR-015). A copy, resolved when applied. */
+          discount_cents: number;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          order_id: string;
+          promotion_id?: string | null;
+          coupon_id?: string | null;
+          loyalty_transaction_id?: string | null;
+          source: OrderPromotionSource;
+          label_snapshot: string;
+          discount_cents: number;
+          created_by?: string | null;
+        };
+        /** No UPDATE policy: a discount is removed and re-applied, never edited. */
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "order_promotions_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_promotions_promotion_id_fkey";
+            columns: ["promotion_id"];
+            referencedRelation: "promotions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_promotions_coupon_id_fkey";
+            columns: ["coupon_id"];
+            referencedRelation: "coupons";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_promotions_loyalty_txn_fkey";
+            columns: ["loyalty_transaction_id"];
+            referencedRelation: "loyalty_transactions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      loyalty_accounts: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the customer; never trusted from a client. */
+          tenant_id: string;
+          customer_id: string;
+          /** Maintained by trigger from the ledger (ADR-024). Never sent by a client. */
+          points_balance: number;
+          enrolled_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          customer_id: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["loyalty_accounts"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_accounts_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_accounts_customer_id_fkey";
+            columns: ["customer_id"];
+            referencedRelation: "customers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      loyalty_transactions: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the account; never trusted from a client. */
+          tenant_id: string;
+          account_id: string;
+          type: LoyaltyTransactionType;
+          /** Signed: positive adds, negative spends. The balance is the sum. */
+          points: number;
+          order_id: string | null;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          account_id: string;
+          type: LoyaltyTransactionType;
+          points: number;
+          order_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+        };
+        /** Append-only ledger: no UPDATE and no DELETE policy, ever. */
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "loyalty_transactions_account_id_fkey";
+            columns: ["account_id"];
+            referencedRelation: "loyalty_accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "loyalty_transactions_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      modules: {
+        Row: {
+          code: ModuleCode;
+          name: string;
+          description: string | null;
+          position: number;
+          created_at: string;
+        };
+        /** Changed by migration only. */
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      plans: {
+        Row: {
+          code: string;
+          name: string;
+          description: string | null;
+          /** Minor units (ADR-015). Read by Phase 22; nothing charges yet. */
+          price_cents: number;
+          interval: PlanInterval;
+          is_active: boolean;
+          /** Exactly one row is true; provisioning reads it. */
+          is_default: boolean;
+          position: number;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      plan_modules: {
+        Row: {
+          plan_code: string;
+          module_code: ModuleCode;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "plan_modules_plan_fkey";
+            columns: ["plan_code"];
+            referencedRelation: "plans";
+            referencedColumns: ["code"];
+          },
+          {
+            foreignKeyName: "plan_modules_module_fkey";
+            columns: ["module_code"];
+            referencedRelation: "modules";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          plan_code: string;
+          status: SubscriptionStatus;
+          trial_ends_at: string | null;
+          current_period_start: string;
+          current_period_end: string | null;
+          cancelled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        /** Platform admin only; a tenant may read its own and never write it. */
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          plan_code: string;
+          status?: SubscriptionStatus;
+          trial_ends_at?: string | null;
+          current_period_start?: string;
+          current_period_end?: string | null;
+          cancelled_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "subscriptions_plan_fkey";
+            columns: ["plan_code"];
+            referencedRelation: "plans";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
+      tenant_modules: {
+        Row: {
+          tenant_id: string;
+          module_code: ModuleCode;
+          /** An explicit decision in one direction or the other (ADR-025). */
+          is_enabled: boolean;
+          note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          module_code: ModuleCode;
+          is_enabled: boolean;
+          note?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["tenant_modules"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "tenant_modules_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tenant_modules_module_fkey";
+            columns: ["module_code"];
+            referencedRelation: "modules";
+            referencedColumns: ["code"];
+          },
+        ];
+      };
       payment_methods: {
         Row: {
           id: string;
@@ -1924,6 +2293,18 @@ export type Database = {
           created_at: string;
         }[];
       };
+      has_module: {
+        Args: { p_tenant_id: string; p_module: string };
+        Returns: boolean;
+      };
+      my_modules: {
+        Args: { p_tenant_id: string };
+        Returns: { module: ModuleCode }[];
+      };
+      redeem_loyalty_points: {
+        Args: { p_order_id: string; p_account_id: string; p_points: number };
+        Returns: string;
+      };
       get_tenant_couriers: {
         Args: { p_tenant_id: string };
         Returns: {
@@ -1970,6 +2351,10 @@ export type Database = {
       billing_document_status: BillingDocumentStatus;
       stock_movement_type: StockMovementType;
       delivery_status: DeliveryStatus;
+      promotion_type: PromotionType;
+      loyalty_transaction_type: LoyaltyTransactionType;
+      plan_interval: PlanInterval;
+      subscription_status: SubscriptionStatus;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { EmptyState } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { DeliveryTable } from "@/modules/delivery/components/delivery-board";
 import type { CourierOption } from "@/modules/delivery/components/delivery-forms";
@@ -21,6 +23,13 @@ export default async function DeliveryPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.DELIVERY))) {
+    notFound();
+  }
 
   // The nav hides this without the permission, but hiding is cosmetic (§45).
   // A typed URL lands here, so the page checks too - and answers 404, not 403,

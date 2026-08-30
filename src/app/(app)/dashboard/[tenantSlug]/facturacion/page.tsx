@@ -4,6 +4,8 @@ import { Badge, Card, EmptyState } from "@/components/ui";
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import {
   BILLING_DOCUMENT_STATUS_LABELS,
@@ -17,7 +19,10 @@ import type { BillingDocumentStatus } from "@/types/database";
 
 export const metadata = { title: "Facturacion" };
 
-const STATUS_VARIANT: Record<BillingDocumentStatus, "neutral" | "warning" | "success" | "destructive"> = {
+const STATUS_VARIANT: Record<
+  BillingDocumentStatus,
+  "neutral" | "warning" | "success" | "destructive"
+> = {
   pending: "neutral",
   sent: "warning",
   accepted: "success",
@@ -34,6 +39,13 @@ export default async function BillingDocumentsPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.BILLING))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.BILLING_VIEW))) {
     notFound();
@@ -129,7 +141,11 @@ export default async function BillingDocumentsPage({
 
       {documents.length === 0 ? (
         <EmptyState
-          title={status !== undefined || type !== undefined ? "Sin comprobantes con ese filtro" : "Aun no hay comprobantes"}
+          title={
+            status !== undefined || type !== undefined
+              ? "Sin comprobantes con ese filtro"
+              : "Aun no hay comprobantes"
+          }
           description={
             status !== undefined || type !== undefined
               ? "Prueba con otro filtro o quitalo."
@@ -137,7 +153,10 @@ export default async function BillingDocumentsPage({
           }
           action={
             status !== undefined || type !== undefined ? (
-              <Link href={hrefWith({ estado: null, tipo: null, page: null })} className="text-sm hover:underline">
+              <Link
+                href={hrefWith({ estado: null, tipo: null, page: null })}
+                className="text-sm hover:underline"
+              >
                 Quitar los filtros
               </Link>
             ) : undefined
@@ -179,7 +198,9 @@ export default async function BillingDocumentsPage({
                     </span>
                   </td>
                   <td className="text-muted-foreground px-4 py-3">#{doc.orderNumber}</td>
-                  <td className="text-muted-foreground px-4 py-3">{doc.customerName ?? "Sin cliente"}</td>
+                  <td className="text-muted-foreground px-4 py-3">
+                    {doc.customerName ?? "Sin cliente"}
+                  </td>
                   <td className="px-4 py-3">
                     <Badge variant={STATUS_VARIANT[doc.status]}>
                       {BILLING_DOCUMENT_STATUS_LABELS[doc.status]}
@@ -189,7 +210,10 @@ export default async function BillingDocumentsPage({
                     {formatCurrency(doc.totalCents, settings.currency)}
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/dashboard/${tenant.slug}/pedidos/${doc.orderId}`} className="text-sm hover:underline">
+                    <Link
+                      href={`/dashboard/${tenant.slug}/pedidos/${doc.orderId}`}
+                      className="text-sm hover:underline"
+                    >
                       Ver pedido
                     </Link>
                   </td>

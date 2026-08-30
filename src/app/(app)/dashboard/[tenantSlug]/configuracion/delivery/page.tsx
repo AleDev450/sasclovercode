@@ -11,6 +11,8 @@ import {
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import {
   CreateZoneForm,
@@ -33,6 +35,13 @@ export default async function DeliveryZonesPage({
 }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.DELIVERY))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.DELIVERY_ZONES_VIEW))) {
     notFound();

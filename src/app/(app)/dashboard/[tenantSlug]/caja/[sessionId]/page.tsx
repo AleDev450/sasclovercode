@@ -4,6 +4,8 @@ import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { CASH_MOVEMENT_TYPE_LABELS } from "@/modules/payments/constants";
 import { CashMovementForm } from "@/modules/payments/components/cash-movement-form";
@@ -20,6 +22,13 @@ export default async function CashSessionPage({
 }) {
   const { tenantSlug, sessionId } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.ORDERS))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.CASH_VIEW))) {
     notFound();
@@ -40,7 +49,10 @@ export default async function CashSessionPage({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <Link href={`/dashboard/${tenant.slug}/caja`} className="text-muted-foreground text-sm hover:underline">
+        <Link
+          href={`/dashboard/${tenant.slug}/caja`}
+          className="text-muted-foreground text-sm hover:underline"
+        >
           ← Caja
         </Link>
         <div className="flex flex-wrap items-center gap-3">

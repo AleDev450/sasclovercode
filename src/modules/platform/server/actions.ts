@@ -15,6 +15,7 @@ import { DatabaseError } from "@/lib/errors";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { FormState } from "@/lib/forms/state";
 import { logger } from "@/lib/logger";
+import { isModule } from "@/lib/features";
 import { requirePlatformAdmin } from "@/lib/platform/access";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseOrThrow, toFieldErrors } from "@/lib/validation";
@@ -290,6 +291,185 @@ export async function setProviderStatusAction(formData: FormData): Promise<void>
     domainId: input.domainId,
     to: input.providerStatus,
   });
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Plans and modules (Phase 21)
+// ---------------------------------------------------------------------------
+
+/**
+ * Governing what a business has contracted is a Super Admin job (master
+ * section 29), not a tenant role - which is why these live here rather than in
+ * a `subscriptions` module of their own, and why none of them takes a
+ * permission. `requirePlatformAdmin()` is the whole authorization story, and
+ * RLS refuses the write again underneath (ADR-025 decision 6).
+ */
+
+const setPlanSchema = z.object({
+  tenantId: z.uuid(),
+  planCode: z
+    .string()
+    .trim()
+    .regex(/^[a-z_]+$/, "Plan invalido."),
+});
+
+const setSubscriptionStatusSchema = z.object({
+  tenantId: z.uuid(),
+  status: z.enum(["trialing", "active", "past_due", "suspended", "cancelled"]),
+});
+
+const setModuleSchema = z.object({
+  tenantId: z.uuid(),
+  /**
+   * Narrowed against the catalogue mirror rather than a regex, so the value
+   * that reaches the database is a `ModuleCode` and a typo in the form is a
+   * validation error rather than a row pointing at a module that never existed.
+   */
+  moduleCode: z
+    .string()
+    .trim()
+    .transform((value, ctx) => {
+      if (!isModule(value)) {
+        ctx.addIssue({ code: "custom", message: "Modulo invalido." });
+        return z.NEVER;
+      }
+      return value;
+    }),
+  /** "inherit" removes the override and returns the tenant to its plan. */
+  state: z.enum(["on", "off", "inherit"]),
+});
+
+export async function setTenantPlanAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(setPlanSchema, {
+    tenantId: formData.get("tenantId"),
+    planCode: formData.get("planCode"),
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  const { error } = await client
+    .from("subscriptions")
+    .update({ plan_code: input.planCode })
+    .eq("tenant_id", input.tenantId);
+
+  if (error) {
+    logger.error("platform.subscription.plan_change_failed", {
+      tenantId: input.tenantId,
+      error,
+    });
+    throw new DatabaseError("Plan change failed.", { cause: error });
+  }
+
+  logger.info("subscription.plan_changed", {
+    tenantId: input.tenantId,
+    to: input.planCode,
+    operatorId: operator?.id ?? null,
+  });
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+}
+
+export async function setSubscriptionStatusAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(setSubscriptionStatusSchema, {
+    tenantId: formData.get("tenantId"),
+    status: formData.get("status"),
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  // `cancelled_at` and the status are the same fact, and a CHECK says so. The
+  // application supplies both rather than letting the constraint refuse a
+  // half-written row.
+  const { error } = await client
+    .from("subscriptions")
+    .update({
+      status: input.status,
+      cancelled_at: input.status === "cancelled" ? new Date().toISOString() : null,
+    })
+    .eq("tenant_id", input.tenantId);
+
+  if (error) {
+    logger.error("platform.subscription.status_change_failed", {
+      tenantId: input.tenantId,
+      error,
+    });
+    throw new DatabaseError("Subscription status change failed.", { cause: error });
+  }
+
+  logger.info("subscription.status_changed", {
+    tenantId: input.tenantId,
+    to: input.status,
+    operatorId: operator?.id ?? null,
+  });
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+}
+
+export async function setTenantModuleAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(setModuleSchema, {
+    tenantId: formData.get("tenantId"),
+    moduleCode: formData.get("moduleCode"),
+    state: formData.get("state"),
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  if (input.state === "inherit") {
+    // Removing the override is not the same as turning the module off: it
+    // returns the tenant to whatever its plan says, which may be either
+    // (ADR-025 decision 2).
+    const { error } = await client
+      .from("tenant_modules")
+      .delete()
+      .eq("tenant_id", input.tenantId)
+      .eq("module_code", input.moduleCode);
+
+    if (error) {
+      logger.error("platform.module.clear_failed", { tenantId: input.tenantId, error });
+      throw new DatabaseError("Module override removal failed.", { cause: error });
+    }
+
+    logger.info("tenant_module.cleared", {
+      tenantId: input.tenantId,
+      module: input.moduleCode,
+      operatorId: operator?.id ?? null,
+    });
+  } else {
+    const isEnabled = input.state === "on";
+
+    // Upsert by primary key: an override is one row per (tenant, module), and
+    // setting it twice is a correction rather than an error.
+    const { error } = await client.from("tenant_modules").upsert(
+      {
+        tenant_id: input.tenantId,
+        module_code: input.moduleCode,
+        is_enabled: isEnabled,
+      },
+      { onConflict: "tenant_id,module_code" },
+    );
+
+    if (error) {
+      logger.error("platform.module.set_failed", { tenantId: input.tenantId, error });
+      throw new DatabaseError("Module override failed.", { cause: error });
+    }
+
+    logger.info(isEnabled ? "tenant_module.enabled" : "tenant_module.disabled", {
+      tenantId: input.tenantId,
+      module: input.moduleCode,
+      operatorId: operator?.id ?? null,
+    });
+  }
 
   revalidatePath(`/super-admin/tenants/${input.tenantId}`);
 }

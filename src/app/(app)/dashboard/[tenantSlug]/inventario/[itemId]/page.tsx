@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { UpdateInventoryItemForm } from "@/modules/inventory/components/inventory-item-forms";
 import { STOCK_MOVEMENT_TYPE_LABELS } from "@/modules/inventory/constants";
@@ -17,6 +19,13 @@ export default async function InventoryItemDetailPage({
 }) {
   const { tenantSlug, itemId } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.INVENTORY))) {
+    notFound();
+  }
 
   if (!(await hasPermission(tenant.id, PERMISSIONS.INVENTORY_VIEW))) {
     notFound();
@@ -48,7 +57,9 @@ export default async function InventoryItemDetailPage({
       <Card>
         <CardHeader>
           <CardTitle as="h2">Stock actual por sede</CardTitle>
-          <CardDescription>Suma en vivo de los movimientos de este insumo, nunca un numero guardado.</CardDescription>
+          <CardDescription>
+            Suma en vivo de los movimientos de este insumo, nunca un numero guardado.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {item.stockByLocation.length === 0 ? (

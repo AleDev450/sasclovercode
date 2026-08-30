@@ -12,6 +12,8 @@ import {
 import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { CategoryForm, ProductForm } from "@/modules/catalog/components/catalog-forms";
 import { listCategories, listProducts } from "@/modules/catalog/server/queries";
@@ -25,6 +27,13 @@ const STATUS_VARIANT = { draft: "neutral", active: "success", archived: "warning
 export default async function CatalogPage({ params }: { params: Promise<{ tenantSlug: string }> }) {
   const { tenantSlug } = await params;
   const tenant = await requireActiveTenant(tenantSlug);
+
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.CATALOG))) {
+    notFound();
+  }
 
   // The nav hides this entry without the permission, but hiding is cosmetic
   // (master section 45): a typed URL lands here, so the page checks too.

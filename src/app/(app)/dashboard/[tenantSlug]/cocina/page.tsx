@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
+import { MODULES } from "@/lib/features";
+import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { KITCHEN_STATIONS, KITCHEN_STATION_LABELS } from "@/modules/kitchen/constants";
 import { KdsBoard } from "@/modules/kitchen/components/kds-board";
@@ -32,6 +34,13 @@ export default async function KitchenPage({
   const { sede, estacion } = await searchParams;
   const tenant = await requireActiveTenant(tenantSlug);
 
+  // Phase 21: the plan decides before the person does. 404, not 403 - the
+  // same posture every permission guard here takes toward a section that is
+  // not yours to know about.
+  if (!(await hasFeature(tenant.id, MODULES.ORDERS))) {
+    notFound();
+  }
+
   if (!(await hasPermission(tenant.id, PERMISSIONS.ORDERS_VIEW))) {
     notFound();
   }
@@ -51,7 +60,9 @@ export default async function KitchenPage({
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Cocina</h1>
-        <p className="text-muted-foreground text-sm">Elige una sede para ver su pantalla de cocina.</p>
+        <p className="text-muted-foreground text-sm">
+          Elige una sede para ver su pantalla de cocina.
+        </p>
         <div className="flex flex-wrap gap-2">
           {activeLocations.map((location) => (
             <Link
@@ -76,7 +87,8 @@ export default async function KitchenPage({
 
   const stationHref = (value: KitchenStation | undefined): string => {
     const params = new URLSearchParams();
-    if (resolvedLocation !== null && activeLocations.length > 1) params.set("sede", resolvedLocation.id);
+    if (resolvedLocation !== null && activeLocations.length > 1)
+      params.set("sede", resolvedLocation.id);
     if (value !== undefined) params.set("estacion", value);
     const query = params.toString();
     return `/dashboard/${tenant.slug}/cocina${query.length > 0 ? `?${query}` : ""}`;

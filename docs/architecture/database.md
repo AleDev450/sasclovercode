@@ -1,6 +1,6 @@
 # Database
 
-> Current as of Phase 19.
+> Current as of Phase 21.
 
 One PostgreSQL database, one `public` schema, one migration history, hosted on
 Supabase. Rationale: [ADR-001](../adr/001-single-database-multitenancy.md).
@@ -105,6 +105,16 @@ drift from what is actually applied.
 | 19    | `20260828120400_extend_customer_address_coordinates.sql` | `latitude`/`longitude` on the address book                            |
 | 19    | `20260828120500_create_order_deliveries.sql`             | The delivery of an order; writes `orders.shipping_cents`              |
 | 19    | `20260828120600_create_delivery_roster.sql`              | `get_tenant_couriers()`, gated on `deliveries.manage`                 |
+| 20    | `20260830120000_create_loyalty_permissions.sql`          | `promotions.*`, `loyalty.*`                                           |
+| 20    | `20260830120100_create_promotion_enums.sql`              | `promotion_type`, `loyalty_transaction_type`                          |
+| 20    | `20260830120200_create_promotions.sql`                   | A discount with conditions; not a rules engine (ADR-024)              |
+| 20    | `20260830120300_create_coupons.sql`                      | A code that unlocks a promotion, with its own limits                  |
+| 20    | `20260830120400_create_loyalty_accounts.sql`             | Append-only points ledger; the balance is a trigger-kept column       |
+| 20    | `20260830120500_create_order_promotions.sql`             | A discount as a posting; rewrites ALL THREE `total_cents` writers     |
+| 20    | `20260830120600_create_loyalty_earning.sql`              | Programme settings, accrual trigger, redemption RPC                   |
+| 21    | `20260830130000_create_module_catalog.sql`               | `modules`, `plans`, `plan_modules` + the ten modules of §33           |
+| 21    | `20260830130100_create_subscriptions.sql`                | `subscriptions`, `tenant_modules`, and the non-destructive backfill   |
+| 21    | `20260830130200_create_module_resolution.sql`            | `has_module()`, `my_modules()`, provisioning, `multi_location` guard  |
 
 ## Conventions
 
@@ -209,11 +219,18 @@ every migration applied.
 | 19    | `delivery_zones`, `delivery_rates`                        | select viewer, insert/update/**delete** manager (`delivery_zones.manage`)                                                                             | A hard DELETE — a price list is configuration, and `order_deliveries.zone_name_snapshot` keeps past deliveries readable                                                                                    |
 | 19    | `order_deliveries`                                        | select viewer, insert/update/**delete** operator (`deliveries.manage`)                                                                                | DELETE only while the order is `pending`, enforced by trigger — the same rule, and the same guard, as `order_items`                                                                                        |
 | 19    | `delivery_status_history`                                 | select viewer only                                                                                                                                    | No INSERT/UPDATE/DELETE at all — only the trigger writes, so the trail cannot be forged                                                                                                                    |
+| 20    | `promotions`, `coupons`                                   | select viewer, insert/update/**delete** manager (`promotions.manage`)                                                                                 | A hard DELETE — a price rule is configuration, and `order_promotions.label_snapshot` keeps past bills readable                                                                                             |
+| 20    | `order_promotions`                                        | select viewer, insert/**delete** operator (`promotions.manage` or `loyalty.manage`)                                                                   | No UPDATE: a discount is removed and re-applied, never edited. DELETE only while the order is `pending`                                                                                                    |
+| 20    | `loyalty_accounts`                                        | select viewer, insert/update manager (`loyalty.manage`)                                                                                               | No DELETE — the account records a liability the business took on                                                                                                                                           |
+| 20    | `loyalty_transactions`                                    | select viewer, insert manager                                                                                                                         | No UPDATE and no DELETE, **ever** — this is the ledger master §33 requires; a mistake is corrected with an `adjustment` entry                                                                              |
+| 21    | `modules`, `plans`, `plan_modules`                        | select authenticated, read-only                                                                                                                       | Product catalogue, not tenant data — the same `using (true)` exception as the Phase 03 RBAC tables                                                                                                         |
+| 21    | `subscriptions`                                           | select member **or** platform admin; insert/update platform admin only                                                                                | No DELETE — a subscription is cancelled, not erased. The read/write asymmetry is what makes the paywall one (ADR-025)                                                                                      |
+| 21    | `tenant_modules`                                          | select member or platform admin; insert/update/delete platform admin only                                                                             | A tenant can never grant itself a module                                                                                                                                                                   |
 
 **`using (true)` on a table holding tenant data is forbidden**, and a test
 (`isolation.test.ts`) asserts nothing outside `roles`/`permissions`/
-`role_permissions`, `order_transitions`, `billing_document_transitions` and
-`delivery_transitions`
+`role_permissions`, `order_transitions`, `billing_document_transitions`,
+`delivery_transitions`, `modules`, `plans` and `plan_modules`
 uses it — all four exceptions hold product-wide reference data, never a
 business's own rows, and all four are read-only.
 
@@ -248,8 +265,9 @@ every statement the function runs). This is deliberate and is how, for
 example, `recompute_order_totals()` (Phase 13) updates `orders`,
 `record_payment_cash_movement()` (Phase 14) inserts into `cash_movements`,
 `populate_billing_document_items()` (Phase 17) inserts into
-`billing_document_items`, and `sync_order_shipping()` (Phase 19) updates
-`orders` — none of the three target tables needs a policy
+`billing_document_items`, `sync_order_shipping()` (Phase 19) and
+`sync_order_promotions()` (Phase 20) update `orders`, and
+`apply_loyalty_transaction()` (Phase 20) updates `loyalty_accounts` — none of the three target tables needs a policy
 that would let an ordinary caller do the same thing directly.
 
 Phase 17 is also the first to hold a real external secret. Three narrow
