@@ -685,3 +685,117 @@ describe("row level security (TEST-1322 to TEST-1328)", () => {
     ).rejects.toThrow(/row-level security/);
   });
 });
+
+/**
+ * Phase 25 closes KL-2308.
+ *
+ * `order_items.product_id` has been declared `on delete set null` since Phase
+ * 13, so deleting a product that had been sold was MEANT to work: the line
+ * keeps the name and the price it was sold at, and the historical ticket still
+ * reads the way it read.
+ *
+ * It did not work. That `SET NULL` is an UPDATE on `order_items`, and it ran
+ * into the guard that refuses to let anybody edit the lines of a closed order -
+ * so somebody who only wanted to tidy their menu got "An order that is no
+ * longer pending cannot change its lines."
+ *
+ * Phase 23 found it while writing TEST-2324 and deliberately left it alone
+ * (master section 51), recording it with this phase as owner. The fix is
+ * narrow, and the third test here is the one that keeps it narrow.
+ */
+describe("deleting a product that was sold (TEST-2540, TEST-2541, TEST-2542)", () => {
+  async function soldAndClosed(): Promise<{ productId: string; itemId: string; orderId: string }> {
+    const productId = await insertProduct(tenantA, `vendido-${Date.now()}`, 2490);
+    const orderId = await insertOrder(tenantA, locationA);
+    const itemId = await addItem(orderId, productId, 2);
+
+    // Walked, not jumped: Phase 13's state machine refuses pending ->
+    // completed, and going round it with a direct write would test a state the
+    // product can never actually be in.
+    for (const status of ["confirmed", "preparing", "ready"]) {
+      await db.query(`update public.orders set status = $2::public.order_status where id = $1`, [
+        orderId,
+        status,
+      ]);
+    }
+    await db.query(
+      `update public.orders set status = 'completed', completed_at = now() where id = $1`,
+      [orderId],
+    );
+
+    return { productId, itemId, orderId };
+  }
+
+  it("succeeds, instead of failing with a message about orders (TEST-2540)", async () => {
+    const { productId } = await soldAndClosed();
+
+    await expect(
+      db.query("delete from public.products where id = $1", [productId]),
+    ).resolves.toBeDefined();
+  });
+
+  it("leaves the line saying what it said, minus the reference (TEST-2541)", async () => {
+    const { productId, itemId } = await soldAndClosed();
+
+    const before = await db.query<{
+      name_snapshot: string;
+      unit_price_cents: number;
+      total_cents: number;
+    }>(
+      "select name_snapshot, unit_price_cents, total_cents from public.order_items where id = $1",
+      [itemId],
+    );
+
+    await db.query("delete from public.products where id = $1", [productId]);
+
+    const after = await db.query<{
+      product_id: string | null;
+      name_snapshot: string;
+      unit_price_cents: number;
+      total_cents: number;
+    }>(
+      "select product_id, name_snapshot, unit_price_cents, total_cents from public.order_items where id = $1",
+      [itemId],
+    );
+
+    // The reference is gone, which is what `on delete set null` promised.
+    expect(after[0]!.product_id).toBeNull();
+
+    // Everything a ticket is made of is untouched. This is why the detach loses
+    // nothing: the snapshot has been the source of truth since Phase 13.
+    expect(after[0]!.name_snapshot).toBe(before[0]!.name_snapshot);
+    expect(after[0]!.unit_price_cents).toBe(before[0]!.unit_price_cents);
+    expect(after[0]!.total_cents).toBe(before[0]!.total_cents);
+  });
+
+  it("still refuses every OTHER edit to a closed order's line (TEST-2542)", async () => {
+    const { itemId } = await soldAndClosed();
+
+    // The fix admits exactly one change: product_id going non-null to null,
+    // with nothing else moving. A quantity change would move the money.
+    await expect(
+      db.query("update public.order_items set quantity = 5 where id = $1", [itemId]),
+    ).rejects.toThrow(/no longer pending/);
+
+    await expect(
+      db.query("update public.order_items set discount_cents = 100 where id = $1", [itemId]),
+    ).rejects.toThrow(/no longer pending/);
+
+    // Not even nulling the product together with something else.
+    await expect(
+      db.query("update public.order_items set product_id = null, quantity = 3 where id = $1", [
+        itemId,
+      ]),
+    ).rejects.toThrow(/no longer pending/);
+  });
+
+  it("keeps the order's total exactly where it was", async () => {
+    const { productId, orderId } = await soldAndClosed();
+
+    const before = await orderTotals(orderId);
+    await db.query("delete from public.products where id = $1", [productId]);
+    const after = await orderTotals(orderId);
+
+    expect(after).toEqual(before);
+  });
+});

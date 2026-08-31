@@ -1990,6 +1990,48 @@ export type Database = {
           },
         ];
       };
+      audit_logs: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          /** No foreign key on purpose: deleting a user must not erase the record (ADR-028). */
+          user_id: string | null;
+          user_email: string | null;
+          action: string;
+          entity_type: string;
+          entity_id: string | null;
+          old_values: Json | null;
+          new_values: Json | null;
+          ip_address: string | null;
+          user_agent: string | null;
+          request_id: string | null;
+          created_at: string;
+        };
+        /** No write policy exists at all: only triggers write here (ADR-028). */
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      rate_limit_counters: {
+        Row: {
+          bucket: string;
+          /** sha256 hex. The raw identifier is never stored (ADR-029). */
+          subject_hash: string;
+          window_start: string;
+          hits: number;
+        };
+        /** No policies exist at all: only consume_rate_limit() touches it. */
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       payment_methods: {
         Row: {
           id: string;
@@ -2506,6 +2548,32 @@ export type Database = {
       void_saas_payment: {
         Args: { p_payment_id: string; p_reason: string };
         Returns: undefined;
+      };
+      consume_rate_limit: {
+        Args: {
+          p_bucket: string;
+          p_subject: string;
+          p_limit: number;
+          p_window_seconds: number;
+        };
+        Returns: boolean;
+      };
+      platform_diagnostics: {
+        Args: Record<string, never>;
+        Returns: {
+          tenants_total: number;
+          tenants_active: number;
+          tenants_suspended: number;
+          subscriptions_trialing: number;
+          subscriptions_active: number;
+          subscriptions_past_due: number;
+          subscriptions_suspended: number;
+          orders_last_24h: number;
+          audit_rows_last_24h: number;
+          audit_rows_total: number;
+          overdue_charges: number;
+          oldest_overdue_due_at: string | null;
+        }[];
       };
       has_module: {
         Args: { p_tenant_id: string; p_module: string };

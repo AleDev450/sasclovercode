@@ -1,6 +1,6 @@
 # CloverCode — Architecture overview
 
-> Scope note: this document reflects what exists **today** (end of Phase 23).
+> Scope note: this document reflects what exists **today** (end of Phase 25).
 > Sections describing later phases are marked as such and are stated as intent,
 > not as implemented behaviour. It is updated at the end of every phase.
 
@@ -49,7 +49,7 @@ app  ->  modules  ->  lib  ->  config / types
 module's internals — only its own `schemas.ts`, `lifecycle.ts`/`constants.ts`,
 `server/actions.ts`, `server/queries.ts` and `components/`.
 
-## Modules, as of Phase 23
+## Modules, as of Phase 25
 
 ```text
 src/modules/
@@ -72,6 +72,7 @@ src/modules/
 ├── delivery/                           zones, rates, order deliveries (Phase 19)
 ├── loyalty/                            promotions, coupons, points (Phase 20)
 ├── reports/                            sales analytics, read-only (Phase 23)
+├── audit/                               who changed what, read-only (Phase 24)
 └── platform/                              super-admin: operators, provisioning
 ```
 
@@ -130,7 +131,16 @@ privileges, not the querying user's, and would bypass RLS
 | Kitchen/KDS: live board, Realtime (first use)                                            | `src/modules/kitchen`                    | 16    |
 | Electronic billing: SUNAT documents, BillingProvider, Vault credentials (first use)      | `src/modules/billing`                    | 17    |
 | Inventory: items, suppliers, purchases, recipes, stock ledger + derived view (first use) | `src/modules/inventory`                  | 18    |
-| Health probe (liveness only)                                                             | `src/app/api/health`                     | 00    |
+| Delivery: zones, rates, courier lifecycle                                                | `src/modules/delivery`                   | 19    |
+| Loyalty: promotions, coupons, points ledger                                              | `src/modules/loyalty`                    | 20    |
+| Module/plan gating (`hasFeature`, `requireFeature`)                                      | `src/lib/features`                       | 21    |
+| CloverCode's own subscription billing (§22: separate from the tenant's)                  | `src/modules/platform`                   | 22    |
+| Reports: eight dimensions, aggregated in SQL, read-only                                  | `src/modules/reports`                    | 23    |
+| Audit log: who changed what, trigger-written, unwritable by anybody                      | `src/modules/audit`                      | 24    |
+| Forwarded request context (IP, user agent, request id) for the audit triggers            | `src/lib/observability/request-context`  | 24    |
+| Error tracking (`onRequestError`, no external provider yet)                              | `src/instrumentation.ts`                 | 24    |
+| Health probe — liveness in Phase 00, **dependency checks and 503 in Phase 24**           | `src/app/api/health`                     | 00/24 |
+| Super Admin diagnostics (`platform_diagnostics()`)                                       | `src/modules/platform`                   | 24    |
 
 Deeper reference for the database itself — every migration, every RLS policy,
 every table — lives in [database.md](./database.md), not duplicated here.
@@ -180,20 +190,25 @@ from `OWNER` (a tenant's own owner role) and must never be conflated.
 
 ## Security posture
 
-| Control                                     | Status                                                                                                                                                            |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Security headers                            | Active on every route (HSTS, nosniff, DENY, Referrer, Permissions)                                                                                                |
-| `X-Powered-By`                              | Disabled                                                                                                                                                          |
-| Secrets in the repository                   | None; `.env*` ignored except `.env.example`                                                                                                                       |
-| `service_role` key                          | **Still not referenced anywhere.** Tenant provisioning (Phase 04) and every other privileged write use a narrow `SECURITY DEFINER` function instead (ADR-011)     |
-| Error detail leakage                        | Blocked at `serializeError()`, covered by tests                                                                                                                   |
-| Credential leakage into logs                | Blocked by central redaction, covered by tests                                                                                                                    |
-| Content Security Policy                     | **Deferred to Phase 25** — needs per-request nonces                                                                                                               |
-| Authentication                              | Implemented (Phase 02) — [authentication.md](./authentication.md)                                                                                                 |
-| Authorization / RBAC                        | Implemented (Phase 03) — [authorization.md](./authorization.md)                                                                                                   |
-| Row Level Security                          | Enabled on every business/private table, no exceptions besides two documented read-only, tenant-free catalogues — [database.md](./database.md#row-level-security) |
-| Money as integer minor units, never a float | Implemented (Phase 11) — [ADR-015](../adr/015-money-as-minor-units.md)                                                                                            |
-| Personal data minimization                  | Implemented (Phase 12) — [ADR-016](../adr/016-personal-data-minimization.md)                                                                                      |
+| Control                                     | Status                                                                                                                                                                                          |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Security headers                            | Active on every route (HSTS, nosniff, DENY, Referrer, Permissions)                                                                                                                              |
+| `X-Powered-By`                              | Disabled                                                                                                                                                                                        |
+| Secrets in the repository                   | None; `.env*` ignored except `.env.example`                                                                                                                                                     |
+| `service_role` key                          | **Still not referenced anywhere.** Tenant provisioning (Phase 04) and every other privileged write use a narrow `SECURITY DEFINER` function instead (ADR-011)                                   |
+| Error detail leakage                        | Blocked at `serializeError()`, covered by tests                                                                                                                                                 |
+| Credential leakage into logs                | Blocked by central redaction, covered by tests                                                                                                                                                  |
+| Content Security Policy                     | Implemented (Phase 25) — a nonce per request from the proxy, no `unsafe-inline` in `script-src`, and it now reaches `/sitio` too ([security.md](./security.md))                                 |
+| Application rate limiting                   | Implemented (Phase 25) — state in PostgreSQL, because in a serverless deploy an in-memory counter is per instance ([ADR-029](../adr/029-nonce-csp-database-rate-limits-and-isolation-sweep.md)) |
+| Cross-tenant isolation, verified            | Implemented (Phase 25) — a four-verb sweep over every table with `tenant_id`, generated from the schema catalogue rather than written out                                                       |
+| Authentication                              | Implemented (Phase 02) — [authentication.md](./authentication.md)                                                                                                                               |
+| Authorization / RBAC                        | Implemented (Phase 03) — [authorization.md](./authorization.md)                                                                                                                                 |
+| Row Level Security                          | Enabled on every business/private table, no exceptions besides two documented read-only, tenant-free catalogues — [database.md](./database.md#row-level-security)                               |
+| Money as integer minor units, never a float | Implemented (Phase 11) — [ADR-015](../adr/015-money-as-minor-units.md)                                                                                                                          |
+| Personal data minimization                  | Implemented (Phase 12) — [ADR-016](../adr/016-personal-data-minimization.md)                                                                                                                    |
+| Audit trail of sensitive actions            | Implemented (Phase 24) — trigger-written, and **unwritable by anybody**, platform admin included ([ADR-028](../adr/028-audit-by-trigger-with-forwarded-request-context.md))                     |
+| Credential leakage into the audit log       | Blocked by `audit_redact()`, which decides by key **name** so it covers columns that do not exist yet; a test proves it agrees with the Phase 00 logger policy                                  |
+| Uncaught server errors                      | Recorded by `onRequestError` (Phase 24). No external provider yet — that is a one-file change (ADR-028 decision 6)                                                                              |
 
 ## Verification
 
@@ -211,6 +226,8 @@ npm run build      # must succeed with no credentials present
 - Phase specifications: [`docs/specs/`](../specs/) — one SPEC per phase, the
   source of truth for what that phase actually does.
 - Architecture decisions: [`docs/adr/`](../adr/) — why, not what.
+- Security: [security.md](./security.md) — the threat model, the controls, and
+  what is knowingly not covered. Written in Phase 25.
 - Master specification: [`CLOVERCODE_MASTER.md`](../../CLOVERCODE_MASTER.md).
 
 ## Documents planned for later phases
@@ -219,9 +236,9 @@ Section 60 of the master document lists the architecture documents to
 maintain. Each is written by the phase that first makes it meaningful, rather
 than created empty ahead of time — `authorization.md` and `domains.md` were
 written well after their originating phases (03 and 09) and are caught up as
-of Phase 14; the two below are still genuinely ahead of their phase.
+of Phase 14. `security.md` was written in Phase 25, on time and by the phase
+that owned it; one remains.
 
 | Document        | Written in phase |
 | --------------- | ---------------- |
 | `deployment.md` | 28               |
-| `security.md`   | 25               |

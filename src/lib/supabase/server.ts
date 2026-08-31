@@ -16,6 +16,7 @@ import "server-only";
 import { createServerClient, type CookieMethodsServer } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getPublicEnv } from "@/config/env";
+import { getAuditHeaders } from "@/lib/observability/request-context";
 import type { Database } from "@/types/database";
 import type { CloverCodeSupabaseClient } from "./types";
 
@@ -67,9 +68,24 @@ export async function createSupabaseServerClient(
   const cookieAdapter = cookieMethods ?? (await createNextCookieAdapter());
   const env = getPublicEnv();
 
+  // Phase 24: the visitor's IP, user agent and request id, forwarded so the
+  // audit triggers can record them (ADR-028 decision 2). PostgREST exposes
+  // every request header in the `request.headers` GUC, which is where
+  // `audit_row_change()` reads them from.
+  //
+  // AFTER the two lines above, deliberately: the cookies-before-environment
+  // order is a Phase 00 invariant (EC-02) and this must not disturb it. And
+  // `getAuditHeaders()` cannot throw - outside a request scope it returns an
+  // empty object - so it cannot become a new way for `next build` to fail.
+  const auditHeaders = await getAuditHeaders();
+
   return createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
     env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    { cookies: cookieAdapter },
+    {
+      cookies: cookieAdapter,
+      // Omitted entirely when there is nothing to say, rather than sent empty.
+      ...(Object.keys(auditHeaders).length > 0 ? { global: { headers: auditHeaders } } : {}),
+    },
   );
 }

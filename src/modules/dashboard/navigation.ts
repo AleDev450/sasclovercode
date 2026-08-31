@@ -243,6 +243,22 @@ export const NAV_ITEMS: readonly NavItem[] = [
     segment: "/configuracion/plan",
     permission: PERMISSIONS.SETTINGS_MANAGE,
   },
+  /*
+   * Last, and with no module either - for a different reason than the plan
+   * page above. Auditing is not a capability CloverCode sells: master section
+   * 33 names exactly ten modules in Phase 21, and paywalling a compliance
+   * record would be both outside that list and the wrong thing to charge for.
+   *
+   * `audit.view` reaches owner, admin and accountant only. Notably NOT
+   * manager, who holds `products.update` and `orders.cancel` and is therefore
+   * one of the main subjects of this log (ADR-028 decision 7).
+   */
+  {
+    key: "audit",
+    label: "Auditoria",
+    segment: "/auditoria",
+    permission: PERMISSIONS.AUDIT_VIEW,
+  },
 ];
 
 /** The entries a holder of `permissions` in a tenant with `modules` may see. */

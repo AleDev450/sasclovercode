@@ -79,6 +79,8 @@ export const PERMISSIONS = {
 
   LOYALTY_VIEW: "loyalty.view",
   LOYALTY_MANAGE: "loyalty.manage",
+
+  AUDIT_VIEW: "audit.view",
 } as const;
 
 /**

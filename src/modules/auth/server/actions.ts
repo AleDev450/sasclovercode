@@ -20,6 +20,11 @@ import { getPublicEnv } from "@/config/env";
 import { requestPasswordResetSchema, signInSchema, updatePasswordSchema } from "@/lib/auth/schemas";
 import { DEFAULT_SIGNED_IN_PATH, SIGN_IN_PATH, safeRedirectPath } from "@/lib/auth/redirect";
 import { logger } from "@/lib/logger";
+import {
+  consumeRateLimitForCaller,
+  RATE_LIMITED_MESSAGE,
+  RATE_LIMITS,
+} from "@/lib/security/rate-limit";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { toFieldErrors } from "@/lib/validation";
 import type { AuthFormState } from "./form-state";
@@ -31,6 +36,15 @@ import type { AuthFormState } from "./form-state";
  * alike. The three cases must be indistinguishable from outside.
  */
 const SIGN_IN_FAILED_MESSAGE = "Correo o contrasena incorrectos.";
+
+/**
+ * Single generic answer for a reset request.
+ *
+ * Returned when the address exists, when it does not, when Supabase failed, and
+ * when the rate limit refused. One constant so the four paths cannot drift.
+ */
+const PASSWORD_RESET_SENT_MESSAGE =
+  "Si existe una cuenta con ese correo, recibiras un enlace para restablecer tu contrasena.";
 
 function readString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -52,6 +66,18 @@ export async function signInAction(
 
   if (!parsed.success) {
     return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
+  }
+
+  // AFTER validation and BEFORE Supabase (Phase 25, KL-203). After, so a
+  // malformed form does not spend somebody's quota; before, so a flood never
+  // reaches the auth service at all.
+  //
+  // Counted against the CALLER's address and not the email being tried: by
+  // email would be more precise and would let anybody lock out anybody else's
+  // account by sending attempts with their address (ADR-029 decision 3).
+  if (!(await consumeRateLimitForCaller(RATE_LIMITS.AUTH_SIGN_IN))) {
+    logger.warn("auth.sign_in.throttled", {});
+    return { status: "error", message: RATE_LIMITED_MESSAGE };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -118,6 +144,19 @@ export async function requestPasswordResetAction(
     return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
   }
 
+  // Each accepted request sends an email to somebody who did not ask for it, so
+  // the limit here protects a third party rather than this application.
+  //
+  // The throttled answer is the SAME success message the normal path returns,
+  // not an error: telling a caller "you are being throttled" only after a real
+  // address would hand back the enumeration this whole action is written to
+  // refuse. Somebody genuinely resetting their password sees the reassuring
+  // message and the email arrives once the window rolls over.
+  if (!(await consumeRateLimitForCaller(RATE_LIMITS.AUTH_PASSWORD_RESET))) {
+    logger.warn("auth.password_reset.throttled", {});
+    return { status: "success", message: PASSWORD_RESET_SENT_MESSAGE };
+  }
+
   const supabase = await createSupabaseServerClient();
   const { NEXT_PUBLIC_APP_URL } = getPublicEnv();
 
@@ -137,13 +176,10 @@ export async function requestPasswordResetAction(
     logger.info("auth.password_reset.requested", { email: parsed.data.email });
   }
 
-  // Identical response either way, INCLUDING when Supabase reported a failure.
-  // Anything else reveals which addresses have accounts.
-  return {
-    status: "success",
-    message:
-      "Si existe una cuenta con ese correo, recibiras un enlace para restablecer tu contrasena.",
-  };
+  // Identical response either way, INCLUDING when Supabase reported a failure
+  // and including when the rate limit refused above. Anything else reveals
+  // which addresses have accounts.
+  return { status: "success", message: PASSWORD_RESET_SENT_MESSAGE };
 }
 
 export async function updatePasswordAction(

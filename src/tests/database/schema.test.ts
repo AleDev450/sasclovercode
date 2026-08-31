@@ -148,6 +148,16 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260830140200_create_subscription_events.sql",
       "20260830140300_create_billing_cycle.sql",
       "20260830150000_create_report_functions.sql",
+
+      // Phase 24
+      "20260830160000_create_audit_permissions.sql",
+      "20260830160100_create_audit_logs.sql",
+      "20260830160200_create_audit_triggers.sql",
+      "20260830160300_create_platform_diagnostics.sql",
+
+      // Phase 25
+      "20260831120000_create_rate_limits.sql",
+      "20260831120100_allow_product_detach_from_closed_order.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -159,6 +169,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "select tablename from pg_tables where schemaname = 'public' order by tablename",
     );
     expect(tables.map((t) => t.tablename)).toEqual([
+      "audit_logs",
       "billing_document_items",
       "billing_document_transitions",
       "billing_documents",
@@ -203,6 +214,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "profiles",
       "promotions",
       "purchases",
+      "rate_limit_counters",
       "recipe_items",
       "recipes",
       "role_permissions",

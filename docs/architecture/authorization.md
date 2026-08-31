@@ -1,6 +1,6 @@
 # Authorization
 
-> Current as of Phase 23.
+> Current as of Phase 24.
 
 How CloverCode decides **what** an authenticated member may do. Identity —
 _who_ is making the request — is [authentication.md](./authentication.md) and
@@ -92,29 +92,32 @@ that first consumes it. A code with no "used by" is pre-seeded ahead of the
 phase that needs it — the same move Phase 03 made for `orders.*` (used from
 Phase 13) and `cash.open`/`cash.close` (used from Phase 14).
 
-| Resource          | Codes                        | Added in | Used from      |
-| ----------------- | ---------------------------- | -------- | -------------- |
-| `products`        | view, create, update, delete | 03       | 11             |
-| `orders`          | view, create, update, cancel | 03       | 13             |
-| `customers`       | view, manage                 | 03       | 12             |
-| `cash`            | open, close                  | 03       | 14             |
-| `cash`            | view, manage                 | 14       | 14             |
-| `billing`         | view, create, cancel         | 03       | 17             |
-| `billing`         | manage                       | 17       | 17             |
-| `reports`         | view                         | 03       | _pending (23)_ |
-| `employees`       | manage                       | 03       | _pending_      |
-| `settings`        | manage                       | 03       | 06             |
-| `members`         | view, manage                 | 03       | 03             |
-| `content`         | view, manage                 | 07       | 07             |
-| `domains`         | view, manage                 | 09       | 09             |
-| `locations`       | view, manage                 | 10       | 10             |
-| `payment_methods` | view, manage                 | 14       | 14             |
-| `payments`        | view, create, void           | 14       | 14             |
-| `inventory`       | view, manage                 | 18       | 18             |
-| `suppliers`       | view, manage                 | 18       | 18             |
-| `purchases`       | view, create                 | 18       | 18             |
-| `delivery_zones`  | view, manage                 | 19       | 19             |
-| `deliveries`      | view, manage                 | 19       | 19             |
+| Resource          | Codes                        | Added in | Used from |
+| ----------------- | ---------------------------- | -------- | --------- |
+| `products`        | view, create, update, delete | 03       | 11        |
+| `orders`          | view, create, update, cancel | 03       | 13        |
+| `customers`       | view, manage                 | 03       | 12        |
+| `cash`            | open, close                  | 03       | 14        |
+| `cash`            | view, manage                 | 14       | 14        |
+| `billing`         | view, create, cancel         | 03       | 17        |
+| `billing`         | manage                       | 17       | 17        |
+| `reports`         | view                         | 03       | 23        |
+| `employees`       | manage                       | 03       | _pending_ |
+| `settings`        | manage                       | 03       | 06        |
+| `members`         | view, manage                 | 03       | 03        |
+| `content`         | view, manage                 | 07       | 07        |
+| `domains`         | view, manage                 | 09       | 09        |
+| `locations`       | view, manage                 | 10       | 10        |
+| `payment_methods` | view, manage                 | 14       | 14        |
+| `payments`        | view, create, void           | 14       | 14        |
+| `inventory`       | view, manage                 | 18       | 18        |
+| `suppliers`       | view, manage                 | 18       | 18        |
+| `purchases`       | view, create                 | 18       | 18        |
+| `delivery_zones`  | view, manage                 | 19       | 19        |
+| `deliveries`      | view, manage                 | 19       | 19        |
+| `promotions`      | view, manage                 | 20       | 20        |
+| `loyalty`         | view, manage                 | 20       | 20        |
+| `audit`           | view                         | 24       | 24        |
 
 `members.view`/`members.manage` are not in master section 12's own example
 list (which is explicitly "ejemplos"); Phase 03 added them because it needed
@@ -136,6 +139,17 @@ business reading its own charges needs no permission beyond the membership it
 already has. Phase 23 needed none either, for the opposite reason:
 `reports.view` has existed since Phase 03 and governed nothing until then —
 which is what that phase was anticipating when it created it.
+
+Phase 24 broke that run of three with exactly one code, `audit.view`, and the
+same test gives the opposite answer: _"see who changed what"_ is a capability
+an owner may want to give an accountant **without** `settings.manage`, and to
+deny an operator **despite** `orders.update`. No existing code draws that line.
+It reaches owner, admin and accountant. Not `manager` — who holds
+`products.update`, `orders.cancel` and `cash.close`, and is therefore one of
+the main **subjects** of that log; auditing is a control function, and whoever
+operates does not control their own operation
+([ADR-028](../adr/028-audit-by-trigger-with-forwarded-request-context.md)
+decision 7).
 
 ### A second question, asked the same way
 

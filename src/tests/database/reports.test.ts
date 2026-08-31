@@ -590,16 +590,18 @@ describe("dimensions (TEST-2322 to TEST-2327)", () => {
   });
 
   it("reports a renamed product under the name it was sold as (TEST-2324)", async () => {
-    // Worth stating what this test discovered: a product that has been sold in
-    // a settled order CANNOT be deleted at all. `order_items.product_id` is ON
-    // DELETE SET NULL, and that UPDATE runs into the Phase 13 guard that
-    // refuses to touch the lines of an order that left `pending`. So history
-    // cannot lose its product by deletion - only by renaming, which is what the
-    // snapshot is really protecting against (ADR-017).
-    await expect(db.query("delete from public.products where id = $1", [productA])).rejects.toThrow(
-      /no longer pending/,
-    );
-
+    // This test originally also asserted that a sold product could NOT be
+    // deleted - which was true, and was a bug rather than a rule.
+    // `order_items.product_id` is ON DELETE SET NULL, so the deletion was meant
+    // to work; the resulting UPDATE ran into the Phase 13 guard on the lines of
+    // a settled order and failed with a message about orders. Phase 23 recorded
+    // it as KL-2308 rather than reaching into another phase's module, and Phase
+    // 25 fixed it. The deletion path now has its own tests in `orders.test.ts`
+    // (TEST-2540, TEST-2541).
+    //
+    // What is left here is what this test was always really about: the snapshot
+    // (ADR-017) protecting history from a RENAME, which is the far more common
+    // way a report would otherwise start lying about the past.
     await db.query("update public.products set name = 'Maki Acevichado' where id = $1", [productA]);
 
     const rows = await db.asUser(ownerA, () =>

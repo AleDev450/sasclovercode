@@ -32,7 +32,9 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 21    | SaaS Modules + Plans       | [phase-21-saas-modules-plans.md](./phase-21-saas-modules-plans.md)           | COMPLETED |
 | 22    | CloverCode Billing         | [phase-22-clovercode-billing.md](./phase-22-clovercode-billing.md)           | COMPLETED |
 | 23    | Reports + Analytics        | [phase-23-reports-analytics.md](./phase-23-reports-analytics.md)             | COMPLETED |
-| 24-28 | see master document        | _not written_                                                                | -         |
+| 24    | Audit + Observability      | [phase-24-audit-observability.md](./phase-24-audit-observability.md)         | COMPLETED |
+| 25    | Security Hardening         | [phase-25-security-hardening.md](./phase-25-security-hardening.md)           | COMPLETED |
+| 26-28 | see master document        | _not written_                                                                | -         |
 
 ## Required contents
 

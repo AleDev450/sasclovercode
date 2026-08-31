@@ -9,29 +9,51 @@ phase must follow so the structure stays uniform.
 
 ## Modules and owning phase
 
-| Module      | Phase | Status                                                                                                                             |
-| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `tenants`   | 01    | Not created. Phase 01 delivered `src/lib/tenant` only, with no UI or actions to own.                                               |
-| `auth`      | 02    | Created.                                                                                                                           |
-| `roles`     | 03    | Not created. Phase 03 delivered `src/lib/permissions` and the SQL catalogue; the UI that administers roles is part of `dashboard`. |
-| `platform`  | 04    | Created. Named for what it governs — the platform — rather than `users`, which Phase 04 turned out not to be about.                |
-| `dashboard` | 05    | Created.                                                                                                                           |
-| `settings`  | 06    | Created.                                                                                                                           |
-| `cms`       | 07    | Created. Planned as `website`; the name follows what it does — pages, sections and navigation.                                     |
-| `seo`       | 08    | Created.                                                                                                                           |
-| `domains`   | 09    | Created.                                                                                                                           |
-| `locations` | 10    | Created.                                                                                                                           |
-| `catalog`   | 11    | Created.                                                                                                                           |
-| `customers` | 12    | Created.                                                                                                                           |
-| `orders`    | 13    | Created.                                                                                                                           |
-| `payments`  | 14    | Created.                                                                                                                           |
-| `pos`       | 15    | Created.                                                                                                                           |
-| `kitchen`   | 16    | Created. The KDS board; planned under no name, since master calls the phase "Kitchen / KDS".                                       |
-| `billing`   | 17    | Created.                                                                                                                           |
-| `inventory` | 18    | Created.                                                                                                                           |
-| `delivery`  | 19    | Created.                                                                                                                           |
-| `loyalty`   | 20    | Created. Covers promotions AND points: they share `order_promotions`, the same checkout screen, and one SaaS module.               |
-| `reports`   | 23    | Created. The only module that writes nothing: no Server Action, no table, no mutation.                                             |
+| Module      | Phase | Status                                                                                                                                              |
+| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tenants`   | 01    | Not created. Phase 01 delivered `src/lib/tenant` only, with no UI or actions to own.                                                                |
+| `auth`      | 02    | Created.                                                                                                                                            |
+| `roles`     | 03    | Not created. Phase 03 delivered `src/lib/permissions` and the SQL catalogue; the UI that administers roles is part of `dashboard`.                  |
+| `platform`  | 04    | Created. Named for what it governs — the platform — rather than `users`, which Phase 04 turned out not to be about.                                 |
+| `dashboard` | 05    | Created.                                                                                                                                            |
+| `settings`  | 06    | Created.                                                                                                                                            |
+| `cms`       | 07    | Created. Planned as `website`; the name follows what it does — pages, sections and navigation.                                                      |
+| `seo`       | 08    | Created.                                                                                                                                            |
+| `domains`   | 09    | Created.                                                                                                                                            |
+| `locations` | 10    | Created.                                                                                                                                            |
+| `catalog`   | 11    | Created.                                                                                                                                            |
+| `customers` | 12    | Created.                                                                                                                                            |
+| `orders`    | 13    | Created.                                                                                                                                            |
+| `payments`  | 14    | Created.                                                                                                                                            |
+| `pos`       | 15    | Created.                                                                                                                                            |
+| `kitchen`   | 16    | Created. The KDS board; planned under no name, since master calls the phase "Kitchen / KDS".                                                        |
+| `billing`   | 17    | Created.                                                                                                                                            |
+| `inventory` | 18    | Created.                                                                                                                                            |
+| `delivery`  | 19    | Created.                                                                                                                                            |
+| `loyalty`   | 20    | Created. Covers promotions AND points: they share `order_promotions`, the same checkout screen, and one SaaS module.                                |
+| `reports`   | 23    | Created. The only module that writes nothing: no Server Action, no table, no mutation.                                                              |
+| `audit`     | 24    | Created. Writes nothing either, and for a stronger reason: `audit_logs` has no INSERT policy, so a Server Action here could not work if it existed. |
+
+`audit` is the second module in a row with no `server/actions.ts`, and the two
+absences mean different things. `reports` has nothing to mutate. `audit` has
+something to mutate and **must not be able to**: fifteen SECURITY DEFINER
+triggers are the only writers of `audit_logs`, because a record somebody can
+write is a record somebody can fabricate
+([ADR-028](../../docs/adr/028-audit-by-trigger-with-forwarded-request-context.md)).
+Its `actions.ts` is a catalogue of audited action codes mirrored from the
+triggers — not Server Actions, despite the filename matching the convention.
+
+Phase 24 also put its non-domain half in `src/lib/observability` (health
+composition, the probes, and the request context forwarded to the audit
+triggers) plus `src/instrumentation.ts`, for the same reason Phase 21 put
+`features` in `src/lib`: none of it belongs to one business domain.
+
+Phase 25 created **no module at all**, and that is what an audit phase should
+look like: it hardened the surface that already existed rather than adding to
+it. Its code is `src/lib/security` (the Content-Security-Policy and the rate
+limiter) and a rewritten `src/proxy.ts`. It added no Server Action anywhere —
+the only ones it touched are `auth`'s, which now consult the limiter before
+reaching Supabase.
 
 Phases 21 and 22 created no module of their own: the plan model and CloverCode
 own billing are governed by the Super Admin, so their actions and queries live

@@ -32,10 +32,39 @@ export interface ProxySupabase {
   readonly getResponse: () => NextResponse;
 }
 
-export function createSupabaseProxyClient(request: NextRequest): ProxySupabase {
+/**
+ * @param requestHeaders Headers to forward to the render pass. Phase 25 uses it
+ *   for `x-nonce` and the CSP: `setAll` below REBUILDS the response, so a header
+ *   set on the original one would be silently dropped the moment a session is
+ *   refreshed - which is the one request where losing the policy would matter
+ *   most, since it is the one carrying a fresh token.
+ */
+export function createSupabaseProxyClient(
+  request: NextRequest,
+  requestHeaders?: Headers,
+): ProxySupabase {
   const env = getPublicEnv();
 
-  let response = NextResponse.next({ request });
+  /**
+   * Built fresh each time rather than captured once.
+   *
+   * `request.cookies.set()` writes through to `request.headers`, so re-deriving
+   * here is what makes the refreshed cookie visible downstream. Capturing a
+   * merged `Headers` up front would freeze the OLD cookie header into every
+   * later rebuild - a stale session handed to the render pass, which is the
+   * exact bug the whole cookie dance exists to avoid.
+   */
+  const nextInit = (): { request: NextRequest } | { request: { headers: Headers } } => {
+    if (requestHeaders === undefined) return { request };
+
+    const merged = new Headers(request.headers);
+    for (const [name, value] of requestHeaders) {
+      merged.set(name, value);
+    }
+    return { request: { headers: merged } };
+  };
+
+  let response = NextResponse.next(nextInit());
 
   const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL,
@@ -54,7 +83,9 @@ export function createSupabaseProxyClient(request: NextRequest): ProxySupabase {
           }
 
           // Rebuild from the mutated request so the new cookies are part of it.
-          response = NextResponse.next({ request });
+          // `nextInit()` and not `{ request }`, so the forwarded headers survive
+          // the rebuild.
+          response = NextResponse.next(nextInit());
 
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(name, value, options);

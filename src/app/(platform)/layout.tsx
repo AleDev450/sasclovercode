@@ -36,6 +36,12 @@ export default async function PlatformLayout({ children }: { children: ReactNode
             >
               Cobranza
             </Link>
+            <Link
+              href="/super-admin/diagnostico"
+              className="text-muted-foreground hover:text-foreground text-sm"
+            >
+              Diagnostico
+            </Link>
           </nav>
         </div>
       </header>

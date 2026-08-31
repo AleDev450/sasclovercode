@@ -35,6 +35,30 @@ export const viewport: Viewport = {
   colorScheme: "light dark",
 };
 
+/**
+ * Nothing in this application is prerendered. Phase 25, and it is the price of
+ * the Content-Security-Policy.
+ *
+ * The CSP carries a nonce generated per request in the proxy, and Next.js
+ * attaches it to every script it emits during SERVER RENDERING. A page built at
+ * build time has no request and therefore no nonce, so its inline bootstrap
+ * script would be blocked by the very policy that protects everything else -
+ * the page would render and never hydrate. The Next.js documentation states it
+ * flatly: "When you use nonces in your CSP, all pages must be dynamically
+ * rendered."
+ *
+ * Declared ONCE here rather than on each page for two reasons. It is a property
+ * of the whole application, not of four routes. And a fifth static page added
+ * later would silently slip past four scattered flags, breaking in production
+ * in a way that looks like a hydration bug rather than a security setting.
+ *
+ * The cost is small and was measured: exactly four routes were prerendered
+ * before this line - `/`, `/_not-found`, `/forgot-password` and
+ * `/reset-password`. All four are trivial and none is on a hot path; every
+ * other route in the product was already dynamic (ADR-029 decision 1).
+ */
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
