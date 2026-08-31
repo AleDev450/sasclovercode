@@ -33,20 +33,24 @@ Status.
 | 023 | [Delivery zone/rate split and decoupled lifecycle](./023-delivery-zone-rate-split-and-decoupled-lifecycle.md)                     | ACCEPTED | 19    |
 | 024 | [Discount as a ledger entry; derived point balance](./024-discount-as-ledger-entry-and-derived-point-balance.md)                  | ACCEPTED | 20    |
 | 025 | [Central module resolution and non-destructive provisioning](./025-central-module-resolution-and-non-destructive-provisioning.md) | ACCEPTED | 21    |
+| 026 | [SaaS charge as a single row; idempotent billing cycle](./026-saas-charge-as-single-row-and-idempotent-billing-cycle.md)          | ACCEPTED | 22    |
+| 027 | [Aggregate functions; no materialised views yet](./027-aggregate-functions-and-no-materialised-views-yet.md)                      | ACCEPTED | 23    |
 
 ## Planned
 
 Decisions the master document calls out that belong to a later phase:
 
-| Topic                                                   | Phase                                       |
-| ------------------------------------------------------- | ------------------------------------------- |
-| Vercel provider adapter                                 | when a token exists (ADR-013)               |
-| A real BillingProvider (Nubefact, Efact, SUNAT API)     | when real credentials exist (ADR-021)       |
-| A real DeliveryProvider (Rappi, PedidosYa, Uber Direct) | when an integration is contracted (ADR-023) |
-| Charging for a plan, and advancing its period           | Phase 22 (ADR-025)                          |
-| Expiring loyalty points on a schedule                   | when a scheduler exists (ADR-024)           |
-| Charging for a plan, and advancing its period           | Phase 22 (ADR-025)                          |
-| Expiring loyalty points on a schedule                   | when a scheduler exists (ADR-024)           |
+| Topic                                                          | Phase                                          |
+| -------------------------------------------------------------- | ---------------------------------------------- |
+| Vercel provider adapter                                        | when a token exists (ADR-013)                  |
+| A real BillingProvider (Nubefact, Efact, SUNAT API)            | when real credentials exist (ADR-021)          |
+| A real DeliveryProvider (Rappi, PedidosYa, Uber Direct)        | when an integration is contracted (ADR-023)    |
+| A payment gateway for the subscription (Culqi, Izipay, Stripe) | when one is contracted (ADR-026)               |
+| Expiring loyalty points on a schedule                          | when a scheduler exists (ADR-024)              |
+| Running the billing cycle on a schedule                        | when a scheduler exists (ADR-026)              |
+| A materialised view for reports                                | when Phase 26 measures the threshold (ADR-027) |
+| Charging for a plan, and advancing its period                  | Phase 22 (ADR-025)                             |
+| Expiring loyalty points on a schedule                          | when a scheduler exists (ADR-024)              |
 
 A relevant architectural change without an ADR makes the phase incomplete
 (section 61).

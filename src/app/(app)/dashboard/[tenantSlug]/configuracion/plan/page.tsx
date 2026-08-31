@@ -7,6 +7,8 @@ import { formatCurrency } from "@/lib/money";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
+import { SAAS_PAYMENT_STATUS_LABELS } from "@/modules/platform/billing";
+import { listTenantCharges } from "@/modules/platform/server/billing-queries";
 import { getTenantSubscription, listModules } from "@/modules/platform/server/subscription-queries";
 import { getBusinessSettings } from "@/modules/settings/server/queries";
 
@@ -30,11 +32,14 @@ export default async function PlanPage({ params }: { params: Promise<{ tenantSlu
     notFound();
   }
 
-  const [subscription, modules, active, settings] = await Promise.all([
+  const [subscription, modules, active, settings, charges] = await Promise.all([
     getTenantSubscription(tenant.id),
     listModules(),
     getMyModules(tenant.id),
     getBusinessSettings(tenant.id),
+    // Phase 22. Readable by any member of this business and writable by none
+    // of them: paying is arranged with CloverCode, not from here (KL-2206).
+    listTenantCharges(tenant.id, 12),
   ]);
 
   return (
@@ -133,6 +138,60 @@ export default async function PlanPage({ params }: { params: Promise<{ tenantSlu
           </CardContent>
         </Card>
       )}
+
+      {charges.length > 0 ? (
+        <Card className="overflow-x-auto">
+          <CardHeader>
+            <CardTitle as="h2">Cargos de CloverCode</CardTitle>
+            <CardDescription>
+              Lo que CloverCode te cobra por el servicio. No tiene relacion con los comprobantes que
+              tu negocio emite a sus clientes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <table className="w-full min-w-[34rem] border-collapse text-sm">
+              <caption className="sr-only">Cargos de suscripcion de {tenant.name}</caption>
+              <thead>
+                <tr className="border-border text-muted-foreground border-b text-left text-xs">
+                  <th scope="col" className="px-2 py-2 font-medium">
+                    Periodo
+                  </th>
+                  <th scope="col" className="px-2 py-2 font-medium">
+                    Importe
+                  </th>
+                  <th scope="col" className="px-2 py-2 font-medium">
+                    Vence
+                  </th>
+                  <th scope="col" className="px-2 py-2 font-medium">
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {charges.map((charge) => (
+                  <tr key={charge.id} className="border-border/60 border-b last:border-0">
+                    <td className="px-2 py-2 text-xs">
+                      {new Date(charge.periodStart).toLocaleDateString("es-PE")} →{" "}
+                      {new Date(charge.periodEnd).toLocaleDateString("es-PE")}
+                    </td>
+                    <td className="px-2 py-2 tabular-nums">
+                      {formatCurrency(charge.amountCents, charge.currency)}
+                    </td>
+                    <td className="px-2 py-2 tabular-nums">
+                      {new Date(charge.dueAt).toLocaleDateString("es-PE")}
+                    </td>
+                    <td className="px-2 py-2">
+                      <Badge variant={charge.status === "paid" ? "success" : "warning"}>
+                        {SAAS_PAYMENT_STATUS_LABELS[charge.status]}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

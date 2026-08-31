@@ -159,17 +159,33 @@ describe("catalogue (TEST-2110, TEST-2111, TEST-2112)", () => {
 describe("provisioning (TEST-2114)", () => {
   it("gives every new tenant a subscription to the default plan", async () => {
     const fresh = await insertTenant(db, { name: "Nuevo", slug: "nuevo" });
-    const rows = await db.query<{ plan_code: string; status: string }>(
-      "select plan_code, status from public.subscriptions where tenant_id = $1",
-      [fresh],
-    );
+    const rows = await db.query<{
+      plan_code: string;
+      status: string;
+      trial_ends_at: string | null;
+    }>("select plan_code, status, trial_ends_at from public.subscriptions where tenant_id = $1", [
+      fresh,
+    ]);
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.status).toBe("active");
+
+    // Phase 22 changed this deliberately: every shipped plan carries 14 trial
+    // days, so a new business lands in `trialing` rather than `active`. Access
+    // is identical - `trialing` already granted every module (ADR-025 decision
+    // 3) - but the row now says the truth about what it is paying, which is
+    // nothing yet.
+    expect(rows[0]!.status).toBe("trialing");
+    expect(rows[0]!.trial_ends_at).not.toBeNull();
 
     const defaults = await db.query<{ code: string }>(
       "select code from public.plans where is_default",
     );
     expect(rows[0]!.plan_code).toBe(defaults[0]!.code);
+  });
+
+  it("still grants every module while on trial", async () => {
+    // The behaviour change above must not cost a new tenant anything.
+    const fresh = await insertTenant(db, { name: "En prueba", slug: "en-prueba" });
+    expect(await myModules(fresh)).toEqual([...ALL_MODULES]);
   });
 
   it("refuses a second subscription for one tenant (TEST-2132)", async () => {

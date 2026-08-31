@@ -15,6 +15,11 @@ import { PlatformTenantDomains } from "@/modules/platform/components/tenant-doma
 import { setTenantStatusAction } from "@/modules/platform/server/actions";
 import { getPlatformTenant } from "@/modules/platform/server/queries";
 import { TenantPlanCard } from "@/modules/platform/components/tenant-plan";
+import { TenantBillingCard } from "@/modules/platform/components/saas-billing";
+import {
+  listSubscriptionEvents,
+  listTenantCharges,
+} from "@/modules/platform/server/billing-queries";
 import {
   getTenantSubscription,
   listModules,
@@ -80,12 +85,14 @@ export default async function PlatformTenantDetailPage({
   const tenant = await getPlatformTenant(id);
   // The platform SELECT policy on `tenant_domains` lets an operator read any
   // tenant's rows, so the same query the business uses serves this screen too.
-  const [domains, subscription, plans, modules, overrides] = await Promise.all([
+  const [domains, subscription, plans, modules, overrides, charges, events] = await Promise.all([
     listTenantDomains(tenant.id),
     getTenantSubscription(tenant.id),
     listPlans(),
     listModules(),
     listTenantModuleOverrides(tenant.id),
+    listTenantCharges(tenant.id),
+    listSubscriptionEvents(tenant.id),
   ]);
 
   return (
@@ -171,6 +178,13 @@ export default async function PlatformTenantDetailPage({
         plans={plans}
         modules={modules}
         overrides={overrides}
+      />
+
+      <TenantBillingCard
+        tenantId={tenant.id}
+        charges={charges}
+        events={events}
+        cancelAtPeriodEnd={subscription?.cancelAtPeriodEnd ?? false}
       />
 
       <Link href="/super-admin/tenants" className="text-muted-foreground text-sm hover:underline">

@@ -1,6 +1,6 @@
 # CloverCode — Architecture overview
 
-> Scope note: this document reflects what exists **today** (end of Phase 21).
+> Scope note: this document reflects what exists **today** (end of Phase 23).
 > Sections describing later phases are marked as such and are stated as intent,
 > not as implemented behaviour. It is updated at the end of every phase.
 
@@ -49,7 +49,7 @@ app  ->  modules  ->  lib  ->  config / types
 module's internals — only its own `schemas.ts`, `lifecycle.ts`/`constants.ts`,
 `server/actions.ts`, `server/queries.ts` and `components/`.
 
-## Modules, as of Phase 21
+## Modules, as of Phase 23
 
 ```text
 src/modules/
@@ -71,6 +71,7 @@ src/modules/
 ├── inventory/                          items, recipes, stock ledger (Phase 18)
 ├── delivery/                           zones, rates, order deliveries (Phase 19)
 ├── loyalty/                            promotions, coupons, points (Phase 20)
+├── reports/                            sales analytics, read-only (Phase 23)
 └── platform/                              super-admin: operators, provisioning
 ```
 

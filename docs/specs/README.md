@@ -30,7 +30,9 @@ Statuses: `DRAFT` | `APPROVED` | `IN_PROGRESS` | `COMPLETED` | `BLOCKED` | `DEPR
 | 19    | Delivery                   | [phase-19-delivery.md](./phase-19-delivery.md)                               | COMPLETED |
 | 20    | Loyalty + Promotions       | [phase-20-loyalty-promotions.md](./phase-20-loyalty-promotions.md)           | COMPLETED |
 | 21    | SaaS Modules + Plans       | [phase-21-saas-modules-plans.md](./phase-21-saas-modules-plans.md)           | COMPLETED |
-| 22-28 | see master document        | _not written_                                                                | -         |
+| 22    | CloverCode Billing         | [phase-22-clovercode-billing.md](./phase-22-clovercode-billing.md)           | COMPLETED |
+| 23    | Reports + Analytics        | [phase-23-reports-analytics.md](./phase-23-reports-analytics.md)             | COMPLETED |
+| 24-28 | see master document        | _not written_                                                                | -         |
 
 ## Required contents
 

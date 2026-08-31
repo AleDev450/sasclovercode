@@ -143,6 +143,11 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260830130000_create_module_catalog.sql",
       "20260830130100_create_subscriptions.sql",
       "20260830130200_create_module_resolution.sql",
+      "20260830140000_create_saas_billing_enums.sql",
+      "20260830140100_create_saas_payments.sql",
+      "20260830140200_create_subscription_events.sql",
+      "20260830140300_create_billing_cycle.sql",
+      "20260830150000_create_report_functions.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -202,7 +207,9 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "recipes",
       "role_permissions",
       "roles",
+      "saas_payments",
       "stock_movements",
+      "subscription_events",
       "subscriptions",
       "suppliers",
       "tenant_domains",
@@ -241,9 +248,11 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "platform_admin_status",
       "product_status",
       "promotion_type",
+      "saas_payment_status",
       "section_type",
       "social_platform",
       "stock_movement_type",
+      "subscription_event_type",
       "subscription_status",
       "tenant_domain_type",
       "tenant_role",

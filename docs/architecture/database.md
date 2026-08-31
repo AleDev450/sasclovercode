@@ -1,6 +1,6 @@
 # Database
 
-> Current as of Phase 21.
+> Current as of Phase 23.
 
 One PostgreSQL database, one `public` schema, one migration history, hosted on
 Supabase. Rationale: [ADR-001](../adr/001-single-database-multitenancy.md).
@@ -30,91 +30,96 @@ Rules (master section 22):
 schema.test.ts` asserts this exact list and order, so it cannot silently
 drift from what is actually applied.
 
-| Phase | File                                                     | Adds                                                                  |
-| ----- | -------------------------------------------------------- | --------------------------------------------------------------------- |
-| 01    | `20260824120000_create_tenants.sql`                      | `tenant_status`, `set_updated_at()`, `tenants`, RLS                   |
-| 01    | `20260824120100_create_tenant_domains.sql`               | domain enums, `tenant_domains`, indexes, RLS                          |
-| 01    | `20260824120200_create_tenant_resolution.sql`            | `resolve_tenant_by_domain()` SECURITY DEFINER                         |
-| 02    | `20260825120000_create_profiles.sql`                     | `profiles`, one row per Supabase Auth user                            |
-| 02    | `20260825120100_create_tenant_members.sql`               | `tenant_members`, who belongs to which tenant                         |
-| 02    | `20260825120200_create_membership_access.sql`            | The sanctioned "which tenants am I in" read path                      |
-| 03    | `20260825130000_create_authorization_catalog.sql`        | `roles`, `permissions`, `role_permissions`, seeded                    |
-| 03    | `20260825130100_create_authorization_functions.sql`      | `is_tenant_member`, `has_permission`, `my_permissions`                |
-| 03    | `20260825130200_create_authorization_policies.sql`       | Opens the deny-by-default posture of Phases 01-02                     |
-| 03    | `20260825130300_create_tenant_roster.sql`                | Makes `members.view` usable                                           |
-| 04    | `20260825140000_create_platform_admins.sql`              | The platform operator identity — not a tenant role                    |
-| 04    | `20260825140100_create_platform_policies.sql`            | Platform-wide access, alongside Phase 03's policies                   |
-| 04    | `20260825140200_create_tenant_provisioning.sql`          | Tenant provisioning (master section 49)                               |
-| 05    | `20260825150000_reserve_dashboard_segments.sql`          | Reserves slugs the dashboard's own routes would shadow                |
-| 06    | `20260825160000_create_tenant_settings.sql`              | Everything that makes a business look like itself                     |
-| 06    | `20260825160100_create_tenant_storage.sql`               | File isolation between businesses                                     |
-| 06    | `20260825160200_extend_provisioning.sql`                 | Provisioning creates settings + theme rows too                        |
-| 07    | `20260825170000_create_cms_permissions.sql`              | `content.view` / `content.manage`                                     |
-| 07    | `20260825170100_create_pages.sql`                        | Pages and their typed sections                                        |
-| 07    | `20260825170200_create_navigation.sql`                   | The administrable navbar, two-level                                   |
-| 07    | `20260825170300_create_public_read.sql`                  | Anonymous read of published content                                   |
-| 08    | `20260825180000_create_tenant_seo.sql`                   | Site-wide SEO / social metadata                                       |
-| 08    | `20260825180100_add_page_seo.sql`                        | Per-page overrides                                                    |
-| 08    | `20260825180200_create_public_site_reads.sql`            | What an anonymous visitor may read to render a full site              |
-| 09    | `20260825190000_create_domain_permissions.sql`           | `domains.view` / `domains.manage`                                     |
-| 09    | `20260825190100_extend_tenant_domains.sql`               | Verification token, provider status, as separate facts                |
-| 09    | `20260825190200_create_domain_functions.sql`             | `claim_domain`, `record_domain_ownership_check`, `set_primary_domain` |
-| 09    | `20260825190300_create_domain_policies.sql`              | Read + delete-with-conditions; no INSERT/UPDATE policy                |
-| 09    | `20260825190400_fix_provisioning_domain.sql`             | Provisioning stops swallowing a domain conflict                       |
-| 10    | `20260825200000_create_location_permissions.sql`         | `locations.view` / `locations.manage`                                 |
-| 10    | `20260825200100_create_locations.sql`                    | The branches a business operates from                                 |
-| 10    | `20260825200200_create_location_hours.sql`               | When each branch is open                                              |
-| 10    | `20260825200400_extend_tenant_defaults_location.sql`     | Every tenant gets a first branch automatically                        |
-| 11    | `20260825210000_create_categories.sql`                   | How a business groups what it sells                                   |
-| 11    | `20260825210100_create_products.sql`                     | What the business sells                                               |
-| 11    | `20260825210200_create_product_children.sql`             | Images, variants, options                                             |
-| 11    | `20260825210300_extend_public_identity_currency.sql`     | Public identity function gains the currency                           |
-| 12    | `20260827120000_create_customer_documents.sql`           | Peruvian identity document types                                      |
-| 12    | `20260827120100_create_customers.sql`                    | Who a business sells to                                               |
-| 12    | `20260827120200_create_customer_addresses.sql`           | Where a customer is                                                   |
-| 13    | `20260827130000_create_order_enums.sql`                  | `order_status`, `order_source`, `order_transitions` (the FSM as data) |
-| 13    | `20260827130100_create_orders.sql`                       | What was sold; per-tenant order number                                |
-| 13    | `20260827130200_create_order_items.sql`                  | Lines, the price snapshot, computed totals                            |
-| 13    | `20260827130300_create_order_status_history.sql`         | Append-only audit trail of an order's lifecycle                       |
-| 14    | `20260827140000_create_payment_permissions.sql`          | `payments.*`, `payment_methods.*`, `cash.view`, `cash.manage`         |
-| 14    | `20260827140100_create_payment_methods.sql`              | The rails a business accepts money through                            |
-| 14    | `20260827140200_create_cash_registers.sql`               | A till, tied to a location                                            |
-| 14    | `20260827140300_create_cash_sessions.sql`                | One open-to-close cycle; close computes the diff                      |
-| 14    | `20260827140400_create_payments_and_movements.sql`       | Payments, capped at balance; the till's own ledger                    |
-| 14    | `20260827140500_extend_orders_paid_cents.sql`            | `orders.paid_cents`, kept in step by trigger                          |
-| 16    | `20260827160000_extend_categories_kitchen_station.sql`   | `kitchen_station` enum, `categories.kitchen_station`                  |
-| 16    | `20260827160100_extend_order_items_station.sql`          | `order_items.station`, snapshotted at insert                          |
-| 16    | `20260827160200_enable_kds_realtime.sql`                 | `order_items`/`orders` added to the `supabase_realtime` publication   |
-| 17    | `20260827170000_create_billing_permissions.sql`          | `billing.manage` (`billing.view`/`create`/`cancel` pre-seeded in 03)  |
-| 17    | `20260827170100_create_billing_documents.sql`            | `billing_documents`, `billing_document_transitions` (the FSM as data) |
-| 17    | `20260827170200_create_billing_document_items.sql`       | Lines, the IGV split, computed totals                                 |
-| 17    | `20260827170300_create_billing_events.sql`               | Append-only audit trail of a document's lifecycle                     |
-| 17    | `20260827170400_create_billing_provider_configs.sql`     | Provider/series config; Vault-backed credential functions             |
-| 18    | `20260827180000_create_inventory_permissions.sql`        | `inventory.*`, `suppliers.*`, `purchases.*`                           |
-| 18    | `20260827180100_create_units.sql`                        | Units of measure; `create_tenant_defaults()` seeds a starter set      |
-| 18    | `20260827180200_create_inventory_items.sql`              | What a business buys and consumes, not what it sells                  |
-| 18    | `20260827180300_create_suppliers.sql`                    | Who a business buys stock from                                        |
-| 18    | `20260827180400_create_purchases.sql`                    | An immutable receipt; no purchase-order workflow (ADR-022)            |
-| 18    | `20260827180500_create_stock_movements.sql`              | The ledger; `inventory_stock_levels` (a VIEW, never a stored balance) |
-| 18    | `20260827180600_create_recipes.sql`                      | What one unit of a product consumes, by inventory item                |
-| 18    | `20260827180700_extend_orders_stock_consumption.sql`     | Writes `sale` movements when an order reaches `completed`             |
-| 19    | `20260828120000_create_delivery_permissions.sql`         | `delivery_zones.*`, `deliveries.*`                                    |
-| 19    | `20260828120100_create_delivery_enums.sql`               | `delivery_status` + `delivery_transitions`, the machine as data       |
-| 19    | `20260828120200_create_delivery_zones.sql`               | Named areas, not polygons (ADR-023)                                   |
-| 19    | `20260828120300_create_delivery_rates.sql`               | Cost per (zone, branch); a NULL branch is the zone default            |
-| 19    | `20260828120400_extend_customer_address_coordinates.sql` | `latitude`/`longitude` on the address book                            |
-| 19    | `20260828120500_create_order_deliveries.sql`             | The delivery of an order; writes `orders.shipping_cents`              |
-| 19    | `20260828120600_create_delivery_roster.sql`              | `get_tenant_couriers()`, gated on `deliveries.manage`                 |
-| 20    | `20260830120000_create_loyalty_permissions.sql`          | `promotions.*`, `loyalty.*`                                           |
-| 20    | `20260830120100_create_promotion_enums.sql`              | `promotion_type`, `loyalty_transaction_type`                          |
-| 20    | `20260830120200_create_promotions.sql`                   | A discount with conditions; not a rules engine (ADR-024)              |
-| 20    | `20260830120300_create_coupons.sql`                      | A code that unlocks a promotion, with its own limits                  |
-| 20    | `20260830120400_create_loyalty_accounts.sql`             | Append-only points ledger; the balance is a trigger-kept column       |
-| 20    | `20260830120500_create_order_promotions.sql`             | A discount as a posting; rewrites ALL THREE `total_cents` writers     |
-| 20    | `20260830120600_create_loyalty_earning.sql`              | Programme settings, accrual trigger, redemption RPC                   |
-| 21    | `20260830130000_create_module_catalog.sql`               | `modules`, `plans`, `plan_modules` + the ten modules of §33           |
-| 21    | `20260830130100_create_subscriptions.sql`                | `subscriptions`, `tenant_modules`, and the non-destructive backfill   |
-| 21    | `20260830130200_create_module_resolution.sql`            | `has_module()`, `my_modules()`, provisioning, `multi_location` guard  |
+| Phase | File                                                     | Adds                                                                               |
+| ----- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 01    | `20260824120000_create_tenants.sql`                      | `tenant_status`, `set_updated_at()`, `tenants`, RLS                                |
+| 01    | `20260824120100_create_tenant_domains.sql`               | domain enums, `tenant_domains`, indexes, RLS                                       |
+| 01    | `20260824120200_create_tenant_resolution.sql`            | `resolve_tenant_by_domain()` SECURITY DEFINER                                      |
+| 02    | `20260825120000_create_profiles.sql`                     | `profiles`, one row per Supabase Auth user                                         |
+| 02    | `20260825120100_create_tenant_members.sql`               | `tenant_members`, who belongs to which tenant                                      |
+| 02    | `20260825120200_create_membership_access.sql`            | The sanctioned "which tenants am I in" read path                                   |
+| 03    | `20260825130000_create_authorization_catalog.sql`        | `roles`, `permissions`, `role_permissions`, seeded                                 |
+| 03    | `20260825130100_create_authorization_functions.sql`      | `is_tenant_member`, `has_permission`, `my_permissions`                             |
+| 03    | `20260825130200_create_authorization_policies.sql`       | Opens the deny-by-default posture of Phases 01-02                                  |
+| 03    | `20260825130300_create_tenant_roster.sql`                | Makes `members.view` usable                                                        |
+| 04    | `20260825140000_create_platform_admins.sql`              | The platform operator identity — not a tenant role                                 |
+| 04    | `20260825140100_create_platform_policies.sql`            | Platform-wide access, alongside Phase 03's policies                                |
+| 04    | `20260825140200_create_tenant_provisioning.sql`          | Tenant provisioning (master section 49)                                            |
+| 05    | `20260825150000_reserve_dashboard_segments.sql`          | Reserves slugs the dashboard's own routes would shadow                             |
+| 06    | `20260825160000_create_tenant_settings.sql`              | Everything that makes a business look like itself                                  |
+| 06    | `20260825160100_create_tenant_storage.sql`               | File isolation between businesses                                                  |
+| 06    | `20260825160200_extend_provisioning.sql`                 | Provisioning creates settings + theme rows too                                     |
+| 07    | `20260825170000_create_cms_permissions.sql`              | `content.view` / `content.manage`                                                  |
+| 07    | `20260825170100_create_pages.sql`                        | Pages and their typed sections                                                     |
+| 07    | `20260825170200_create_navigation.sql`                   | The administrable navbar, two-level                                                |
+| 07    | `20260825170300_create_public_read.sql`                  | Anonymous read of published content                                                |
+| 08    | `20260825180000_create_tenant_seo.sql`                   | Site-wide SEO / social metadata                                                    |
+| 08    | `20260825180100_add_page_seo.sql`                        | Per-page overrides                                                                 |
+| 08    | `20260825180200_create_public_site_reads.sql`            | What an anonymous visitor may read to render a full site                           |
+| 09    | `20260825190000_create_domain_permissions.sql`           | `domains.view` / `domains.manage`                                                  |
+| 09    | `20260825190100_extend_tenant_domains.sql`               | Verification token, provider status, as separate facts                             |
+| 09    | `20260825190200_create_domain_functions.sql`             | `claim_domain`, `record_domain_ownership_check`, `set_primary_domain`              |
+| 09    | `20260825190300_create_domain_policies.sql`              | Read + delete-with-conditions; no INSERT/UPDATE policy                             |
+| 09    | `20260825190400_fix_provisioning_domain.sql`             | Provisioning stops swallowing a domain conflict                                    |
+| 10    | `20260825200000_create_location_permissions.sql`         | `locations.view` / `locations.manage`                                              |
+| 10    | `20260825200100_create_locations.sql`                    | The branches a business operates from                                              |
+| 10    | `20260825200200_create_location_hours.sql`               | When each branch is open                                                           |
+| 10    | `20260825200400_extend_tenant_defaults_location.sql`     | Every tenant gets a first branch automatically                                     |
+| 11    | `20260825210000_create_categories.sql`                   | How a business groups what it sells                                                |
+| 11    | `20260825210100_create_products.sql`                     | What the business sells                                                            |
+| 11    | `20260825210200_create_product_children.sql`             | Images, variants, options                                                          |
+| 11    | `20260825210300_extend_public_identity_currency.sql`     | Public identity function gains the currency                                        |
+| 12    | `20260827120000_create_customer_documents.sql`           | Peruvian identity document types                                                   |
+| 12    | `20260827120100_create_customers.sql`                    | Who a business sells to                                                            |
+| 12    | `20260827120200_create_customer_addresses.sql`           | Where a customer is                                                                |
+| 13    | `20260827130000_create_order_enums.sql`                  | `order_status`, `order_source`, `order_transitions` (the FSM as data)              |
+| 13    | `20260827130100_create_orders.sql`                       | What was sold; per-tenant order number                                             |
+| 13    | `20260827130200_create_order_items.sql`                  | Lines, the price snapshot, computed totals                                         |
+| 13    | `20260827130300_create_order_status_history.sql`         | Append-only audit trail of an order's lifecycle                                    |
+| 14    | `20260827140000_create_payment_permissions.sql`          | `payments.*`, `payment_methods.*`, `cash.view`, `cash.manage`                      |
+| 14    | `20260827140100_create_payment_methods.sql`              | The rails a business accepts money through                                         |
+| 14    | `20260827140200_create_cash_registers.sql`               | A till, tied to a location                                                         |
+| 14    | `20260827140300_create_cash_sessions.sql`                | One open-to-close cycle; close computes the diff                                   |
+| 14    | `20260827140400_create_payments_and_movements.sql`       | Payments, capped at balance; the till's own ledger                                 |
+| 14    | `20260827140500_extend_orders_paid_cents.sql`            | `orders.paid_cents`, kept in step by trigger                                       |
+| 16    | `20260827160000_extend_categories_kitchen_station.sql`   | `kitchen_station` enum, `categories.kitchen_station`                               |
+| 16    | `20260827160100_extend_order_items_station.sql`          | `order_items.station`, snapshotted at insert                                       |
+| 16    | `20260827160200_enable_kds_realtime.sql`                 | `order_items`/`orders` added to the `supabase_realtime` publication                |
+| 17    | `20260827170000_create_billing_permissions.sql`          | `billing.manage` (`billing.view`/`create`/`cancel` pre-seeded in 03)               |
+| 17    | `20260827170100_create_billing_documents.sql`            | `billing_documents`, `billing_document_transitions` (the FSM as data)              |
+| 17    | `20260827170200_create_billing_document_items.sql`       | Lines, the IGV split, computed totals                                              |
+| 17    | `20260827170300_create_billing_events.sql`               | Append-only audit trail of a document's lifecycle                                  |
+| 17    | `20260827170400_create_billing_provider_configs.sql`     | Provider/series config; Vault-backed credential functions                          |
+| 18    | `20260827180000_create_inventory_permissions.sql`        | `inventory.*`, `suppliers.*`, `purchases.*`                                        |
+| 18    | `20260827180100_create_units.sql`                        | Units of measure; `create_tenant_defaults()` seeds a starter set                   |
+| 18    | `20260827180200_create_inventory_items.sql`              | What a business buys and consumes, not what it sells                               |
+| 18    | `20260827180300_create_suppliers.sql`                    | Who a business buys stock from                                                     |
+| 18    | `20260827180400_create_purchases.sql`                    | An immutable receipt; no purchase-order workflow (ADR-022)                         |
+| 18    | `20260827180500_create_stock_movements.sql`              | The ledger; `inventory_stock_levels` (a VIEW, never a stored balance)              |
+| 18    | `20260827180600_create_recipes.sql`                      | What one unit of a product consumes, by inventory item                             |
+| 18    | `20260827180700_extend_orders_stock_consumption.sql`     | Writes `sale` movements when an order reaches `completed`                          |
+| 19    | `20260828120000_create_delivery_permissions.sql`         | `delivery_zones.*`, `deliveries.*`                                                 |
+| 19    | `20260828120100_create_delivery_enums.sql`               | `delivery_status` + `delivery_transitions`, the machine as data                    |
+| 19    | `20260828120200_create_delivery_zones.sql`               | Named areas, not polygons (ADR-023)                                                |
+| 19    | `20260828120300_create_delivery_rates.sql`               | Cost per (zone, branch); a NULL branch is the zone default                         |
+| 19    | `20260828120400_extend_customer_address_coordinates.sql` | `latitude`/`longitude` on the address book                                         |
+| 19    | `20260828120500_create_order_deliveries.sql`             | The delivery of an order; writes `orders.shipping_cents`                           |
+| 19    | `20260828120600_create_delivery_roster.sql`              | `get_tenant_couriers()`, gated on `deliveries.manage`                              |
+| 20    | `20260830120000_create_loyalty_permissions.sql`          | `promotions.*`, `loyalty.*`                                                        |
+| 20    | `20260830120100_create_promotion_enums.sql`              | `promotion_type`, `loyalty_transaction_type`                                       |
+| 20    | `20260830120200_create_promotions.sql`                   | A discount with conditions; not a rules engine (ADR-024)                           |
+| 20    | `20260830120300_create_coupons.sql`                      | A code that unlocks a promotion, with its own limits                               |
+| 20    | `20260830120400_create_loyalty_accounts.sql`             | Append-only points ledger; the balance is a trigger-kept column                    |
+| 20    | `20260830120500_create_order_promotions.sql`             | A discount as a posting; rewrites ALL THREE `total_cents` writers                  |
+| 20    | `20260830120600_create_loyalty_earning.sql`              | Programme settings, accrual trigger, redemption RPC                                |
+| 21    | `20260830130000_create_module_catalog.sql`               | `modules`, `plans`, `plan_modules` + the ten modules of §33                        |
+| 21    | `20260830130100_create_subscriptions.sql`                | `subscriptions`, `tenant_modules`, and the non-destructive backfill                |
+| 21    | `20260830130200_create_module_resolution.sql`            | `has_module()`, `my_modules()`, provisioning, `multi_location` guard               |
+| 22    | `20260830140000_create_saas_billing_enums.sql`           | `saas_payment_status`, `subscription_event_type`; the commercial terms of a plan   |
+| 22    | `20260830140100_create_saas_payments.sql`                | One row per period: what was charged and what happened to it (ADR-026)             |
+| 22    | `20260830140200_create_subscription_events.sql`          | The history, and the five triggers that are its only writers                       |
+| 22    | `20260830140300_create_billing_cycle.sql`                | `run_subscription_billing()`, `record_saas_payment()`, `void_saas_payment()`       |
+| 23    | `20260830150000_create_report_functions.sql`             | Seven aggregate functions, one index added and one retired. **No table** (ADR-027) |
 
 ## Conventions
 
@@ -226,6 +231,14 @@ every migration applied.
 | 21    | `modules`, `plans`, `plan_modules`                        | select authenticated, read-only                                                                                                                       | Product catalogue, not tenant data — the same `using (true)` exception as the Phase 03 RBAC tables                                                                                                         |
 | 21    | `subscriptions`                                           | select member **or** platform admin; insert/update platform admin only                                                                                | No DELETE — a subscription is cancelled, not erased. The read/write asymmetry is what makes the paywall one (ADR-025)                                                                                      |
 | 21    | `tenant_modules`                                          | select member or platform admin; insert/update/delete platform admin only                                                                             | A tenant can never grant itself a module                                                                                                                                                                   |
+| 22    | `saas_payments`                                           | select member **or** platform admin; insert/update platform admin only                                                                                | No DELETE — a charge issued in error is voided, which leaves the row and its reason visible                                                                                                                |
+| 22    | `subscription_events`                                     | select member or platform admin, **and nothing else**                                                                                                 | The only table in the project with no write policy for anybody, platform admin included: five SECURITY DEFINER triggers are its only writers (ADR-026 decision 4)                                          |
+
+Phase 23 appears in the migration list and **nowhere** in this inventory: it
+created no table, so it has no policies. Its seven functions are
+`SECURITY DEFINER` and therefore bypass RLS entirely — the gate is an
+explicit `has_permission(tenant, 'reports.view')` inside each one, which is
+why it is tested from both sides (ADR-027 decision 4).
 
 **`using (true)` on a table holding tenant data is forbidden**, and a test
 (`isolation.test.ts`) asserts nothing outside `roles`/`permissions`/
@@ -267,7 +280,9 @@ example, `recompute_order_totals()` (Phase 13) updates `orders`,
 `populate_billing_document_items()` (Phase 17) inserts into
 `billing_document_items`, `sync_order_shipping()` (Phase 19) and
 `sync_order_promotions()` (Phase 20) update `orders`, and
-`apply_loyalty_transaction()` (Phase 20) updates `loyalty_accounts` — none of the three target tables needs a policy
+`apply_loyalty_transaction()` (Phase 20) updates `loyalty_accounts`, and the five
+Phase 22 triggers write `subscription_events` — which is the extreme case of
+the pattern, since that table has no write policy at all — none of the three target tables needs a policy
 that would let an ordinary caller do the same thing directly.
 
 Phase 17 is also the first to hold a real external secret. Three narrow

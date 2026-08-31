@@ -143,6 +143,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     permission: PERMISSIONS.CASH_VIEW,
     module: MODULES.ORDERS,
   },
+  /*
+   * Above the back-office configuration and below the operational screens: a
+   * report is something a manager opens once a day, not once a service.
+   * `reports.view` has existed since Phase 03 and governs something for the
+   * first time here.
+   */
+  {
+    key: "reports",
+    label: "Reportes",
+    segment: "/reportes",
+    permission: PERMISSIONS.REPORTS_VIEW,
+    module: MODULES.REPORTS,
+  },
   {
     key: "billing",
     label: "Facturacion",

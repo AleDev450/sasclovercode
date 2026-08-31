@@ -1,6 +1,6 @@
 # Authorization
 
-> Current as of Phase 21.
+> Current as of Phase 23.
 
 How CloverCode decides **what** an authenticated member may do. Identity —
 _who_ is making the request — is [authentication.md](./authentication.md) and
@@ -125,12 +125,17 @@ permission master's list did not name has followed the same move:
 `purchases.*` (18), `delivery_zones.*`/`deliveries.*` (19),
 `promotions.*`/`loyalty.*` (20).
 
-Phase 21 added **no permission at all**, and that is the point: what a
+Phases 21, 22 and 23 added **no permission at all**, and that is the point: what a
 business has contracted is governed by the Super Admin (master §29), not by
 a tenant role, and reading one's own plan already fits under
 `settings.manage`. A `subscription.manage` nobody could hold would be
 vocabulary without users ([ADR-025](../adr/025-central-module-resolution-and-non-destructive-provisioning.md)
-decision 6).
+decision 6). Phase 22 repeated it for the same reason: charging a business is
+CloverCode's side of the relationship, governed by `platform_admins`, and a
+business reading its own charges needs no permission beyond the membership it
+already has. Phase 23 needed none either, for the opposite reason:
+`reports.view` has existed since Phase 03 and governed nothing until then —
+which is what that phase was anticipating when it created it.
 
 ### A second question, asked the same way
 

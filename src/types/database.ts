@@ -75,6 +75,17 @@ export type ModuleCode =
 export type PlanInterval = "monthly" | "yearly";
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "suspended" | "cancelled";
 
+/** Master section 33 (Phase 22). What CloverCode charges a business. */
+export type SaasPaymentStatus = "pending" | "paid" | "failed" | "refunded" | "void";
+export type SubscriptionEventType =
+  | "created"
+  | "plan_changed"
+  | "status_changed"
+  | "period_advanced"
+  | "charge_issued"
+  | "payment_recorded"
+  | "payment_voided";
+
 /** Master section 33 (Phase 20). */
 export type PromotionType = "percentage" | "fixed_amount" | "free_delivery";
 export type LoyaltyTransactionType = "earn" | "redeem" | "campaign" | "adjustment" | "expiry";
@@ -1782,6 +1793,10 @@ export type Database = {
           /** Exactly one row is true; provisioning reads it. */
           is_default: boolean;
           position: number;
+          /** Phase 22: the commercial terms live with the price. */
+          trial_days: number;
+          grace_days: number;
+          currency: string;
           created_at: string;
         };
         Insert: never;
@@ -1820,6 +1835,8 @@ export type Database = {
           current_period_start: string;
           current_period_end: string | null;
           cancelled_at: string | null;
+          /** Phase 22: cancel when the paid period runs out, not now. */
+          cancel_at_period_end: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -1833,6 +1850,7 @@ export type Database = {
           current_period_start?: string;
           current_period_end?: string | null;
           cancelled_at?: string | null;
+          cancel_at_period_end?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["subscriptions"]["Row"]>;
         Relationships: [
@@ -1879,6 +1897,96 @@ export type Database = {
             columns: ["module_code"];
             referencedRelation: "modules";
             referencedColumns: ["code"];
+          },
+        ];
+      };
+      saas_payments: {
+        Row: {
+          id: string;
+          /** Derived by a trigger from the subscription; never trusted from a client. */
+          tenant_id: string;
+          subscription_id: string;
+          /** A snapshot, so a later price change never rewrites an old charge. */
+          plan_code_snapshot: string;
+          period_start: string;
+          period_end: string;
+          /** Minor units (ADR-015). CloverCode's currency, not the tenant's. */
+          amount_cents: number;
+          currency: string;
+          status: SaasPaymentStatus;
+          due_at: string;
+          paid_at: string | null;
+          method: string | null;
+          reference: string | null;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        /** Written by the billing cycle; platform admin only. */
+        Insert: {
+          id?: string;
+          tenant_id?: string;
+          subscription_id: string;
+          plan_code_snapshot: string;
+          period_start: string;
+          period_end: string;
+          amount_cents: number;
+          currency: string;
+          status?: SaasPaymentStatus;
+          due_at: string;
+          paid_at?: string | null;
+          method?: string | null;
+          reference?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["saas_payments"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "saas_payments_tenant_id_fkey";
+            columns: ["tenant_id"];
+            referencedRelation: "tenants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "saas_payments_subscription_id_fkey";
+            columns: ["subscription_id"];
+            referencedRelation: "subscriptions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      subscription_events: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          subscription_id: string;
+          type: SubscriptionEventType;
+          from_status: SubscriptionStatus | null;
+          to_status: SubscriptionStatus | null;
+          from_plan: string | null;
+          to_plan: string | null;
+          saas_payment_id: string | null;
+          detail: string | null;
+          actor_id: string | null;
+          created_at: string;
+        };
+        /** No write policy exists at all: only triggers write here (ADR-026). */
+        Insert: never;
+        Update: never;
+        Relationships: [
+          {
+            foreignKeyName: "subscription_events_subscription_id_fkey";
+            columns: ["subscription_id"];
+            referencedRelation: "subscriptions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "subscription_events_payment_fkey";
+            columns: ["saas_payment_id"];
+            referencedRelation: "saas_payments";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -2293,6 +2401,112 @@ export type Database = {
           created_at: string;
         }[];
       };
+      tenant_timezone: {
+        Args: { p_tenant_id: string };
+        Returns: string;
+      };
+      report_sales_summary: {
+        Args: {
+          p_tenant_id: string;
+          p_from: string;
+          p_to: string;
+          p_location_id?: string | null;
+        };
+        Returns: {
+          order_count: number;
+          gross_cents: number;
+          discount_cents: number;
+          shipping_cents: number;
+          net_cents: number;
+          average_ticket_cents: number;
+          item_count: number;
+        }[];
+      };
+      report_sales_by_day: {
+        Args: {
+          p_tenant_id: string;
+          p_from: string;
+          p_to: string;
+          p_location_id?: string | null;
+        };
+        Returns: { day: string; order_count: number; net_cents: number }[];
+      };
+      report_sales_by_hour: {
+        Args: {
+          p_tenant_id: string;
+          p_from: string;
+          p_to: string;
+          p_location_id?: string | null;
+        };
+        Returns: { hour: number; order_count: number; net_cents: number }[];
+      };
+      report_sales_by_location: {
+        Args: { p_tenant_id: string; p_from: string; p_to: string };
+        Returns: {
+          location_id: string;
+          location_name: string;
+          order_count: number;
+          net_cents: number;
+        }[];
+      };
+      report_top_products: {
+        Args: {
+          p_tenant_id: string;
+          p_from: string;
+          p_to: string;
+          p_location_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          product_id: string | null;
+          name: string;
+          quantity: number;
+          net_cents: number;
+          order_count: number;
+        }[];
+      };
+      report_top_customers: {
+        Args: { p_tenant_id: string; p_from: string; p_to: string; p_limit?: number };
+        Returns: {
+          customer_id: string;
+          name: string;
+          order_count: number;
+          net_cents: number;
+        }[];
+      };
+      report_sales_by_payment_method: {
+        Args: { p_tenant_id: string; p_from: string; p_to: string };
+        Returns: {
+          payment_method_id: string;
+          name: string;
+          type: PaymentMethodType;
+          payment_count: number;
+          net_cents: number;
+        }[];
+      };
+      run_subscription_billing: {
+        Args: Record<string, never>;
+        Returns: {
+          subscriptions_advanced: number;
+          charges_issued: number;
+          marked_past_due: number;
+          suspended: number;
+          cancelled: number;
+        }[];
+      };
+      record_saas_payment: {
+        Args: {
+          p_payment_id: string;
+          p_method: string;
+          p_reference: string | null;
+          p_paid_at?: string | null;
+        };
+        Returns: undefined;
+      };
+      void_saas_payment: {
+        Args: { p_payment_id: string; p_reason: string };
+        Returns: undefined;
+      };
       has_module: {
         Args: { p_tenant_id: string; p_module: string };
         Returns: boolean;
@@ -2355,6 +2569,8 @@ export type Database = {
       loyalty_transaction_type: LoyaltyTransactionType;
       plan_interval: PlanInterval;
       subscription_status: SubscriptionStatus;
+      saas_payment_status: SaasPaymentStatus;
+      subscription_event_type: SubscriptionEventType;
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;

@@ -23,12 +23,18 @@ export default async function PlatformLayout({ children }: { children: ReactNode
           <Link href="/super-admin/tenants" className="text-sm font-semibold">
             {APP_NAME} <span className="text-muted-foreground">· Plataforma</span>
           </Link>
-          <nav aria-label="Plataforma">
+          <nav aria-label="Plataforma" className="flex items-center gap-4">
             <Link
               href="/super-admin/tenants"
               className="text-muted-foreground hover:text-foreground text-sm"
             >
               Empresas
+            </Link>
+            <Link
+              href="/super-admin/facturacion"
+              className="text-muted-foreground hover:text-foreground text-sm"
+            >
+              Cobranza
             </Link>
           </nav>
         </div>

@@ -31,11 +31,17 @@ phase must follow so the structure stays uniform.
 | `inventory` | 18    | Created.                                                                                                                           |
 | `delivery`  | 19    | Created.                                                                                                                           |
 | `loyalty`   | 20    | Created. Covers promotions AND points: they share `order_promotions`, the same checkout screen, and one SaaS module.               |
-| `reports`   | 23    | Planned.                                                                                                                           |
+| `reports`   | 23    | Created. The only module that writes nothing: no Server Action, no table, no mutation.                                             |
 
-Phase 21 created no module of its own: the plan model is governed by the Super
-Admin, so its actions live in `platform` and its evaluation layer in
-`src/lib/features` — the same shape Phase 03 used for `src/lib/permissions`.
+Phases 21 and 22 created no module of their own: the plan model and CloverCode
+own billing are governed by the Super Admin, so their actions and queries live
+in `platform`, and Phase 21 evaluation layer lives in `src/lib/features` — the
+same shape Phase 03 used for `src/lib/permissions`.
+
+Phase 22 is worth one line of its own because of master §22: `platform/billing`
+is CloverCode charging the restaurant, and `modules/billing` (Phase 17) is the
+restaurant invoicing its customer. Same word, opposite direction, and no table
+in common.
 
 This table was corrected in Phase 12. It still said "Planned" for modules that
 had existed for several phases; `dashboard`, `settings`, `seo` and `domains`

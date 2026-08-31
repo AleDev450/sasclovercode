@@ -473,3 +473,172 @@ export async function setTenantModuleAction(formData: FormData): Promise<void> {
 
   revalidatePath(`/super-admin/tenants/${input.tenantId}`);
 }
+
+// ---------------------------------------------------------------------------
+// CloverCode's own billing (Phase 22)
+// ---------------------------------------------------------------------------
+
+/**
+ * Charging the restaurant is CloverCode's business, so it lives here with the
+ * rest of what the Super Admin governs - and, per master section 22, it never
+ * touches `payments` (Phase 14) or `billing_documents` (Phase 17), which are
+ * the restaurant charging ITS customers.
+ *
+ * All three go through RPCs rather than table writes: the cycle is idempotent
+ * logic that belongs in one place, and recording a payment is two writes that
+ * must not be able to happen separately (ADR-026).
+ */
+
+const recordPaymentSchema = z.object({
+  paymentId: z.uuid(),
+  method: z.string().trim().min(1, "Indica el metodo.").max(40),
+  reference: z
+    .string()
+    .trim()
+    .max(120)
+    .optional()
+    .transform((value) => (value === undefined || value.length === 0 ? null : value)),
+});
+
+const voidPaymentSchema = z.object({
+  paymentId: z.uuid(),
+  reason: z.string().trim().min(1, "Indica el motivo.").max(300),
+});
+
+const cancelAtPeriodEndSchema = z.object({
+  tenantId: z.uuid(),
+  cancel: z.enum(["true", "false"]).transform((value) => value === "true"),
+});
+
+export async function runSubscriptionBillingAction(): Promise<void> {
+  await requirePlatformAdmin();
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  const { data, error } = await client.rpc("run_subscription_billing");
+
+  if (error) {
+    logger.error("saas.billing_cycle_failed", { error });
+    throw new DatabaseError("Billing cycle failed.", { cause: error });
+  }
+
+  const summary = data?.[0];
+  logger.info("saas.billing_cycle_run", {
+    operatorId: operator?.id ?? null,
+    advanced: summary?.subscriptions_advanced ?? 0,
+    issued: summary?.charges_issued ?? 0,
+    pastDue: summary?.marked_past_due ?? 0,
+    suspended: summary?.suspended ?? 0,
+    cancelled: summary?.cancelled ?? 0,
+  });
+
+  revalidatePath("/super-admin/facturacion");
+  revalidatePath("/super-admin/tenants");
+}
+
+export async function recordSaasPaymentAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(recordPaymentSchema, {
+    paymentId: formData.get("paymentId"),
+    method: formData.get("method"),
+    reference: formData.get("reference") ?? undefined,
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  const { error } = await client.rpc("record_saas_payment", {
+    p_payment_id: input.paymentId,
+    p_method: input.method,
+    p_reference: input.reference,
+  });
+
+  if (error) {
+    logger.error("saas.payment_record_failed", { paymentId: input.paymentId, error });
+    throw new DatabaseError("Payment record failed.", { cause: error });
+  }
+
+  logger.info("saas.payment_recorded", {
+    paymentId: input.paymentId,
+    operatorId: operator?.id ?? null,
+  });
+
+  revalidatePath("/super-admin/facturacion");
+  revalidatePath("/super-admin/tenants");
+}
+
+export async function voidSaasPaymentAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(voidPaymentSchema, {
+    paymentId: formData.get("paymentId"),
+    reason: formData.get("reason"),
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  const { error } = await client.rpc("void_saas_payment", {
+    p_payment_id: input.paymentId,
+    p_reason: input.reason,
+  });
+
+  if (error) {
+    logger.error("saas.payment_void_failed", { paymentId: input.paymentId, error });
+    throw new DatabaseError("Charge void failed.", { cause: error });
+  }
+
+  logger.info("saas.payment_voided", {
+    paymentId: input.paymentId,
+    operatorId: operator?.id ?? null,
+  });
+
+  revalidatePath("/super-admin/facturacion");
+  revalidatePath("/super-admin/tenants");
+}
+
+export async function setCancelAtPeriodEndAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(cancelAtPeriodEndSchema, {
+    tenantId: formData.get("tenantId"),
+    cancel: formData.get("cancel"),
+  });
+
+  const operator = await getCurrentUser();
+  const client = await createSupabaseServerClient();
+
+  const { error } = await client
+    .from("subscriptions")
+    .update({ cancel_at_period_end: input.cancel })
+    .eq("tenant_id", input.tenantId);
+
+  if (error) {
+    logger.error("saas.cancel_flag_failed", { tenantId: input.tenantId, error });
+    throw new DatabaseError("Cancellation flag change failed.", { cause: error });
+  }
+
+  logger.info("saas.subscription_cancelled_at_period_end", {
+    tenantId: input.tenantId,
+    cancel: input.cancel,
+    operatorId: operator?.id ?? null,
+  });
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+}
+
+/*
+ * There is deliberately NO action here to edit a plan's trial or grace days.
+ *
+ * `plans` is the product catalogue and has been read-only since Phase 21 -
+ * no INSERT, UPDATE or DELETE policy, for anybody, platform admin included. An
+ * action that tried to write it would not fail loudly: PostgREST would filter
+ * the row out under RLS and report success having changed nothing, which is
+ * worse than not having the button.
+ *
+ * The commercial terms of a plan change the way its price and its modules do:
+ * in a migration, reviewed. The Super Admin screen shows them read-only and
+ * says so.
+ */

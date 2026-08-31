@@ -22,8 +22,12 @@ export interface Plan {
   readonly description: string | null;
   readonly priceCents: number;
   readonly interval: PlanInterval;
+  readonly currency: string;
   readonly isActive: boolean;
   readonly isDefault: boolean;
+  /** Phase 22: the commercial terms, shown read-only. */
+  readonly trialDays: number;
+  readonly graceDays: number;
   readonly modules: readonly Module[];
 }
 
@@ -34,7 +38,9 @@ export async function listPlans(): Promise<readonly Plan[]> {
   const [{ data: plans, error }, { data: planModules, error: moduleError }] = await Promise.all([
     client
       .from("plans")
-      .select("code, name, description, price_cents, interval, is_active, is_default")
+      .select(
+        "code, name, description, price_cents, interval, is_active, is_default, trial_days, grace_days, currency",
+      )
       .order("position"),
     client.from("plan_modules").select("plan_code, module_code"),
   ]);
@@ -50,8 +56,11 @@ export async function listPlans(): Promise<readonly Plan[]> {
     description: plan.description,
     priceCents: plan.price_cents,
     interval: plan.interval,
+    currency: plan.currency,
     isActive: plan.is_active,
     isDefault: plan.is_default,
+    trialDays: plan.trial_days,
+    graceDays: plan.grace_days,
     modules: (planModules ?? [])
       .filter((row) => row.plan_code === plan.code)
       .map((row) => row.module_code),
@@ -92,6 +101,10 @@ export interface TenantSubscription {
   readonly trialEndsAt: string | null;
   readonly currentPeriodStart: string;
   readonly currentPeriodEnd: string | null;
+  /** Phase 22: cancel when the paid period runs out, not now. */
+  readonly cancelAtPeriodEnd: boolean;
+  /** The plan's grace days, so a screen can say when suspension arrives. */
+  readonly graceDays: number;
 }
 
 /**
@@ -107,7 +120,7 @@ export async function getTenantSubscription(tenantId: string): Promise<TenantSub
   const { data, error } = await client
     .from("subscriptions")
     .select(
-      "plan_code, status, trial_ends_at, current_period_start, current_period_end, plans(name, price_cents, interval)",
+      "plan_code, status, trial_ends_at, current_period_start, current_period_end, cancel_at_period_end, plans(name, price_cents, interval, grace_days)",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -122,6 +135,7 @@ export async function getTenantSubscription(tenantId: string): Promise<TenantSub
     name: string;
     price_cents: number;
     interval: PlanInterval;
+    grace_days: number;
   } | null;
 
   return {
@@ -133,6 +147,8 @@ export async function getTenantSubscription(tenantId: string): Promise<TenantSub
     trialEndsAt: data.trial_ends_at,
     currentPeriodStart: data.current_period_start,
     currentPeriodEnd: data.current_period_end,
+    cancelAtPeriodEnd: data.cancel_at_period_end,
+    graceDays: plan?.grace_days ?? 7,
   };
 }
 
