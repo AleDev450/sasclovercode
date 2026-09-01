@@ -15,6 +15,7 @@ import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { KitchenStation, OrderSource, OrderStatus } from "@/types/database";
 import { BOARD_STATUSES } from "../constants";
+import { LIST_CAP } from "@/config/app";
 
 export interface KitchenTicketItem {
   readonly id: string;
@@ -83,7 +84,9 @@ export async function listKitchenOrders(
   const itemsSelect = "order_items(id, name_snapshot, variant_snapshot, quantity, notes, station)";
   let query = client
     .from("orders")
-    .select(`id, number, status, source, placed_at, locations(name), customers(name), ${itemsSelect}`)
+    .select(
+      `id, number, status, source, placed_at, locations(name), customers(name), ${itemsSelect}`,
+    )
     .eq("tenant_id", tenantId)
     .in("status", BOARD_STATUSES);
 
@@ -94,36 +97,38 @@ export async function listKitchenOrders(
     query = query.eq("order_items.station", filters.station);
   }
 
-  const { data, error } = await query.order("placed_at", { ascending: true });
+  const { data, error } = await query.order("placed_at", { ascending: true }).limit(LIST_CAP);
 
   if (error) {
     logger.error("kitchen.list_failed", { tenantId, filters, error });
     throw new DatabaseError("Kitchen order listing failed.", { cause: error });
   }
 
-  return (data as unknown as TicketRowShape[])
-    .map((row) => ({
-      id: row.id,
-      number: row.number,
-      status: row.status,
-      source: row.source,
-      locationName: row.locations?.name ?? null,
-      customerName: row.customers?.name ?? null,
-      placedAt: row.placed_at,
-      items: (row.order_items ?? [])
-        .map((item) => ({
-          id: item.id,
-          name: item.name_snapshot,
-          variantName: item.variant_snapshot,
-          quantity: Number(item.quantity),
-          notes: item.notes,
-          station: item.station,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    }))
-    // A station board never shows a ticket with nothing on it for that
-    // station (see the doc comment above); the "all stations" board (no
-    // `station` filter) never filters items in the first place, so this
-    // only ever drops rows when a station WAS requested.
-    .filter((ticket) => filters.station === undefined || ticket.items.length > 0);
+  return (
+    (data as unknown as TicketRowShape[])
+      .map((row) => ({
+        id: row.id,
+        number: row.number,
+        status: row.status,
+        source: row.source,
+        locationName: row.locations?.name ?? null,
+        customerName: row.customers?.name ?? null,
+        placedAt: row.placed_at,
+        items: (row.order_items ?? [])
+          .map((item) => ({
+            id: item.id,
+            name: item.name_snapshot,
+            variantName: item.variant_snapshot,
+            quantity: Number(item.quantity),
+            notes: item.notes,
+            station: item.station,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      // A station board never shows a ticket with nothing on it for that
+      // station (see the doc comment above); the "all stations" board (no
+      // `station` filter) never filters items in the first place, so this
+      // only ever drops rows when a station WAS requested.
+      .filter((ticket) => filters.station === undefined || ticket.items.length > 0)
+  );
 }

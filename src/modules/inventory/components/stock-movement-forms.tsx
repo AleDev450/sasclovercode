@@ -174,7 +174,12 @@ export function RecordStockTransferForm({
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="toLocationId">Destino</Label>
-          <select id="toLocationId" name="toLocationId" className={selectClass} defaultValue={locations[1]?.id}>
+          <select
+            id="toLocationId"
+            name="toLocationId"
+            className={selectClass}
+            defaultValue={locations[1]?.id}
+          >
             {locations.map((location) => (
               <option key={location.id} value={location.id}>
                 {location.name}

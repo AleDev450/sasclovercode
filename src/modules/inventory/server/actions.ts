@@ -79,7 +79,10 @@ function describeDatabaseError(error: { code?: string; message: string }): FormS
 
   if (error.code === "23505") {
     if (error.message.includes("units_tenant_abbreviation_key")) {
-      return { status: "error", fieldErrors: { abbreviation: ["Ya existe una unidad con esa abreviatura."] } };
+      return {
+        status: "error",
+        fieldErrors: { abbreviation: ["Ya existe una unidad con esa abreviatura."] },
+      };
     }
     if (error.message.includes("inventory_items_tenant_name_key")) {
       return { status: "error", fieldErrors: { name: ["Ya existe un insumo con ese nombre."] } };
@@ -106,7 +109,10 @@ function revalidateInventory(slug: string): void {
 // Units
 // ---------------------------------------------------------------------------
 
-export async function createUnitAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function createUnitAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const tenant = await requireAccess(formData, PERMISSIONS.INVENTORY_MANAGE);
 
   const parsed = createUnitSchema.safeParse({
@@ -134,7 +140,10 @@ export async function createUnitAction(_previous: FormState, formData: FormData)
   return { status: "success", message: "Unidad creada." };
 }
 
-export async function setUnitActiveAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function setUnitActiveAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const tenant = await requireAccess(formData, PERMISSIONS.INVENTORY_MANAGE);
 
   const parsed = setUnitActiveSchema.safeParse({
@@ -155,9 +164,14 @@ export async function setUnitActiveAction(_previous: FormState, formData: FormDa
     throw new DatabaseError("Unit update failed.", { cause: error });
   }
 
-  logger.info(parsed.data.isActive ? "unit.activated" : "unit.deactivated", { tenantId: tenant.id });
+  logger.info(parsed.data.isActive ? "unit.activated" : "unit.deactivated", {
+    tenantId: tenant.id,
+  });
   revalidateInventory(tenant.slug);
-  return { status: "success", message: parsed.data.isActive ? "Unidad activada." : "Unidad desactivada." };
+  return {
+    status: "success",
+    message: parsed.data.isActive ? "Unidad activada." : "Unidad desactivada.",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -258,14 +272,20 @@ export async function setInventoryItemActiveAction(
     tenantId: tenant.id,
   });
   revalidateInventory(tenant.slug);
-  return { status: "success", message: parsed.data.isActive ? "Insumo activado." : "Insumo desactivado." };
+  return {
+    status: "success",
+    message: parsed.data.isActive ? "Insumo activado." : "Insumo desactivado.",
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Suppliers
 // ---------------------------------------------------------------------------
 
-export async function createSupplierAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function createSupplierAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const tenant = await requireAccess(formData, PERMISSIONS.SUPPLIERS_MANAGE);
 
   const parsed = createSupplierSchema.safeParse({
@@ -303,7 +323,10 @@ export async function createSupplierAction(_previous: FormState, formData: FormD
   return { status: "success", message: "Proveedor creado." };
 }
 
-export async function updateSupplierAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function updateSupplierAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const tenant = await requireAccess(formData, PERMISSIONS.SUPPLIERS_MANAGE);
 
   const parsed = updateSupplierSchema.safeParse({
@@ -369,9 +392,14 @@ export async function setSupplierActiveAction(
     throw new DatabaseError("Supplier update failed.", { cause: error });
   }
 
-  logger.info(parsed.data.isActive ? "supplier.activated" : "supplier.deactivated", { tenantId: tenant.id });
+  logger.info(parsed.data.isActive ? "supplier.activated" : "supplier.deactivated", {
+    tenantId: tenant.id,
+  });
   revalidateInventory(tenant.slug);
-  return { status: "success", message: parsed.data.isActive ? "Proveedor activado." : "Proveedor desactivado." };
+  return {
+    status: "success",
+    message: parsed.data.isActive ? "Proveedor activado." : "Proveedor desactivado.",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -393,7 +421,10 @@ function readPurchaseLines(formData: FormData): unknown[] {
     .filter((line) => line.inventoryItemId.length > 0);
 }
 
-export async function recordPurchaseAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function recordPurchaseAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const tenant = await requireAccess(formData, PERMISSIONS.PURCHASES_CREATE);
 
   const parsed = recordPurchaseSchema.safeParse({
@@ -444,7 +475,10 @@ export async function recordPurchaseAction(_previous: FormState, formData: FormD
     // whose lines failed to insert.
     const described = describeDatabaseError(linesError);
     if (described !== null) return described;
-    logger.error("inventory.record_purchase_lines_failed", { tenantId: tenant.id, error: linesError });
+    logger.error("inventory.record_purchase_lines_failed", {
+      tenantId: tenant.id,
+      error: linesError,
+    });
     throw new DatabaseError("Purchase line creation failed.", { cause: linesError });
   }
 
@@ -476,7 +510,8 @@ export async function recordStockMovementAction(
   // for `adjustment`/`return`, so it is normalised here the same way
   // recordCashMovementAction (Phase 14) fixes `payout`'s sign regardless
   // of what was typed.
-  const quantity = parsed.data.type === "waste" ? -Math.abs(parsed.data.quantity) : parsed.data.quantity;
+  const quantity =
+    parsed.data.type === "waste" ? -Math.abs(parsed.data.quantity) : parsed.data.quantity;
 
   const client = await createSupabaseServerClient();
   const { error } = await client.from("stock_movements").insert({
@@ -571,7 +606,10 @@ function readRecipeItems(formData: FormData): unknown[] {
     .filter((item) => item.inventoryItemId.length > 0);
 }
 
-export async function saveRecipeAction(_previous: FormState, formData: FormData): Promise<FormState> {
+export async function saveRecipeAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
   const tenant = await requireAccess(formData, PERMISSIONS.INVENTORY_MANAGE);
 
   const parsed = saveRecipeSchema.safeParse({
@@ -587,7 +625,11 @@ export async function saveRecipeAction(_previous: FormState, formData: FormData)
   const { data: recipe, error: recipeError } = await client
     .from("recipes")
     .upsert(
-      { product_id: parsed.data.productId, notes: parsed.data.notes, is_active: parsed.data.isActive },
+      {
+        product_id: parsed.data.productId,
+        notes: parsed.data.notes,
+        is_active: parsed.data.isActive,
+      },
       { onConflict: "product_id" },
     )
     .select("id")
@@ -600,9 +642,15 @@ export async function saveRecipeAction(_previous: FormState, formData: FormData)
     throw new DatabaseError("Recipe save failed.", { cause: recipeError });
   }
 
-  const { error: deleteError } = await client.from("recipe_items").delete().eq("recipe_id", recipe.id);
+  const { error: deleteError } = await client
+    .from("recipe_items")
+    .delete()
+    .eq("recipe_id", recipe.id);
   if (deleteError) {
-    logger.error("inventory.clear_recipe_items_failed", { tenantId: tenant.id, error: deleteError });
+    logger.error("inventory.clear_recipe_items_failed", {
+      tenantId: tenant.id,
+      error: deleteError,
+    });
     throw new DatabaseError("Recipe item removal failed.", { cause: deleteError });
   }
 
@@ -619,7 +667,10 @@ export async function saveRecipeAction(_previous: FormState, formData: FormData)
     if (itemsError) {
       const described = describeDatabaseError(itemsError);
       if (described !== null) return described;
-      logger.error("inventory.save_recipe_items_failed", { tenantId: tenant.id, error: itemsError });
+      logger.error("inventory.save_recipe_items_failed", {
+        tenantId: tenant.id,
+        error: itemsError,
+      });
       throw new DatabaseError("Recipe item creation failed.", { cause: itemsError });
     }
   }

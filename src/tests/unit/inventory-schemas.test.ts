@@ -33,7 +33,9 @@ describe("units", () => {
   it("requires both a name and an abbreviation", () => {
     expect(createUnitSchema.safeParse({ name: "", abbreviation: "kg" }).success).toBe(false);
     expect(createUnitSchema.safeParse({ name: "Kilogramo", abbreviation: "" }).success).toBe(false);
-    expect(createUnitSchema.safeParse({ name: "Kilogramo", abbreviation: "kg" }).success).toBe(true);
+    expect(createUnitSchema.safeParse({ name: "Kilogramo", abbreviation: "kg" }).success).toBe(
+      true,
+    );
   });
 
   it("parses the active toggle from its string form", () => {
@@ -155,7 +157,11 @@ describe("a manual stock movement", () => {
   const base = { inventoryItemId: itemId, locationId: locationA, reason: "conteo fisico" };
 
   it("accepts a leading minus sign for an adjustment", () => {
-    const result = recordStockMovementSchema.parse({ ...base, type: "adjustment", quantity: "-3.5" });
+    const result = recordStockMovementSchema.parse({
+      ...base,
+      type: "adjustment",
+      quantity: "-3.5",
+    });
     expect(result.quantity).toBe(-3.5);
   });
 
@@ -189,8 +195,12 @@ describe("a manual stock movement", () => {
 
   it("requires a reason", () => {
     expect(
-      recordStockMovementSchema.safeParse({ ...base, type: "adjustment", quantity: "1", reason: "" })
-        .success,
+      recordStockMovementSchema.safeParse({
+        ...base,
+        type: "adjustment",
+        quantity: "1",
+        reason: "",
+      }).success,
     ).toBe(false);
   });
 });
@@ -200,12 +210,18 @@ describe("a transfer", () => {
 
   it("requires two distinct locations", () => {
     expect(
-      recordStockTransferSchema.safeParse({ ...base, fromLocationId: locationA, toLocationId: locationA })
-        .success,
+      recordStockTransferSchema.safeParse({
+        ...base,
+        fromLocationId: locationA,
+        toLocationId: locationA,
+      }).success,
     ).toBe(false);
     expect(
-      recordStockTransferSchema.safeParse({ ...base, fromLocationId: locationA, toLocationId: locationB })
-        .success,
+      recordStockTransferSchema.safeParse({
+        ...base,
+        fromLocationId: locationA,
+        toLocationId: locationB,
+      }).success,
     ).toBe(true);
   });
 

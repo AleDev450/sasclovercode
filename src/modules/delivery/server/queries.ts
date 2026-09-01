@@ -18,6 +18,7 @@ import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { DeliveryStatus, TenantRole } from "@/types/database";
 import type { RateCandidate } from "../rates";
+import { LIST_CAP } from "@/config/app";
 
 export interface DeliveryZone {
   readonly id: string;
@@ -35,7 +36,8 @@ export async function listDeliveryZones(
   let query = client
     .from("delivery_zones")
     .select("id, name, district, notes, is_active")
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .limit(LIST_CAP);
   if (options.activeOnly === true) query = query.eq("is_active", true);
 
   const { data, error } = await query.order("name");
@@ -66,7 +68,8 @@ export async function listDeliveryRates(tenantId: string): Promise<readonly Deli
       "id, zone_id, location_id, fee_cents, min_order_free_cents, estimated_minutes, is_active, locations(name)",
     )
     .eq("tenant_id", tenantId)
-    .order("zone_id");
+    .order("zone_id")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("delivery.list_rates_failed", { tenantId, error });
@@ -184,7 +187,8 @@ export async function listOpenDeliveries(tenantId: string): Promise<readonly Del
     .select(SUMMARY_COLUMNS)
     .eq("tenant_id", tenantId)
     .in("status", ["pending", "assigned", "in_transit", "failed"])
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("delivery.list_open_failed", { tenantId, error });

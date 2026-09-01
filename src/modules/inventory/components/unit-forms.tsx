@@ -22,8 +22,15 @@ export function CreateUnitForm({ tenantSlug }: { tenantSlug: string }) {
       <div className="grid gap-3 sm:grid-cols-[2fr_1fr_auto]">
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Nombre</Label>
-          <Input id="name" name="name" placeholder="Kilogramo" invalid={errors.name !== undefined} />
-          {errors.name !== undefined ? <p className="text-destructive text-sm">{errors.name[0]}</p> : null}
+          <Input
+            id="name"
+            name="name"
+            placeholder="Kilogramo"
+            invalid={errors.name !== undefined}
+          />
+          {errors.name !== undefined ? (
+            <p className="text-destructive text-sm">{errors.name[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="abbreviation">Abreviatura</Label>

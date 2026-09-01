@@ -45,8 +45,15 @@ export function CreateInventoryItemForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Nombre</Label>
-          <Input id="name" name="name" placeholder="Salmon fresco" invalid={errors.name !== undefined} />
-          {errors.name !== undefined ? <p className="text-destructive text-sm">{errors.name[0]}</p> : null}
+          <Input
+            id="name"
+            name="name"
+            placeholder="Salmon fresco"
+            invalid={errors.name !== undefined}
+          />
+          {errors.name !== undefined ? (
+            <p className="text-destructive text-sm">{errors.name[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="unitId">Unidad</Label>
@@ -80,7 +87,12 @@ export function UpdateInventoryItemForm({
 }: {
   tenantSlug: string;
   units: readonly UnitOption[];
-  item: { readonly id: string; readonly name: string; readonly sku: string | null; readonly unitId: string };
+  item: {
+    readonly id: string;
+    readonly name: string;
+    readonly sku: string | null;
+    readonly unitId: string;
+  };
 }) {
   const [state, formAction, isPending] = useActionState(updateInventoryItemAction, IDLE_FORM_STATE);
   const errors = state.fieldErrors ?? {};
@@ -99,8 +111,15 @@ export function UpdateInventoryItemForm({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Nombre</Label>
-          <Input id="name" name="name" defaultValue={item.name} invalid={errors.name !== undefined} />
-          {errors.name !== undefined ? <p className="text-destructive text-sm">{errors.name[0]}</p> : null}
+          <Input
+            id="name"
+            name="name"
+            defaultValue={item.name}
+            invalid={errors.name !== undefined}
+          />
+          {errors.name !== undefined ? (
+            <p className="text-destructive text-sm">{errors.name[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="unitId">Unidad</Label>

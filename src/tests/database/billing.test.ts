@@ -208,9 +208,18 @@ beforeAll(async () => {
   await setTaxId(tenantA, "20100047218");
   await setTaxId(tenantB, "20100070970");
 
-  customerDniA = await insertCustomer(tenantA, "Ana Quispe", { docType: "dni", docNumber: "45678912" });
-  customerRucA = await insertCustomer(tenantA, "Empresa SAC", { docType: "ruc", docNumber: "20131312955" });
-  customerB = await insertCustomer(tenantB, "Carlos Rojas", { docType: "dni", docNumber: "78912345" });
+  customerDniA = await insertCustomer(tenantA, "Ana Quispe", {
+    docType: "dni",
+    docNumber: "45678912",
+  });
+  customerRucA = await insertCustomer(tenantA, "Empresa SAC", {
+    docType: "ruc",
+    docNumber: "20131312955",
+  });
+  customerB = await insertCustomer(tenantB, "Carlos Rojas", {
+    docType: "dni",
+    docNumber: "78912345",
+  });
 });
 
 afterAll(async () => {
@@ -268,7 +277,9 @@ describe("assigning a document: series, correlative, snapshot", () => {
       "update public.orders set status = 'cancelled', cancel_reason = 'cliente se fue' where id = $1",
       [order],
     );
-    await expect(issueDocument(order, "boleta")).rejects.toThrow(/cancelled order cannot be billed/);
+    await expect(issueDocument(order, "boleta")).rejects.toThrow(
+      /cancelled order cannot be billed/,
+    );
   });
 
   it("refuses an order with no lines", async () => {
@@ -278,16 +289,18 @@ describe("assigning a document: series, correlative, snapshot", () => {
 
   it("snapshots the named customer's name and document", async () => {
     const order = await orderWithLine(tenantA, locationA, 1000);
-    const doc = await documentRow(await issueDocument(order, "boleta", { customerId: customerDniA }));
+    const doc = await documentRow(
+      await issueDocument(order, "boleta", { customerId: customerDniA }),
+    );
     expect(doc.customer_name_snapshot).toBe("Ana Quispe");
     expect(doc.customer_doc_type_snapshot).toBe("dni");
   });
 
   it("refuses a customer that belongs to a different business", async () => {
     const order = await orderWithLine(tenantA, locationA, 1000);
-    await expect(
-      issueDocument(order, "boleta", { customerId: customerB }),
-    ).rejects.toThrow(/different business/);
+    await expect(issueDocument(order, "boleta", { customerId: customerB })).rejects.toThrow(
+      /different business/,
+    );
   });
 
   it("a factura always needs a customer with a RUC", async () => {
@@ -297,9 +310,9 @@ describe("assigning a document: series, correlative, snapshot", () => {
     );
 
     const orderDni = await orderWithLine(tenantA, locationA, 1000);
-    await expect(
-      issueDocument(orderDni, "factura", { customerId: customerDniA }),
-    ).rejects.toThrow(/billing_documents_factura_needs_ruc_customer/);
+    await expect(issueDocument(orderDni, "factura", { customerId: customerDniA })).rejects.toThrow(
+      /billing_documents_factura_needs_ruc_customer/,
+    );
 
     const orderRuc = await orderWithLine(tenantA, locationA, 1000);
     await expect(
@@ -319,7 +332,10 @@ describe("assigning a document: series, correlative, snapshot", () => {
       issueDocument(noteOrder, "nota_credito", { relatedDocumentId: original }),
     ).resolves.toBeDefined();
 
-    const otherTenantDoc = await issueDocument(await orderWithLine(tenantB, locationB, 1000), "boleta");
+    const otherTenantDoc = await issueDocument(
+      await orderWithLine(tenantB, locationB, 1000),
+      "boleta",
+    );
     const crossOrder = await orderWithLine(tenantA, locationA, 1000);
     await expect(
       issueDocument(crossOrder, "nota_credito", { relatedDocumentId: otherTenantDoc }),
@@ -364,7 +380,9 @@ describe("populating lines from the order, and totalling the document", () => {
   it("the item snapshot survives a later change to the order's own line", async () => {
     const order = await orderWithLine(tenantA, locationA, 1500);
     const orderItem = (
-      await db.query<{ id: string }>("select id from public.order_items where order_id = $1", [order])
+      await db.query<{ id: string }>("select id from public.order_items where order_id = $1", [
+        order,
+      ])
     )[0]!.id;
     const doc = await issueDocument(order, "boleta");
 
@@ -636,9 +654,10 @@ describe("row level security", () => {
 
     await expect(
       db.asUser(adminA, async () =>
-        db.query("update public.billing_provider_configs set series_boleta = 'BB01' where tenant_id = $1", [
-          tenantA,
-        ]),
+        db.query(
+          "update public.billing_provider_configs set series_boleta = 'BB01' where tenant_id = $1",
+          [tenantA],
+        ),
       ),
     ).resolves.toBeDefined();
 

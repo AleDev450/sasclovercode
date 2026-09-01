@@ -56,7 +56,8 @@ export function setCartQuantity(
   key: string,
   quantity: number,
 ): CartLine[] {
-  if (quantity <= 0) return lines.filter((line) => cartLineKey(line.productId, line.variantId) !== key);
+  if (quantity <= 0)
+    return lines.filter((line) => cartLineKey(line.productId, line.variantId) !== key);
   return lines.map((line) =>
     cartLineKey(line.productId, line.variantId) === key ? { ...line, quantity } : line,
   );
@@ -81,6 +82,9 @@ export function remainingBalanceCents(totalCents: number, tenders: readonly Tend
  * entered for more than the balance in the first place, so this is only
  * ever called for the cash line.
  */
-export function changeDueCents(remainingBeforeTenderCents: number, cashTenderedCents: number): number {
+export function changeDueCents(
+  remainingBeforeTenderCents: number,
+  cashTenderedCents: number,
+): number {
   return Math.max(0, cashTenderedCents - remainingBeforeTenderCents);
 }

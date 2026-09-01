@@ -81,7 +81,10 @@ function describeDatabaseError(error: { code?: string; message: string }): FormS
       return { status: "error", fieldErrors: { reason: ["Escribe por que se anula."] } };
     }
     if (error.message.includes("open cash session")) {
-      return { status: "error", fieldErrors: { cashSessionId: ["Abre una sesion de caja primero."] } };
+      return {
+        status: "error",
+        fieldErrors: { cashSessionId: ["Abre una sesion de caja primero."] },
+      };
     }
     if (error.message.includes("Only a cash payment")) {
       return {
@@ -90,10 +93,16 @@ function describeDatabaseError(error: { code?: string; message: string }): FormS
       };
     }
     if (error.message.includes("payment method")) {
-      return { status: "error", fieldErrors: { paymentMethodId: ["Ese metodo no esta disponible."] } };
+      return {
+        status: "error",
+        fieldErrors: { paymentMethodId: ["Ese metodo no esta disponible."] },
+      };
     }
     if (error.message.includes("cash session") || error.message.includes("cash register")) {
-      return { status: "error", fieldErrors: { cashSessionId: ["Esa sesion no esta disponible."] } };
+      return {
+        status: "error",
+        fieldErrors: { cashSessionId: ["Esa sesion no esta disponible."] },
+      };
     }
     if (error.message.includes("location")) {
       return { status: "error", fieldErrors: { locationId: ["Esa sede no esta disponible."] } };
@@ -323,7 +332,10 @@ export async function createCashRegisterAction(
     const described = describeDatabaseError(error);
     if (described !== null) return described;
     if (error.code === "23505") {
-      return { status: "error", fieldErrors: { name: ["Ya existe una caja con ese nombre en esa sede."] } };
+      return {
+        status: "error",
+        fieldErrors: { name: ["Ya existe una caja con ese nombre en esa sede."] },
+      };
     }
     logger.error("cash_registers.create_failed", { tenantId: tenant.id, error });
     throw new DatabaseError("Cash register creation failed.", { cause: error });

@@ -158,6 +158,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
       // Phase 25
       "20260831120000_create_rate_limits.sql",
       "20260831120100_allow_product_detach_from_closed_order.sql",
+      // Phase 27
+      "20260831130000_create_audit_retention.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.

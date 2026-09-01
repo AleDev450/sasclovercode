@@ -48,7 +48,9 @@ export function CashRegisterForm({
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Nombre</Label>
           <Input id="name" name="name" placeholder="Caja 1" invalid={errors.name !== undefined} />
-          {errors.name !== undefined ? <p className="text-destructive text-sm">{errors.name[0]}</p> : null}
+          {errors.name !== undefined ? (
+            <p className="text-destructive text-sm">{errors.name[0]}</p>
+          ) : null}
         </div>
       </div>
 

@@ -68,6 +68,9 @@ export function isTerminal(status: BillingDocumentStatus): boolean {
 }
 
 /** Every declared pair, flattened - the shape the SQL table stores. */
-export function allTransitionPairs(): readonly { from: BillingDocumentStatus; to: BillingDocumentStatus }[] {
+export function allTransitionPairs(): readonly {
+  from: BillingDocumentStatus;
+  to: BillingDocumentStatus;
+}[] {
   return BILLING_DOCUMENT_STATUSES.flatMap((from) => TRANSITIONS[from].map((to) => ({ from, to })));
 }

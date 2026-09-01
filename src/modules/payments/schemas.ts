@@ -48,7 +48,9 @@ const moneyField = (label: string, allowZero = false) =>
     if (result.cents < 0 || (!allowZero && result.cents === 0)) {
       ctx.addIssue({
         code: "custom",
-        message: allowZero ? `${label} no puede ser negativo.` : `${label} debe ser mayor que cero.`,
+        message: allowZero
+          ? `${label} no puede ser negativo.`
+          : `${label} debe ser mayor que cero.`,
       });
       return z.NEVER;
     }

@@ -60,11 +60,7 @@ function buildOrderFormData(
   return formData;
 }
 
-function buildPaymentFormData(
-  tenantSlug: string,
-  orderId: string,
-  tender: StagedTender,
-): FormData {
+function buildPaymentFormData(tenantSlug: string, orderId: string, tender: StagedTender): FormData {
   const formData = new FormData();
   formData.set("tenantSlug", tenantSlug);
   formData.set("orderId", orderId);
@@ -134,7 +130,9 @@ export function CheckoutPanel({
       return;
     }
 
-    const parsed = parseMoney(amountInput.trim().length === 0 ? formatMoney(remainingCents) : amountInput);
+    const parsed = parseMoney(
+      amountInput.trim().length === 0 ? formatMoney(remainingCents) : amountInput,
+    );
     if (!parsed.ok || parsed.cents === undefined || parsed.cents <= 0) {
       setAddError(parsed.reason ?? "Ingresa un monto valido.");
       return;
@@ -224,7 +222,9 @@ export function CheckoutPanel({
                     ) : null}
                   </span>
                   <span className="flex items-center gap-2">
-                    <span className="tabular-nums">{formatCurrency(tender.amountCents, currency)}</span>
+                    <span className="tabular-nums">
+                      {formatCurrency(tender.amountCents, currency)}
+                    </span>
                     <Button
                       type="button"
                       variant="ghost"
@@ -312,13 +312,17 @@ export function CheckoutPanel({
           ) : null}
           {lastChangeCents !== null && lastChangeCents > 0 ? (
             <Alert variant="success">
-              <AlertDescription>Vuelto: {formatCurrency(lastChangeCents, currency)}</AlertDescription>
+              <AlertDescription>
+                Vuelto: {formatCurrency(lastChangeCents, currency)}
+              </AlertDescription>
             </Alert>
           ) : null}
 
           <div className="flex items-center justify-between text-sm">
             <span>Falta por cobrar</span>
-            <span className="tabular-nums font-medium">{formatCurrency(remainingCents, currency)}</span>
+            <span className="font-medium tabular-nums">
+              {formatCurrency(remainingCents, currency)}
+            </span>
           </div>
         </>
       ) : null}
@@ -343,7 +347,11 @@ export function CheckoutPanel({
       {canCheckout && tenders.length === 0 && cart.length > 0 ? (
         <p className="text-muted-foreground text-xs">
           Sin pagos agregados, el pedido queda creado y pendiente de cobro. Puedes registrar el pago
-          despues desde <Link href={`/dashboard/${tenantSlug}/pedidos`} className="underline">Pedidos</Link>.
+          despues desde{" "}
+          <Link href={`/dashboard/${tenantSlug}/pedidos`} className="underline">
+            Pedidos
+          </Link>
+          .
         </p>
       ) : null}
     </div>

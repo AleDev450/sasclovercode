@@ -29,7 +29,10 @@ export function BillingProviderConfigForm({
   tenantSlug: string;
   values: BillingProviderConfigValues;
 }) {
-  const [state, formAction, isPending] = useActionState(saveBillingProviderConfigAction, IDLE_FORM_STATE);
+  const [state, formAction, isPending] = useActionState(
+    saveBillingProviderConfigAction,
+    IDLE_FORM_STATE,
+  );
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -50,11 +53,21 @@ export function BillingProviderConfigForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-2">
           <Label htmlFor="seriesBoleta">Serie de boleta</Label>
-          <Input id="seriesBoleta" name="seriesBoleta" placeholder="B001" defaultValue={values.seriesBoleta ?? ""} />
+          <Input
+            id="seriesBoleta"
+            name="seriesBoleta"
+            placeholder="B001"
+            defaultValue={values.seriesBoleta ?? ""}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="seriesFactura">Serie de factura</Label>
-          <Input id="seriesFactura" name="seriesFactura" placeholder="F001" defaultValue={values.seriesFactura ?? ""} />
+          <Input
+            id="seriesFactura"
+            name="seriesFactura"
+            placeholder="F001"
+            defaultValue={values.seriesFactura ?? ""}
+          />
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="seriesNotaCredito">Serie de nota de credito</Label>

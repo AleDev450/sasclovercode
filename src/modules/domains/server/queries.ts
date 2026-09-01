@@ -16,6 +16,7 @@ import type {
   DomainVerificationStatus,
   TenantDomainType,
 } from "@/types/database";
+import { LIST_CAP } from "@/config/app";
 
 export interface TenantDomain {
   readonly id: string;
@@ -80,7 +81,8 @@ export async function listTenantDomains(tenantId: string): Promise<TenantDomain[
     .eq("tenant_id", tenantId)
     .order("is_primary", { ascending: false })
     .order("type", { ascending: true })
-    .order("domain", { ascending: true });
+    .order("domain", { ascending: true })
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("domains.list_failed", { tenantId, error });

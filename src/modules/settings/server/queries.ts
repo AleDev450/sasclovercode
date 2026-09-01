@@ -12,6 +12,7 @@ import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { SocialPlatform } from "@/types/database";
+import { LIST_CAP } from "@/config/app";
 
 export interface BusinessSettings {
   readonly legalName: string | null;
@@ -117,7 +118,8 @@ export async function listSocialLinks(tenantId: string): Promise<SocialLink[]> {
     .from("tenant_social_links")
     .select("*")
     .eq("tenant_id", tenantId)
-    .order("position");
+    .order("position")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("settings.social_links_failed", { tenantId, error });

@@ -42,13 +42,17 @@ export function KdsBoard({
   useEffect(() => {
     const client = createSupabaseBrowserClient();
     const tenantAndLocation =
-      locationId === undefined ? `tenant_id=eq.${tenantId}` : `tenant_id=eq.${tenantId},location_id=eq.${locationId}`;
+      locationId === undefined
+        ? `tenant_id=eq.${tenantId}`
+        : `tenant_id=eq.${tenantId},location_id=eq.${locationId}`;
     // `order_items` has no `location_id` of its own (it belongs to an order,
     // which has one) - the tenant/station filter is as precise as this table
     // can express; the location narrowing happens on the `orders` side and
     // on the refetch itself (`listKitchenOrders`).
     const itemsFilter =
-      station === undefined ? `tenant_id=eq.${tenantId}` : `tenant_id=eq.${tenantId},station=eq.${station}`;
+      station === undefined
+        ? `tenant_id=eq.${tenantId}`
+        : `tenant_id=eq.${tenantId},station=eq.${station}`;
 
     const channel = client
       .channel(`kds:${tenantId}:${locationId ?? "any"}:${station ?? "all"}`)

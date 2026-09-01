@@ -209,9 +209,7 @@ describe("the overpay cap (the test of the phase)", () => {
     await insertPayment(order, cashMethodA, 6000, { cashSessionId: session });
     expect(await orderPaid(order)).toBe("6000");
 
-    await expect(
-      insertPayment(order, yapeMethodA, 5000),
-    ).rejects.toThrow(/overpaid/);
+    await expect(insertPayment(order, yapeMethodA, 5000)).rejects.toThrow(/overpaid/);
     expect(await orderPaid(order)).toBe("6000");
 
     await insertPayment(order, yapeMethodA, 4000);
@@ -440,7 +438,13 @@ describe("cross-tenant guards", () => {
 });
 
 describe("row level security", () => {
-  const tables = ["payment_methods", "cash_registers", "cash_sessions", "payments", "cash_movements"];
+  const tables = [
+    "payment_methods",
+    "cash_registers",
+    "cash_sessions",
+    "payments",
+    "cash_movements",
+  ];
 
   it("grants nothing to anon on any of the new tables", async () => {
     const rows = await db.query<{ tablename: string; policyname: string; roles: string }>(

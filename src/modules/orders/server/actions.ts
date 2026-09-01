@@ -204,7 +204,10 @@ async function insertOrder(
     if (orderError.code === "23505") {
       return {
         ok: false,
-        formState: { status: "error", message: "Otro pedido se creo al mismo tiempo. Intenta de nuevo." },
+        formState: {
+          status: "error",
+          message: "Otro pedido se creo al mismo tiempo. Intenta de nuevo.",
+        },
       };
     }
     logger.error("orders.create_failed", { tenantId: tenant.id, error: orderError });

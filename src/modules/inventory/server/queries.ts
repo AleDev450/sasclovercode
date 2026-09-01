@@ -15,6 +15,7 @@ import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { StockMovementType } from "@/types/database";
+import { LIST_CAP } from "@/config/app";
 
 export interface UnitSummary {
   readonly id: string;
@@ -28,10 +29,13 @@ export async function listUnits(
   options: { activeOnly?: boolean } = {},
 ): Promise<readonly UnitSummary[]> {
   const client = await createSupabaseServerClient();
-  let query = client.from("units").select("id, name, abbreviation, is_active").eq("tenant_id", tenantId);
+  let query = client
+    .from("units")
+    .select("id, name, abbreviation, is_active")
+    .eq("tenant_id", tenantId);
   if (options.activeOnly === true) query = query.eq("is_active", true);
 
-  const { data, error } = await query.order("name");
+  const { data, error } = await query.order("name").limit(LIST_CAP);
   if (error) {
     logger.error("inventory.list_units_failed", { tenantId, error });
     throw new DatabaseError("Unit listing failed.", { cause: error });
@@ -62,7 +66,8 @@ export async function listInventoryItems(
   let query = client
     .from("inventory_items")
     .select("id, name, sku, is_active, unit_id, units(abbreviation)")
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .limit(LIST_CAP);
   if (options.activeOnly === true) query = query.eq("is_active", true);
 
   const { data, error } = await query.order("name");
@@ -151,7 +156,8 @@ export async function getInventoryItemDetail(
     sku: item.sku,
     isActive: item.is_active,
     unitId: item.unit_id,
-    unitAbbreviation: (item.units as unknown as { abbreviation: string } | null)?.abbreviation ?? "",
+    unitAbbreviation:
+      (item.units as unknown as { abbreviation: string } | null)?.abbreviation ?? "",
     stockByLocation: (stockRows ?? []).map((row) => ({
       locationId: row.location_id,
       locationName: (row.locations as unknown as { name: string } | null)?.name ?? "—",
@@ -188,7 +194,8 @@ export async function listSuppliers(
   let query = client
     .from("suppliers")
     .select("id, name, tax_id, contact_name, phone, email, address, notes, is_active")
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .limit(LIST_CAP);
   if (options.activeOnly === true) query = query.eq("is_active", true);
 
   const { data, error } = await query.order("name");
@@ -277,7 +284,10 @@ export interface PurchaseDetail extends PurchaseSummary {
   readonly lines: readonly PurchaseLine[];
 }
 
-export async function getPurchaseDetail(tenantId: string, purchaseId: string): Promise<PurchaseDetail | null> {
+export async function getPurchaseDetail(
+  tenantId: string,
+  purchaseId: string,
+): Promise<PurchaseDetail | null> {
   const client = await createSupabaseServerClient();
 
   const { data, error } = await client

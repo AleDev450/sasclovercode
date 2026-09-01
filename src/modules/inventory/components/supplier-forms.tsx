@@ -3,7 +3,11 @@
 import { useActionState } from "react";
 import { Alert, AlertDescription, Button, Input, Label } from "@/components/ui";
 import { IDLE_FORM_STATE } from "@/lib/forms/state";
-import { createSupplierAction, setSupplierActiveAction, updateSupplierAction } from "../server/actions";
+import {
+  createSupplierAction,
+  setSupplierActiveAction,
+  updateSupplierAction,
+} from "../server/actions";
 
 function SupplierFields({
   errors,
@@ -31,7 +35,9 @@ function SupplierFields({
             defaultValue={defaults?.name}
             invalid={errors.name !== undefined}
           />
-          {errors.name !== undefined ? <p className="text-destructive text-sm">{errors.name[0]}</p> : null}
+          {errors.name !== undefined ? (
+            <p className="text-destructive text-sm">{errors.name[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="taxId">RUC (opcional)</Label>
@@ -41,7 +47,9 @@ function SupplierFields({
             defaultValue={defaults?.taxId ?? ""}
             invalid={errors.taxId !== undefined}
           />
-          {errors.taxId !== undefined ? <p className="text-destructive text-sm">{errors.taxId[0]}</p> : null}
+          {errors.taxId !== undefined ? (
+            <p className="text-destructive text-sm">{errors.taxId[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="contactName">Contacto</Label>
@@ -55,7 +63,9 @@ function SupplierFields({
             defaultValue={defaults?.phone ?? ""}
             invalid={errors.phone !== undefined}
           />
-          {errors.phone !== undefined ? <p className="text-destructive text-sm">{errors.phone[0]}</p> : null}
+          {errors.phone !== undefined ? (
+            <p className="text-destructive text-sm">{errors.phone[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="email">Correo</Label>
@@ -65,7 +75,9 @@ function SupplierFields({
             defaultValue={defaults?.email ?? ""}
             invalid={errors.email !== undefined}
           />
-          {errors.email !== undefined ? <p className="text-destructive text-sm">{errors.email[0]}</p> : null}
+          {errors.email !== undefined ? (
+            <p className="text-destructive text-sm">{errors.email[0]}</p>
+          ) : null}
         </div>
         <div className="flex flex-col gap-2">
           <Label htmlFor="address">Direccion</Label>

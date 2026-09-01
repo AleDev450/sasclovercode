@@ -32,7 +32,7 @@ function PaymentRow({
   const isVoided = payment.voidedAt !== null;
 
   return (
-    <li className="flex flex-col gap-2 border-border border-b py-3 last:border-0">
+    <li className="border-border flex flex-col gap-2 border-b py-3 last:border-0">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <span className={isVoided ? "text-muted-foreground line-through" : undefined}>
@@ -60,12 +60,20 @@ function PaymentRow({
             className="h-8 max-w-xs text-sm"
             invalid={errors.reason !== undefined}
           />
-          <Button type="submit" variant="destructive" size="sm" loading={isPending} loadingLabel="Anulando">
+          <Button
+            type="submit"
+            variant="destructive"
+            size="sm"
+            loading={isPending}
+            loadingLabel="Anulando"
+          >
             Anular
           </Button>
         </form>
       ) : null}
-      {errors.reason !== undefined ? <p className="text-destructive text-xs">{errors.reason[0]}</p> : null}
+      {errors.reason !== undefined ? (
+        <p className="text-destructive text-xs">{errors.reason[0]}</p>
+      ) : null}
       {state.message !== undefined && state.status === "error" && errors.reason === undefined ? (
         <Alert variant="warning">
           <AlertDescription>{state.message}</AlertDescription>
@@ -122,8 +130,9 @@ export function PaymentBalance({
   return (
     <div className="flex flex-wrap items-center gap-3 text-sm">
       <span>
-        Pagado <span className="tabular-nums font-medium">{formatCurrency(paidCents, currency)}</span>{" "}
-        de {formatCurrency(totalCents, currency)}
+        Pagado{" "}
+        <span className="font-medium tabular-nums">{formatCurrency(paidCents, currency)}</span> de{" "}
+        {formatCurrency(totalCents, currency)}
       </span>
       <Badge variant={balanceCents === 0 ? "success" : "neutral"}>
         {balanceCents === 0 ? "Pagado" : `Falta ${formatCurrency(balanceCents, currency)}`}

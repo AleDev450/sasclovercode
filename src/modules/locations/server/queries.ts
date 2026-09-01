@@ -18,6 +18,7 @@ import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { Shift } from "../schedule";
+import { LIST_CAP } from "@/config/app";
 
 export interface Location {
   readonly id: string;
@@ -74,7 +75,8 @@ export async function listLocations(tenantId: string): Promise<Location[]> {
     .select(LOCATION_COLUMNS)
     .eq("tenant_id", tenantId)
     .order("is_active", { ascending: false })
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("locations.list_failed", { tenantId, error });
@@ -112,7 +114,8 @@ export async function listLocationHours(
     .eq("tenant_id", tenantId)
     .eq("location_id", locationId)
     .order("day_of_week")
-    .order("opens_at");
+    .order("opens_at")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("locations.hours_failed", { tenantId, locationId, error });
@@ -155,7 +158,8 @@ export const listPublicLocations = cache(async (tenantId: string): Promise<Publi
     // depending on who was looking - the exact defect the Phase 07 audit
     // found in the navigation (A7-2).
     .eq("is_active", true)
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("locations.public_failed", { tenantId, error });

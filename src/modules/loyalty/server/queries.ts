@@ -19,6 +19,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { LoyaltyTransactionType, OrderPromotionSource } from "@/types/database";
 import type { LoyaltyProgramme } from "../points";
 import type { PromotionRule } from "../promotions";
+import { LIST_CAP } from "@/config/app";
 
 export interface Promotion extends PromotionRule {
   readonly description: string | null;
@@ -67,7 +68,7 @@ export async function listPromotions(
   let query = client.from("promotions").select(PROMOTION_COLUMNS).eq("tenant_id", tenantId);
   if (options.activeOnly === true) query = query.eq("is_active", true);
 
-  const { data, error } = await query.order("name");
+  const { data, error } = await query.order("name").limit(LIST_CAP);
   if (error) {
     logger.error("loyalty.list_promotions_failed", { tenantId, error });
     throw new DatabaseError("Promotion listing failed.", { cause: error });
@@ -92,7 +93,8 @@ export async function listCoupons(tenantId: string): Promise<readonly Coupon[]> 
     .from("coupons")
     .select("id, promotion_id, code, max_redemptions, times_redeemed, expires_at, is_active")
     .eq("tenant_id", tenantId)
-    .order("code");
+    .order("code")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("loyalty.list_coupons_failed", { tenantId, error });
@@ -129,7 +131,8 @@ export async function listOrderDiscounts(
     .select("id, source, label_snapshot, discount_cents, created_at")
     .eq("tenant_id", tenantId)
     .eq("order_id", orderId)
-    .order("created_at");
+    .order("created_at")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("loyalty.list_order_discounts_failed", { tenantId, orderId, error });
@@ -161,7 +164,8 @@ export async function listLoyaltyAccounts(
     .from("loyalty_accounts")
     .select("id, customer_id, points_balance, enrolled_at, customers(name)")
     .eq("tenant_id", tenantId)
-    .order("points_balance", { ascending: false });
+    .order("points_balance", { ascending: false })
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("loyalty.list_accounts_failed", { tenantId, error });

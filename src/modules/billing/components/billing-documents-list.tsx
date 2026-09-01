@@ -2,9 +2,17 @@ import { Badge } from "@/components/ui";
 import { formatCurrency } from "@/lib/money";
 import { BILLING_DOCUMENT_STATUS_LABELS, BILLING_DOCUMENT_TYPE_LABELS } from "../lifecycle";
 import type { BillingDocumentSummary } from "../server/queries";
-import { AcceptForm, CancelDocumentForm, MarkSentForm, RejectForm } from "./billing-document-actions";
+import {
+  AcceptForm,
+  CancelDocumentForm,
+  MarkSentForm,
+  RejectForm,
+} from "./billing-document-actions";
 
-const STATUS_BADGE: Record<BillingDocumentSummary["status"], "neutral" | "warning" | "success" | "destructive"> = {
+const STATUS_BADGE: Record<
+  BillingDocumentSummary["status"],
+  "neutral" | "warning" | "success" | "destructive"
+> = {
   pending: "neutral",
   sent: "warning",
   accepted: "success",
@@ -36,7 +44,9 @@ export function BillingDocumentsList({
   canCancel: boolean;
 }) {
   if (documents.length === 0) {
-    return <p className="text-muted-foreground text-sm">Todavia no se emitio ningun comprobante.</p>;
+    return (
+      <p className="text-muted-foreground text-sm">Todavia no se emitio ningun comprobante.</p>
+    );
   }
 
   return (
@@ -55,7 +65,9 @@ export function BillingDocumentsList({
             </div>
             <div className="flex items-center gap-2">
               <span className="tabular-nums">{formatCurrency(doc.totalCents, currency)}</span>
-              <Badge variant={STATUS_BADGE[doc.status]}>{BILLING_DOCUMENT_STATUS_LABELS[doc.status]}</Badge>
+              <Badge variant={STATUS_BADGE[doc.status]}>
+                {BILLING_DOCUMENT_STATUS_LABELS[doc.status]}
+              </Badge>
             </div>
           </div>
 

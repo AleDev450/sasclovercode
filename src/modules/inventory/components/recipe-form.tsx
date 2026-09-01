@@ -36,11 +36,17 @@ export function RecipeForm({
   tenantSlug: string;
   productId: string;
   items: readonly InventoryItemOption[];
-  initial: { readonly notes: string | null; readonly isActive: boolean; readonly lines: readonly RecipeLine[] };
+  initial: {
+    readonly notes: string | null;
+    readonly isActive: boolean;
+    readonly lines: readonly RecipeLine[];
+  };
 }) {
   const [state, formAction, isPending] = useActionState(saveRecipeAction, IDLE_FORM_STATE);
   const [lines, setLines] = useState<readonly RecipeLine[]>(
-    initial.lines.length > 0 ? initial.lines : [{ inventoryItemId: items[0]?.id ?? "", quantity: 1 }],
+    initial.lines.length > 0
+      ? initial.lines
+      : [{ inventoryItemId: items[0]?.id ?? "", quantity: 1 }],
   );
   const errors = state.fieldErrors ?? {};
 
@@ -96,7 +102,9 @@ export function RecipeForm({
           </div>
         ))}
 
-        {errors.items !== undefined ? <p className="text-destructive text-sm">{errors.items[0]}</p> : null}
+        {errors.items !== undefined ? (
+          <p className="text-destructive text-sm">{errors.items[0]}</p>
+        ) : null}
 
         <div>
           <Button

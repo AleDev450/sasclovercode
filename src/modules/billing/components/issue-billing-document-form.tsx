@@ -38,7 +38,10 @@ export function IssueBillingDocumentForm({
   initialCustomer: PickedCustomer | null;
   relatableDocuments: readonly RelatableDocument[];
 }) {
-  const [state, formAction, isPending] = useActionState(issueBillingDocumentAction, IDLE_FORM_STATE);
+  const [state, formAction, isPending] = useActionState(
+    issueBillingDocumentAction,
+    IDLE_FORM_STATE,
+  );
   const [type, setType] = useState<BillingDocumentType>("boleta");
   const [customer, setCustomer] = useState<PickedCustomer | null>(initialCustomer);
   const errors = state.fieldErrors ?? {};
@@ -75,7 +78,12 @@ export function IssueBillingDocumentForm({
       {isNote ? (
         <div className="flex flex-col gap-2">
           <Label htmlFor="relatedDocumentId">Documento que corrige</Label>
-          <select id="relatedDocumentId" name="relatedDocumentId" className={selectClass} defaultValue="">
+          <select
+            id="relatedDocumentId"
+            name="relatedDocumentId"
+            className={selectClass}
+            defaultValue=""
+          >
             <option value="" disabled>
               Elige un comprobante de este pedido
             </option>

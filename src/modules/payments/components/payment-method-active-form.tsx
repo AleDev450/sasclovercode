@@ -14,7 +14,10 @@ export function SetPaymentMethodActiveForm({
   paymentMethodId: string;
   isActive: boolean;
 }) {
-  const [state, formAction, isPending] = useActionState(setPaymentMethodActiveAction, IDLE_FORM_STATE);
+  const [state, formAction, isPending] = useActionState(
+    setPaymentMethodActiveAction,
+    IDLE_FORM_STATE,
+  );
 
   return (
     <form action={formAction} className="flex flex-col gap-2">

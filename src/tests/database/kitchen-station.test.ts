@@ -25,11 +25,7 @@ async function insertLocation(tenantId: string, name: string): Promise<string> {
   return rows[0]!.id;
 }
 
-async function insertCategory(
-  tenantId: string,
-  slug: string,
-  station: string,
-): Promise<string> {
+async function insertCategory(tenantId: string, slug: string, station: string): Promise<string> {
   const rows = await db.query<{ id: string }>(
     `insert into public.categories (tenant_id, name, slug, kitchen_station)
      values ($1, $2, $2, $3::public.kitchen_station) returning id`,
@@ -60,7 +56,11 @@ async function insertOrder(tenantId: string, locationId: string): Promise<string
   return rows[0]!.id;
 }
 
-async function addItem(orderId: string, productId: string | null, options: { name?: string; price?: number } = {}): Promise<string> {
+async function addItem(
+  orderId: string,
+  productId: string | null,
+  options: { name?: string; price?: number } = {},
+): Promise<string> {
   const rows = await db.query<{ id: string }>(
     `insert into public.order_items (order_id, tenant_id, product_id, quantity, name_snapshot, unit_price_cents)
      values ($1, '00000000-0000-0000-0000-000000000000', $2, 1, coalesce($3, 'placeholder'), coalesce($4, 0))

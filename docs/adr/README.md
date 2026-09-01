@@ -37,27 +37,27 @@ Status.
 | 027 | [Aggregate functions; no materialised views yet](./027-aggregate-functions-and-no-materialised-views-yet.md)                      | ACCEPTED | 23    |
 | 028 | [Audit by trigger, with forwarded request context](./028-audit-by-trigger-with-forwarded-request-context.md)                      | ACCEPTED | 24    |
 | 029 | [Nonce CSP, database rate limits, and the isolation sweep](./029-nonce-csp-database-rate-limits-and-isolation-sweep.md)           | ACCEPTED | 25    |
+| 030 | [Measured query plans and bounded reads](./030-measured-plans-and-bounded-reads.md)                                               | ACCEPTED | 26    |
+| 031 | [A restore is not an insert](./031-restore-with-triggers-disabled.md)                                                             | ACCEPTED | 27    |
 
 ## Planned
 
 Decisions the master document calls out that belong to a later phase:
 
-| Topic                                                             | Phase                                          |
-| ----------------------------------------------------------------- | ---------------------------------------------- |
-| Vercel provider adapter                                           | when a token exists (ADR-013)                  |
-| A real BillingProvider (Nubefact, Efact, SUNAT API)               | when real credentials exist (ADR-021)          |
-| A real DeliveryProvider (Rappi, PedidosYa, Uber Direct)           | when an integration is contracted (ADR-023)    |
-| A payment gateway for the subscription (Culqi, Izipay, Stripe)    | when one is contracted (ADR-026)               |
-| Expiring loyalty points on a schedule                             | when a scheduler exists (ADR-024)              |
-| Running the billing cycle on a schedule                           | when a scheduler exists (ADR-026)              |
-| A materialised view for reports                                   | when Phase 26 measures the threshold (ADR-027) |
-| Charging for a plan, and advancing its period                     | Phase 22 (ADR-025)                             |
-| An error-tracking provider (Sentry, Datadog)                      | when one is contracted (ADR-028)               |
-| Time-series metrics and a collector to hold them                  | Phase 26, if measurement asks for it (ADR-028) |
-| A retention and purge policy for `audit_logs`                     | Phase 27 (ADR-028, KL-2402)                    |
-| A pentest and an automated scan of a deployed environment         | Phase 28 (ADR-029, KL-2501)                    |
-| Redis or Upstash for rate limiting, if the database is not enough | when one is contracted (ADR-029)               |
-| Secret rotation and key management                                | Phase 27 (ADR-029, KL-2503)                    |
+| Topic                                                             | Phase                                           |
+| ----------------------------------------------------------------- | ----------------------------------------------- |
+| Vercel provider adapter                                           | when a token exists (ADR-013)                   |
+| A real BillingProvider (Nubefact, Efact, SUNAT API)               | when real credentials exist (ADR-021)           |
+| A real DeliveryProvider (Rappi, PedidosYa, Uber Direct)           | when an integration is contracted (ADR-023)     |
+| A payment gateway for the subscription (Culqi, Izipay, Stripe)    | when one is contracted (ADR-026)                |
+| Expiring loyalty points on a schedule                             | when a scheduler exists (ADR-024)               |
+| Running the billing cycle on a schedule                           | when a scheduler exists (ADR-026)               |
+| A materialised view for reports                                   | measured in Phase 26: threshold not reached     |
+| Charging for a plan, and advancing its period                     | Phase 22 (ADR-025)                              |
+| An error-tracking provider (Sentry, Datadog)                      | when one is contracted (ADR-028)                |
+| Time-series metrics and a collector to hold them                  | needs a deployed environment (ADR-028, KL-2601) |
+| A pentest and an automated scan of a deployed environment         | Phase 28 (ADR-029, KL-2501)                     |
+| Redis or Upstash for rate limiting, if the database is not enough | when one is contracted (ADR-029)                |
 
 A relevant architectural change without an ADR makes the phase incomplete
 (section 61).

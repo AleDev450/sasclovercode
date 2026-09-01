@@ -27,7 +27,10 @@ const moneyField = (label: string, allowZero = false) =>
     const raw = value.trim().replace(",", ".");
     const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(raw);
     if (match === null) {
-      ctx.addIssue({ code: "custom", message: `Usa un importe como 24.90 para ${label.toLowerCase()}.` });
+      ctx.addIssue({
+        code: "custom",
+        message: `Usa un importe como 24.90 para ${label.toLowerCase()}.`,
+      });
       return z.NEVER;
     }
     const [, whole, decimals = ""] = match;
@@ -94,7 +97,11 @@ const signedQuantityField = z.string().transform((value, ctx) => {
 
 export const createUnitSchema = z.object({
   name: z.string().trim().min(1, "Escribe un nombre.").max(60, "Maximo 60 caracteres."),
-  abbreviation: z.string().trim().min(1, "Escribe una abreviatura.").max(10, "Maximo 10 caracteres."),
+  abbreviation: z
+    .string()
+    .trim()
+    .min(1, "Escribe una abreviatura.")
+    .max(10, "Maximo 10 caracteres."),
 });
 
 export const setUnitActiveSchema = z.object({
@@ -140,7 +147,10 @@ const supplierEmail = z
   .max(200, "Maximo 200 caracteres.")
   .transform((value) => (value.length === 0 ? null : value))
   .nullable()
-  .refine((value) => value === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), "Ese correo no parece valido.");
+  .refine(
+    (value) => value === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+    "Ese correo no parece valido.",
+  );
 
 const supplierPhone = optionalText(30).refine(
   (value) => value === null || /^\+?[0-9]{6,20}$/.test(value),

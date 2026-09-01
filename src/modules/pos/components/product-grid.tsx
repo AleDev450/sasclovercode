@@ -105,7 +105,9 @@ export function ProductGrid({
             type="button"
             onClick={() => setActiveCategory(category.id)}
             className={`rounded-full border px-4 py-2 text-sm font-medium ${
-              activeCategory === category.id ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+              activeCategory === category.id
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-accent"
             }`}
           >
             {category.name}
@@ -127,7 +129,7 @@ export function ProductGrid({
               className="border-border bg-card hover:bg-accent flex min-h-24 w-full flex-col justify-between rounded-lg border p-3 text-left disabled:cursor-not-allowed disabled:opacity-40"
             >
               <span className="text-sm font-medium">{product.name}</span>
-              <span className="tabular-nums text-sm">
+              <span className="text-sm tabular-nums">
                 {product.variants.length > 0
                   ? "Elegir…"
                   : formatCurrency(product.basePriceCents, currency)}
@@ -144,7 +146,9 @@ export function ProductGrid({
                     className="hover:bg-accent flex w-full items-center justify-between px-3 py-2 text-left text-sm"
                   >
                     <span>{variant.name}</span>
-                    <span className="tabular-nums">{formatCurrency(variant.priceCents, currency)}</span>
+                    <span className="tabular-nums">
+                      {formatCurrency(variant.priceCents, currency)}
+                    </span>
                   </button>
                 ))}
               </div>

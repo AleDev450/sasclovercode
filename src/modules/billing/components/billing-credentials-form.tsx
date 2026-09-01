@@ -25,7 +25,10 @@ export function BillingCredentialsForm({
   hasCredentials: boolean;
   credentialsUpdatedAt: string | null;
 }) {
-  const [state, formAction, isPending] = useActionState(setBillingCredentialsAction, IDLE_FORM_STATE);
+  const [state, formAction, isPending] = useActionState(
+    setBillingCredentialsAction,
+    IDLE_FORM_STATE,
+  );
   const [clearState, clearAction, isClearing] = useActionState(
     clearBillingCredentialsAction,
     IDLE_FORM_STATE,
@@ -85,7 +88,13 @@ export function BillingCredentialsForm({
             </Alert>
           ) : null}
           <div>
-            <Button type="submit" variant="destructive" size="sm" loading={isClearing} loadingLabel="Quitando">
+            <Button
+              type="submit"
+              variant="destructive"
+              size="sm"
+              loading={isClearing}
+              loadingLabel="Quitando"
+            >
               Quitar credenciales
             </Button>
           </div>

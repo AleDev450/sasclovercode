@@ -14,6 +14,7 @@ import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { BillingDocumentStatus, BillingDocumentType, CustomerDocType } from "@/types/database";
+import { LIST_CAP } from "@/config/app";
 
 export interface BillingDocumentSummary {
   readonly id: string;
@@ -154,7 +155,8 @@ export async function listBillingDocumentsForOrder(
     .select(`${DOCUMENT_COLUMNS}, created_at`)
     .eq("tenant_id", tenantId)
     .eq("order_id", orderId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("billing.list_for_order_failed", { tenantId, orderId, error });
@@ -273,7 +275,9 @@ export interface BillingProviderConfig {
  * comes from `has_billing_credentials()` (Phase 17 migrations), which
  * reveals presence and nothing else (ADR-021).
  */
-export async function getBillingProviderConfig(tenantId: string): Promise<BillingProviderConfig | null> {
+export async function getBillingProviderConfig(
+  tenantId: string,
+): Promise<BillingProviderConfig | null> {
   const client = await createSupabaseServerClient();
 
   const [{ data, error }, { data: hasCredentials, error: credError }] = await Promise.all([

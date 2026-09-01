@@ -14,6 +14,7 @@ import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { BusinessIdentity, SiteSeo } from "../metadata";
 import { THEME_DEFAULTS, type ThemeValues } from "../theme";
+import { LIST_CAP } from "@/config/app";
 
 /**
  * The SEO row of a tenant.
@@ -241,7 +242,8 @@ export async function listPublishedPages(tenantId: string): Promise<SeoPageRow[]
     .select("id, slug, title, seo_title, seo_description, og_image_path, updated_at")
     .eq("tenant_id", tenantId)
     .eq("status", "published")
-    .order("slug");
+    .order("slug")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("seo.sitemap_query_failed", { tenantId, error });

@@ -205,9 +205,9 @@ async function advanceOrderTo(orderId: string, target: string): Promise<void> {
   }
 }
 
-async function salesFor(orderId: string): Promise<
-  { inventory_item_id: string; quantity: string; order_item_id: string }[]
-> {
+async function salesFor(
+  orderId: string,
+): Promise<{ inventory_item_id: string; quantity: string; order_item_id: string }[]> {
   return db.query(
     `select inventory_item_id, quantity::text, order_item_id from public.stock_movements
      where order_id = $1 and type = 'sale' order by created_at`,
@@ -256,9 +256,10 @@ describe("units: every tenant gets a starter set", () => {
 
   it("refuses two units with the same abbreviation (case-insensitive) per tenant", async () => {
     await expect(
-      db.query("insert into public.units (tenant_id, name, abbreviation) values ($1, 'Kilo', 'KG')", [
-        tenantA,
-      ]),
+      db.query(
+        "insert into public.units (tenant_id, name, abbreviation) values ($1, 'Kilo', 'KG')",
+        [tenantA],
+      ),
     ).rejects.toThrow(/duplicate key|unique/i);
   });
 });
@@ -315,7 +316,6 @@ describe("purchases and stock_movements: sign by type", () => {
       ),
     ).rejects.toThrow(/stock_movements_purchase_fields/);
   });
-
 });
 
 describe("purchases.total_cost_cents: summed by trigger", () => {
@@ -356,7 +356,9 @@ describe("purchases.total_cost_cents: summed by trigger", () => {
       /different business/,
     );
     const supplier = await insertSupplier(tenantA, `Prov-${crypto.randomUUID()}`);
-    await expect(insertPurchase(tenantA, supplier, locationB)).rejects.toThrow(/different business/);
+    await expect(insertPurchase(tenantA, supplier, locationB)).rejects.toThrow(
+      /different business/,
+    );
   });
 });
 
@@ -497,7 +499,12 @@ describe("recipes: consuming stock when an order completes", () => {
     const recipe = await insertRecipe(product);
     await insertRecipeItem(recipe, item, 1);
 
-    for (const upTo of [[], ["confirmed"], ["confirmed", "preparing"], ["confirmed", "preparing", "ready"]]) {
+    for (const upTo of [
+      [],
+      ["confirmed"],
+      ["confirmed", "preparing"],
+      ["confirmed", "preparing", "ready"],
+    ]) {
       const order = await insertOrder(tenantA, locationA);
       await addOrderItem(order, product, 1);
       for (const status of upTo) {
@@ -555,7 +562,11 @@ describe("recipes: cross-tenant guards and uniqueness", () => {
   it("refuses a recipe_item whose inventory item belongs to a different business", async () => {
     const product = await insertProduct(tenantA, `receta-${crypto.randomUUID()}`, 500);
     const recipe = await insertRecipe(product);
-    const itemB = await insertInventoryItem(tenantB, await unitId(tenantB, "kg"), `Ajeno-${crypto.randomUUID()}`);
+    const itemB = await insertInventoryItem(
+      tenantB,
+      await unitId(tenantB, "kg"),
+      `Ajeno-${crypto.randomUUID()}`,
+    );
     await expect(insertRecipeItem(recipe, itemB, 1)).rejects.toThrow(/different business/);
   });
 
@@ -718,11 +729,17 @@ describe("row level security", () => {
     const item = await insertInventoryItem(tenantA, kgUnitA, `Item-${crypto.randomUUID()}`);
     await insertManualMovement(item, locationA, "adjustment", 5, "inicial");
 
-    const itemB = await insertInventoryItem(tenantB, await unitId(tenantB, "kg"), `Ajeno-${crypto.randomUUID()}`);
+    const itemB = await insertInventoryItem(
+      tenantB,
+      await unitId(tenantB, "kg"),
+      `Ajeno-${crypto.randomUUID()}`,
+    );
     await insertManualMovement(itemB, locationB, "adjustment", 5, "inicial");
 
     const visible = await db.asUser(ownerA, async () =>
-      db.query<{ inventory_item_id: string }>("select inventory_item_id from public.inventory_stock_levels"),
+      db.query<{ inventory_item_id: string }>(
+        "select inventory_item_id from public.inventory_stock_levels",
+      ),
     );
     const ids = visible.map((r) => r.inventory_item_id);
     expect(ids).toContain(item);

@@ -87,7 +87,8 @@ describe("payment methods", () => {
 
   it("refuses a type outside that list", () => {
     expect(
-      createPaymentMethodSchema.safeParse({ ...baseMethod, type: "bitcoin", name: "Cripto" }).success,
+      createPaymentMethodSchema.safeParse({ ...baseMethod, type: "bitcoin", name: "Cripto" })
+        .success,
     ).toBe(false);
   });
 

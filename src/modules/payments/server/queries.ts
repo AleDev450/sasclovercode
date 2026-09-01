@@ -14,6 +14,7 @@ import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { CashMovementType, PaymentMethodType } from "@/types/database";
+import { LIST_CAP } from "@/config/app";
 
 export interface PaymentMethodSummary {
   readonly id: string;
@@ -31,7 +32,8 @@ export async function listPaymentMethods(
   let query = client
     .from("payment_methods")
     .select("id, type, name, reference, is_active")
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .limit(LIST_CAP);
 
   if (options.activeOnly === true) query = query.eq("is_active", true);
 
@@ -72,9 +74,12 @@ export async function listCashRegisters(tenantId: string): Promise<readonly Cash
   // open session - closed, or never opened - still belongs on this list.
   const { data: rows, error } = await client
     .from("cash_registers")
-    .select("id, location_id, name, is_active, locations(name), cash_sessions(id, opened_at, closed_at)")
+    .select(
+      "id, location_id, name, is_active, locations(name), cash_sessions(id, opened_at, closed_at)",
+    )
     .eq("tenant_id", tenantId)
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("cash_registers.list_failed", { tenantId, error });
@@ -83,7 +88,11 @@ export async function listCashRegisters(tenantId: string): Promise<readonly Cash
 
   return (rows ?? []).map((row) => {
     const openSession = (
-      row.cash_sessions as unknown as readonly { id: string; opened_at: string; closed_at: string | null }[]
+      row.cash_sessions as unknown as readonly {
+        id: string;
+        opened_at: string;
+        closed_at: string | null;
+      }[]
     ).find((session) => session.closed_at === null);
 
     return {
@@ -116,7 +125,8 @@ export async function listOpenSessionsForLocation(
     .select("id, opening_cents, cash_registers!inner(id, name, location_id)")
     .eq("tenant_id", tenantId)
     .is("closed_at", null)
-    .eq("cash_registers.location_id", locationId);
+    .eq("cash_registers.location_id", locationId)
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("cash_sessions.list_open_failed", { tenantId, locationId, error });
@@ -243,7 +253,9 @@ export async function listCashSessions(
   const client = await createSupabaseServerClient();
   const { data, error } = await client
     .from("cash_sessions")
-    .select("id, opening_cents, closing_cents, difference_cents, opened_at, closed_at, cash_registers(name)")
+    .select(
+      "id, opening_cents, closing_cents, difference_cents, opened_at, closed_at, cash_registers(name)",
+    )
     .eq("tenant_id", tenantId)
     .eq("cash_register_id", cashRegisterId)
     .order("opened_at", { ascending: false })

@@ -50,3 +50,22 @@ export const DEFAULT_PAGE_SIZE = 25;
 
 /** Hard upper bound a client may request, so a caller cannot ask for everything. */
 export const MAX_PAGE_SIZE = 100;
+
+/**
+ * The ceiling every list read carries, even one nobody paginates (Phase 26).
+ *
+ * Master section 18 forbids "consultas sin límite". The measurement that opened
+ * Phase 26 found twenty-six reads with no bound at all - almost all of them over
+ * configuration-shaped tables where a business has twelve rows and never a
+ * thousand, which is exactly why nobody noticed.
+ *
+ * The number is deliberately far above what those tables hold. It is not a page
+ * size and no screen pages against it: it is the ceiling that turns "this query
+ * reads the table" into "this query reads at most this much", so a table that
+ * unexpectedly grows degrades a screen instead of taking the request down.
+ *
+ * A list that can legitimately exceed this needs real pagination, not a bigger
+ * ceiling. Raising this number to make a screen work is the wrong fix, and the
+ * comment is here so that is obvious to whoever considers it.
+ */
+export const LIST_CAP = 500;

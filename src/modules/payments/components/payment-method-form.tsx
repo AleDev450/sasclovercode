@@ -37,8 +37,15 @@ export function PaymentMethodForm({ tenantSlug }: { tenantSlug: string }) {
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">Nombre</Label>
-          <Input id="name" name="name" placeholder="Yape - Alejandro" invalid={errors.name !== undefined} />
-          {errors.name !== undefined ? <p className="text-destructive text-sm">{errors.name[0]}</p> : null}
+          <Input
+            id="name"
+            name="name"
+            placeholder="Yape - Alejandro"
+            invalid={errors.name !== undefined}
+          />
+          {errors.name !== undefined ? (
+            <p className="text-destructive text-sm">{errors.name[0]}</p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-2">

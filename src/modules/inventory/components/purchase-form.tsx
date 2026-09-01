@@ -113,19 +113,36 @@ export function RecordPurchaseForm({
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor={`lineQuantity-${index}`}>Cantidad</Label>
-              <Input id={`lineQuantity-${index}`} name="lineQuantity" inputMode="decimal" defaultValue="1" />
+              <Input
+                id={`lineQuantity-${index}`}
+                name="lineQuantity"
+                inputMode="decimal"
+                defaultValue="1"
+              />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor={`lineUnitCost-${index}`}>Costo unitario</Label>
-              <Input id={`lineUnitCost-${index}`} name="lineUnitCost" inputMode="decimal" placeholder="0.00" />
+              <Input
+                id={`lineUnitCost-${index}`}
+                name="lineUnitCost"
+                inputMode="decimal"
+                placeholder="0.00"
+              />
             </div>
           </div>
         ))}
 
-        {errors.lines !== undefined ? <p className="text-destructive text-sm">{errors.lines[0]}</p> : null}
+        {errors.lines !== undefined ? (
+          <p className="text-destructive text-sm">{errors.lines[0]}</p>
+        ) : null}
 
         <div>
-          <Button type="button" variant="outline" size="sm" onClick={() => setLineCount((n) => n + 1)}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setLineCount((n) => n + 1)}
+          >
             Anadir otro insumo
           </Button>
         </div>

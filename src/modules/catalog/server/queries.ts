@@ -22,6 +22,7 @@ import { DatabaseError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { KitchenStation, ProductStatus } from "@/types/database";
+import { LIST_CAP } from "@/config/app";
 
 export interface Category {
   readonly id: string;
@@ -136,7 +137,8 @@ export async function listCategories(tenantId: string): Promise<Category[]> {
     .select(CATEGORY_COLUMNS)
     .eq("tenant_id", tenantId)
     .order("position")
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("catalog.categories_failed", { tenantId, error });
@@ -152,7 +154,8 @@ export async function listProducts(tenantId: string): Promise<Product[]> {
     .select(PRODUCT_COLUMNS)
     .eq("tenant_id", tenantId)
     .order("position")
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("catalog.products_failed", { tenantId, error });
@@ -245,13 +248,12 @@ export async function listProductsWithVariants(
   const client = await createSupabaseServerClient();
   const { data, error } = await client
     .from("products")
-    .select(
-      `${PRODUCT_COLUMNS}, product_variants(id, name, sku, price_cents, is_active, position)`,
-    )
+    .select(`${PRODUCT_COLUMNS}, product_variants(id, name, sku, price_cents, is_active, position)`)
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .order("position")
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("catalog.products_with_variants_failed", { tenantId, error });
@@ -302,7 +304,8 @@ export const listPublicProducts = cache(
       // everything. Without this filter the site would render differently
       // depending on who was looking - the defect the Phase 07 audit found in
       // the navigation (A7-2).
-      .eq("status", "active");
+      .eq("status", "active")
+      .limit(LIST_CAP);
 
     if (categorySlug !== undefined && categorySlug !== null && categorySlug.length > 0) {
       query = query.eq("categories.slug", categorySlug).not("category_id", "is", null);
@@ -339,7 +342,8 @@ export const listPublicCategories = cache(async (tenantId: string): Promise<Cate
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .order("position")
-    .order("name");
+    .order("name")
+    .limit(LIST_CAP);
 
   if (error) {
     logger.error("catalog.public_categories_failed", { tenantId, error });

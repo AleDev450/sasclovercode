@@ -24,7 +24,11 @@ export const KITCHEN_STATION_LABELS: Readonly<Record<KitchenStation, string>> = 
 };
 
 /** The slice of `order_status` a kitchen board shows, in board order. */
-export const BOARD_STATUSES = ["confirmed", "preparing", "ready"] as const satisfies readonly OrderStatus[];
+export const BOARD_STATUSES = [
+  "confirmed",
+  "preparing",
+  "ready",
+] as const satisfies readonly OrderStatus[];
 
 export const BOARD_STATUS_LABELS: Readonly<Record<(typeof BOARD_STATUSES)[number], string>> = {
   confirmed: "Nuevo",

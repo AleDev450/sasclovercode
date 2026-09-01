@@ -49,8 +49,12 @@ describe("issuing a document carries no computed field", () => {
   it("accepts one of the four types from master section 33", () => {
     for (const type of ["boleta", "factura", "nota_credito", "nota_debito"]) {
       expect(
-        issueBillingDocumentSchema.safeParse({ orderId, type, customerId: "", relatedDocumentId: "" })
-          .success,
+        issueBillingDocumentSchema.safeParse({
+          orderId,
+          type,
+          customerId: "",
+          relatedDocumentId: "",
+        }).success,
         type,
       ).toBe(true);
     }
@@ -123,7 +127,9 @@ describe("advancing a document", () => {
 
   it("rejecting requires a reason", () => {
     expect(rejectBillingDocumentSchema.safeParse({ documentId, reason: "" }).success).toBe(false);
-    expect(rejectBillingDocumentSchema.safeParse({ documentId, reason: "   " }).success).toBe(false);
+    expect(rejectBillingDocumentSchema.safeParse({ documentId, reason: "   " }).success).toBe(
+      false,
+    );
     expect(
       rejectBillingDocumentSchema.safeParse({ documentId, reason: "RUC del cliente invalido" })
         .success,
@@ -199,8 +205,8 @@ describe("setting credentials", () => {
   });
 
   it("refuses a value over 4000 characters", () => {
-    expect(
-      setBillingCredentialsSchema.safeParse({ credentials: "a".repeat(4001) }).success,
-    ).toBe(false);
+    expect(setBillingCredentialsSchema.safeParse({ credentials: "a".repeat(4001) }).success).toBe(
+      false,
+    );
   });
 });

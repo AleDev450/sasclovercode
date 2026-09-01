@@ -5,7 +5,12 @@ import { useState } from "react";
 import { Button, Card } from "@/components/ui";
 import { addToCart, lineTotalCents, removeFromCart, setCartQuantity, type CartLine } from "../cart";
 import { CartPanel } from "./cart-panel";
-import { type CompletedSale, CheckoutPanel, type PosOpenSession, type PosPaymentMethod } from "./checkout-panel";
+import {
+  type CompletedSale,
+  CheckoutPanel,
+  type PosOpenSession,
+  type PosPaymentMethod,
+} from "./checkout-panel";
 import { CustomerPicker, type PickedCustomer } from "./customer-picker";
 import { ProductGrid, type PosCategory, type PosProduct } from "./product-grid";
 import { PrintButton } from "./print-button";
@@ -51,7 +56,10 @@ export function PosScreen({
   const [customer, setCustomer] = useState<PickedCustomer | null>(null);
   const [completedSale, setCompletedSale] = useState<CompletedSale | null>(null);
 
-  const totalCents = cart.reduce((sum, line) => sum + Math.round(line.unitPriceCents * line.quantity), 0);
+  const totalCents = cart.reduce(
+    (sum, line) => sum + Math.round(line.unitPriceCents * line.quantity),
+    0,
+  );
 
   function reset() {
     setCart([]);
@@ -103,7 +111,9 @@ export function PosScreen({
               key={location.id}
               href={`/dashboard/${tenantSlug}/pos?sede=${location.id}`}
               className={`rounded-full border px-3 py-1 text-sm ${
-                location.id === locationId ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                location.id === locationId
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-accent"
               }`}
             >
               {location.name}
@@ -133,7 +143,9 @@ export function PosScreen({
           <CartPanel
             lines={cart}
             currency={currency}
-            onSetQuantity={(key, quantity) => setCart((current) => setCartQuantity(current, key, quantity))}
+            onSetQuantity={(key, quantity) =>
+              setCart((current) => setCartQuantity(current, key, quantity))
+            }
             onRemove={(key) => setCart((current) => removeFromCart(current, key))}
           />
 

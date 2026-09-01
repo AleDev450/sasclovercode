@@ -72,7 +72,10 @@ function describeDatabaseError(error: { code?: string; message: string }): FormS
       return { status: "error", message: "Ese pedido esta anulado y no puede facturarse." };
     }
     if (error.message.includes("customer belongs to a different business")) {
-      return { status: "error", fieldErrors: { customerId: ["Ese cliente no pertenece a este negocio."] } };
+      return {
+        status: "error",
+        fieldErrors: { customerId: ["Ese cliente no pertenece a este negocio."] },
+      };
     }
     if (error.message.includes("related document belongs to a different business")) {
       return {
@@ -158,7 +161,10 @@ export async function issueBillingDocumentAction(
 
   logger.info("billing_document.created", { tenantId: tenant.id, orderId: parsed.data.orderId });
   revalidateBilling(tenant.slug, parsed.data.orderId);
-  return { status: "success", message: "Documento creado. Marca como enviado cuando lo hayas presentado." };
+  return {
+    status: "success",
+    message: "Documento creado. Marca como enviado cuando lo hayas presentado.",
+  };
 }
 
 export async function markBillingDocumentSentAction(
@@ -184,7 +190,11 @@ export async function markBillingDocumentSentAction(
       .eq("tenant_id", tenant.id)
       .eq("id", parsed.data.documentId)
       .maybeSingle(),
-    client.from("billing_provider_configs").select("provider_name").eq("tenant_id", tenant.id).maybeSingle(),
+    client
+      .from("billing_provider_configs")
+      .select("provider_name")
+      .eq("tenant_id", tenant.id)
+      .maybeSingle(),
   ]);
 
   if (fetchError || document === null) {
@@ -255,7 +265,10 @@ export async function acceptBillingDocumentAction(
     throw new DatabaseError("Billing document status change failed.", { cause: error });
   }
 
-  logger.info("billing_document.accepted", { tenantId: tenant.id, documentId: parsed.data.documentId });
+  logger.info("billing_document.accepted", {
+    tenantId: tenant.id,
+    documentId: parsed.data.documentId,
+  });
   revalidateBilling(tenant.slug, orderId);
   return { status: "success", message: "Documento aceptado por SUNAT." };
 }
@@ -287,9 +300,15 @@ export async function rejectBillingDocumentAction(
     throw new DatabaseError("Billing document status change failed.", { cause: error });
   }
 
-  logger.info("billing_document.rejected", { tenantId: tenant.id, documentId: parsed.data.documentId });
+  logger.info("billing_document.rejected", {
+    tenantId: tenant.id,
+    documentId: parsed.data.documentId,
+  });
   revalidateBilling(tenant.slug, orderId);
-  return { status: "success", message: "Documento marcado como rechazado. Corrigelo con un documento nuevo." };
+  return {
+    status: "success",
+    message: "Documento marcado como rechazado. Corrigelo con un documento nuevo.",
+  };
 }
 
 export async function cancelBillingDocumentAction(
@@ -319,7 +338,10 @@ export async function cancelBillingDocumentAction(
     throw new DatabaseError("Billing document cancellation failed.", { cause: error });
   }
 
-  logger.info("billing_document.cancelled", { tenantId: tenant.id, documentId: parsed.data.documentId });
+  logger.info("billing_document.cancelled", {
+    tenantId: tenant.id,
+    documentId: parsed.data.documentId,
+  });
   revalidateBilling(tenant.slug, orderId);
   return { status: "success", message: "Documento anulado." };
 }
@@ -388,7 +410,9 @@ export async function setBillingActiveAction(
   }
 
   logger.info(
-    parsed.data.isActive ? "billing_provider_config.activated" : "billing_provider_config.deactivated",
+    parsed.data.isActive
+      ? "billing_provider_config.activated"
+      : "billing_provider_config.deactivated",
     { tenantId: tenant.id },
   );
   revalidateBilling(tenant.slug);
