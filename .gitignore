@@ -49,3 +49,9 @@ next-env.d.ts
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Playwright (Phase 28)
+/playwright-report/
+/test-results/
+/blob-report/
+/.playwright/

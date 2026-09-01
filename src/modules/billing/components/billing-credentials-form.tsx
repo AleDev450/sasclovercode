@@ -68,7 +68,9 @@ export function BillingCredentialsForm({
             placeholder="Pega aqui el token, usuario/clave o certificado que te dio tu PSE"
           />
           {errors.credentials !== undefined ? (
-            <p className="text-destructive text-sm">{errors.credentials[0]}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.credentials[0]}
+            </p>
           ) : null}
         </div>
 

@@ -78,7 +78,9 @@ export function NewOrderForm({
             ))}
           </select>
           {errors.locationId !== undefined ? (
-            <p className="text-destructive text-sm">{errors.locationId[0]}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.locationId[0]}
+            </p>
           ) : null}
         </div>
 
@@ -146,13 +148,19 @@ export function NewOrderForm({
         ))}
 
         {errors.items !== undefined ? (
-          <p className="text-destructive text-sm">{errors.items[0]}</p>
+          <p role="alert" className="text-destructive text-sm">
+            {errors.items[0]}
+          </p>
         ) : null}
         {errors.quantity !== undefined ? (
-          <p className="text-destructive text-sm">{errors.quantity[0]}</p>
+          <p role="alert" className="text-destructive text-sm">
+            {errors.quantity[0]}
+          </p>
         ) : null}
         {errors.discount !== undefined ? (
-          <p className="text-destructive text-sm">{errors.discount[0]}</p>
+          <p role="alert" className="text-destructive text-sm">
+            {errors.discount[0]}
+          </p>
         ) : null}
 
         <div>
@@ -172,7 +180,9 @@ export function NewOrderForm({
           <Label htmlFor="shipping">Envio</Label>
           <Input id="shipping" name="shipping" inputMode="decimal" placeholder="0.00" />
           {errors.shipping !== undefined ? (
-            <p className="text-destructive text-sm">{errors.shipping[0]}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.shipping[0]}
+            </p>
           ) : null}
         </div>
         <div className="flex flex-col gap-2">

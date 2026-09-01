@@ -133,7 +133,9 @@ export function RecordPurchaseForm({
         ))}
 
         {errors.lines !== undefined ? (
-          <p className="text-destructive text-sm">{errors.lines[0]}</p>
+          <p role="alert" className="text-destructive text-sm">
+            {errors.lines[0]}
+          </p>
         ) : null}
 
         <div>

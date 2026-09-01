@@ -21,11 +21,21 @@ export function CustomerPicker({
   selected,
   onSelect,
   onClear,
+  inputId,
 }: {
   tenantSlug: string;
   selected: PickedCustomer | null;
   onSelect: (customer: PickedCustomer) => void;
   onClear: () => void;
+  /**
+   * Id for the search box, so a caller's `<Label htmlFor>` can point at it.
+   *
+   * Added in Phase 28. The search box previously carried only a placeholder,
+   * and a placeholder is not an accessible name: it disappears the moment
+   * somebody types, and some screen readers never announce it at all. A caller
+   * that rendered a label beside this component was labelling nothing.
+   */
+  inputId?: string;
 }) {
   const [term, setTerm] = useState("");
   const [results, setResults] = useState<readonly Customer[]>([]);
@@ -61,6 +71,9 @@ export function CustomerPicker({
   return (
     <div className="relative flex flex-col gap-1">
       <Input
+        id={inputId}
+        // Named even without a caller's label, which is how the POS uses it.
+        aria-label="Buscar cliente"
         placeholder="Buscar cliente (opcional)"
         value={term}
         onChange={(event) => setTerm(event.target.value)}

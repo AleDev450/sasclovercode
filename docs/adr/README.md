@@ -39,6 +39,7 @@ Status.
 | 029 | [Nonce CSP, database rate limits, and the isolation sweep](./029-nonce-csp-database-rate-limits-and-isolation-sweep.md)           | ACCEPTED | 25    |
 | 030 | [Measured query plans and bounded reads](./030-measured-plans-and-bounded-reads.md)                                               | ACCEPTED | 26    |
 | 031 | [A restore is not an insert](./031-restore-with-triggers-disabled.md)                                                             | ACCEPTED | 27    |
+| 032 | [E2E split and a checklist that cannot lie](./032-e2e-split-and-a-checklist-that-cannot-lie.md)                                   | ACCEPTED | 28    |
 
 ## Planned
 

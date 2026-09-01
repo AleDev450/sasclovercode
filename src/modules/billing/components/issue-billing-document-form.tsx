@@ -99,7 +99,9 @@ export function IssueBillingDocumentForm({
             </p>
           ) : null}
           {errors.relatedDocumentId !== undefined ? (
-            <p className="text-destructive text-sm">{errors.relatedDocumentId[0]}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.relatedDocumentId[0]}
+            </p>
           ) : null}
           <input type="hidden" name="customerId" value="" />
         </div>
@@ -109,6 +111,7 @@ export function IssueBillingDocumentForm({
             Cliente {type === "factura" ? "(con RUC, obligatorio para factura)" : "(opcional)"}
           </Label>
           <CustomerPicker
+            inputId="customerId"
             tenantSlug={tenantSlug}
             selected={customer}
             onSelect={setCustomer}
@@ -117,7 +120,9 @@ export function IssueBillingDocumentForm({
           <input type="hidden" name="customerId" value={customer?.id ?? ""} />
           <input type="hidden" name="relatedDocumentId" value="" />
           {errors.customerId !== undefined ? (
-            <p className="text-destructive text-sm">{errors.customerId[0]}</p>
+            <p role="alert" className="text-destructive text-sm">
+              {errors.customerId[0]}
+            </p>
           ) : null}
         </div>
       )}

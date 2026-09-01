@@ -103,7 +103,9 @@ export function RecipeForm({
         ))}
 
         {errors.items !== undefined ? (
-          <p className="text-destructive text-sm">{errors.items[0]}</p>
+          <p role="alert" className="text-destructive text-sm">
+            {errors.items[0]}
+          </p>
         ) : null}
 
         <div>
