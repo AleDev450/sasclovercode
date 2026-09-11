@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { requirePlatformAdmin } from "@/lib/platform/access";
 import { APP_NAME } from "@/config/app";
+import { SignOutButton } from "@/modules/auth";
 
 /**
  * The platform area gate.
@@ -42,6 +43,13 @@ export default async function PlatformLayout({ children }: { children: ReactNode
             >
               Diagnostico
             </Link>
+            <Link
+              href="/super-admin/cuenta"
+              className="text-muted-foreground hover:text-foreground text-sm"
+            >
+              Mi cuenta
+            </Link>
+            <SignOutButton />
           </nav>
         </div>
       </header>

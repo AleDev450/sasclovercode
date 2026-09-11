@@ -17,7 +17,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getPublicEnv } from "@/config/env";
-import { requestPasswordResetSchema, signInSchema, updatePasswordSchema } from "@/lib/auth/schemas";
+import {
+  changePasswordSchema,
+  requestPasswordResetSchema,
+  signInSchema,
+  updatePasswordSchema,
+} from "@/lib/auth/schemas";
 import { DEFAULT_SIGNED_IN_PATH, SIGN_IN_PATH, safeRedirectPath } from "@/lib/auth/redirect";
 import { logger } from "@/lib/logger";
 import {
@@ -227,4 +232,71 @@ export async function updatePasswordAction(
 
   revalidatePath("/", "layout");
   redirect(DEFAULT_SIGNED_IN_PATH);
+}
+
+// ---------------------------------------------------------------------------
+// Change password (signed in)
+// ---------------------------------------------------------------------------
+
+/**
+ * Changes the password of the signed-in user, who must supply the current one.
+ *
+ * Returns form state instead of redirecting, so the same form works on the
+ * tenant profile and on the platform account page alike.
+ */
+export async function changePasswordAction(
+  _previousState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: readString(formData, "currentPassword"),
+    password: readString(formData, "password"),
+    confirmPassword: readString(formData, "confirmPassword"),
+  });
+
+  if (!parsed.success) {
+    return { status: "error", fieldErrors: toFieldErrors(parsed.error) };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user === null || user.email === undefined) {
+    return { status: "error", message: "Tu sesion ha expirado. Vuelve a iniciar sesion." };
+  }
+
+  // Verifying the current password is a sign-in attempt, so it shares the
+  // sign-in quota: otherwise this form would be an unthrottled guessing oracle.
+  if (!(await consumeRateLimitForCaller(RATE_LIMITS.AUTH_SIGN_IN))) {
+    logger.warn("auth.password_change.throttled", { userId: user.id });
+    return { status: "error", message: RATE_LIMITED_MESSAGE };
+  }
+
+  const { error: verifyError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: parsed.data.currentPassword,
+  });
+
+  if (verifyError !== null) {
+    logger.warn("auth.password_change.wrong_current", { userId: user.id });
+    return {
+      status: "error",
+      fieldErrors: { currentPassword: ["La contrasena actual no es correcta."] },
+    };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+
+  if (error !== null) {
+    logger.warn("auth.password_change.failed", { userId: user.id, reason: error.message });
+    return {
+      status: "error",
+      message: "No se pudo actualizar la contrasena. Revisa los requisitos e intentalo de nuevo.",
+    };
+  }
+
+  logger.info("auth.password_change.succeeded", { userId: user.id });
+  return { status: "success", message: "Tu contrasena se actualizo correctamente." };
 }

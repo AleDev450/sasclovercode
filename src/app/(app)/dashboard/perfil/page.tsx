@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
 import { requireUser } from "@/lib/auth/session";
+import { ChangePasswordForm } from "@/modules/auth";
 import { ProfileForm } from "@/modules/dashboard/components/profile-form";
 
 export const metadata = { title: "Perfil" };
@@ -20,10 +21,19 @@ export default async function ProfilePage() {
       <Card>
         <CardHeader>
           <CardTitle as="h2">Datos personales</CardTitle>
-          <CardDescription>Para cambiar la contrasena usa la opcion de acceso.</CardDescription>
         </CardHeader>
         <CardContent>
           <ProfileForm email={user.email} fullName={user.fullName} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Cambiar contrasena</CardTitle>
+          <CardDescription>Necesitas tu contrasena actual para elegir una nueva.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
         </CardContent>
       </Card>
 

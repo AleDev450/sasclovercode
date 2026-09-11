@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { Badge, Card, CardContent, CardHeader, CardTitle, EmptyState } from "@/components/ui";
 import { getActiveMemberships } from "@/lib/auth/membership";
 import { requireUser } from "@/lib/auth/session";
+import { getIsPlatformAdmin } from "@/lib/platform/access";
 
 export const metadata: Metadata = { title: "Mis empresas" };
 
@@ -31,6 +32,12 @@ export default async function DashboardEntryPage() {
   const memberships = await getActiveMemberships();
 
   if (memberships.length === 0) {
+    // A CloverCode operator usually belongs to no business; their home is the
+    // platform area, not an empty chooser.
+    if (await getIsPlatformAdmin()) {
+      redirect("/super-admin");
+    }
+
     return (
       <main className="mx-auto flex min-h-dvh max-w-2xl items-center px-6 py-12">
         <EmptyState

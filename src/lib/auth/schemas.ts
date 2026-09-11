@@ -76,6 +76,28 @@ export const updatePasswordSchema = z
     path: ["confirmPassword"],
   });
 
+/**
+ * Changing the password from inside a session.
+ *
+ * Unlike the recovery flow, the caller proves they know the CURRENT password:
+ * a session left open on a shared computer must not be enough to take over the
+ * account permanently.
+ */
+export const changePasswordSchema = z
+  .object({
+    currentPassword: existingPasswordSchema,
+    password: newPasswordSchema,
+    confirmPassword: z.string({ error: "Confirma la contrasena." }),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: "Las contrasenas no coinciden.",
+    path: ["confirmPassword"],
+  })
+  .refine((value) => value.password !== value.currentPassword, {
+    message: "La nueva contrasena debe ser distinta de la actual.",
+    path: ["password"],
+  });
+
 export type SignInInput = z.output<typeof signInSchema>;
 export type RequestPasswordResetInput = z.output<typeof requestPasswordResetSchema>;
 export type UpdatePasswordInput = z.output<typeof updatePasswordSchema>;

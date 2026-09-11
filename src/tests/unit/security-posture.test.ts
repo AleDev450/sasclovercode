@@ -99,6 +99,8 @@ const REVIEWED_UNGATED_ACTIONS: Readonly<Record<string, string>> = {
   "auth/server/actions.ts:signOutAction": "ending your own session needs no permission",
   "auth/server/actions.ts:requestPasswordResetAction": "runs before a session exists",
   "auth/server/actions.ts:updatePasswordAction": "authorised by the recovery token, not a role",
+  "auth/server/actions.ts:changePasswordAction":
+    "your own credentials, authorised by the current password and rate limited",
 };
 
 interface ExportedFunction {

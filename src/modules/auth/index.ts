@@ -5,6 +5,7 @@
  * file inside `server/` or `components/`.
  */
 export { AuthFormShell } from "./components/auth-form-shell";
+export { ChangePasswordForm } from "./components/change-password-form";
 export { FormField } from "./components/form-field";
 export { RequestPasswordResetForm } from "./components/request-password-reset-form";
 export { SignInForm } from "./components/sign-in-form";
