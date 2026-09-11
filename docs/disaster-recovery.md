@@ -263,6 +263,7 @@ Cierra KL-2503, que ADR-029 dejó a esta fase.
 | `NEXT_PUBLIC_APP_URL`                  | Entorno, y el navegador              | No es secreto. Es la URL del propio producto                                |
 | `LOG_LEVEL`                            | Entorno del servidor                 | No es secreto. Configuración de verbosidad                                  |
 | `DEV_TENANT_SLUG`                      | Entorno local                        | No es secreto, y `toLookupDomain` lo ignora en producción (Fase 01, AB-105) |
+| `SUPABASE_SECRET_KEY` (opcional)       | Entorno del servidor                 | **Crítico**: salta RLS. Revocar en Supabase → API Keys y crear otra         |
 | Credenciales de facturación por tenant | `billing_provider_configs`, cifradas | Rotar con el proveedor SUNAT; ADR-021                                       |
 | Variables del hosting                  | Vercel                               | Rotar en Vercel y redesplegar                                               |
 
@@ -271,9 +272,14 @@ son secretas, y un test lo comprueba. Un inventario que solo nombra lo peligroso
 obliga a quien lo lee a decidir si una variable ausente es inofensiva o es un
 olvido, que es exactamente la duda que un inventario existe para quitar.
 
-**No hay `service_role` en este proyecto.** ADR-011 lo declinó y las Fases 09 y
-24 volvieron a declinarlo. Es el secreto más peligroso que puede tener un
-proyecto Supabase, y aquí no existe: nada que rotar, nada que filtrar.
+**La clave secreta (antes `service_role`) es opcional y está confinada.** ADR-011
+la declinó para las escrituras de base de datos, y eso sigue igual: todas pasan
+por funciones `SECURITY DEFINER`. La única excepción es crear la cuenta de un
+propietario desde el Super Admin, que Supabase solo permite con esa clave. La usa
+un único archivo, `src/lib/supabase/admin.ts`, y un test falla si aparece en
+otro. Sin la variable, el producto funciona igual salvo por esa opción. Si se
+filtra, revócala de inmediato: es el secreto más peligroso de un proyecto
+Supabase.
 
 ### Procedimiento
 

@@ -12,11 +12,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { DatabaseError } from "@/lib/errors";
+import { newPasswordSchema } from "@/lib/auth/schemas";
 import { getCurrentUser } from "@/lib/auth/session";
 import type { FormState } from "@/lib/forms/state";
 import { logger } from "@/lib/logger";
 import { isModule } from "@/lib/features";
 import { requirePlatformAdmin } from "@/lib/platform/access";
+import {
+  createConfirmedUser,
+  deleteUser,
+  isAccountCreationEnabled,
+} from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseOrThrow, toFieldErrors } from "@/lib/validation";
 
@@ -67,6 +73,12 @@ const createTenantSchema = z.object({
     )
     .refine((value) => !RESERVED_SLUGS.has(value), "Ese slug esta reservado."),
   ownerEmail: z.email("Correo invalido.").trim().toLowerCase(),
+  // Empty means "the owner already has an account". Filled means "create it
+  // with this temporary password".
+  ownerPassword: z.preprocess(
+    (value) => (typeof value === "string" && value.length > 0 ? value : undefined),
+    newPasswordSchema.optional(),
+  ),
 });
 
 const setStatusSchema = z.object({
@@ -93,6 +105,7 @@ export async function createTenantAction(
     name: formData.get("name"),
     slug: formData.get("slug"),
     ownerEmail: formData.get("ownerEmail"),
+    ownerPassword: formData.get("ownerPassword"),
   });
 
   if (!parsed.success) {
@@ -101,6 +114,35 @@ export async function createTenantAction(
 
   const input = parsed.data;
   const operator = await getCurrentUser();
+
+  // The account is created FIRST because `provision_tenant` looks the owner up
+  // by email. If provisioning then fails, the account is removed again so a
+  // retry starts from a clean state.
+  let createdUserId: string | null = null;
+
+  if (input.ownerPassword !== undefined) {
+    if (!isAccountCreationEnabled()) {
+      return {
+        status: "error",
+        message:
+          "Crear cuentas desde aqui no esta configurado en el servidor. Deja la contrasena vacia para asignar una cuenta existente.",
+      };
+    }
+
+    const created = await createConfirmedUser(input.ownerEmail, input.ownerPassword);
+    if (!created.ok) {
+      return created.reason === "exists"
+        ? {
+            status: "error",
+            fieldErrors: {
+              ownerPassword: ["Ese correo ya tiene cuenta. Deja la contrasena vacia para asignarlo."],
+            },
+          }
+        : { status: "error", message: "No se pudo crear la cuenta del propietario." };
+    }
+    createdUserId = created.userId;
+  }
+
   const client = await createSupabaseServerClient();
 
   const { data, error } = await client.rpc("provision_tenant", {
@@ -110,6 +152,10 @@ export async function createTenantAction(
   });
 
   if (error) {
+    if (createdUserId !== null) {
+      await deleteUser(createdUserId);
+    }
+
     logger.error("platform.tenant.provision_failed", {
       slug: input.slug,
       operatorId: operator?.id ?? null,

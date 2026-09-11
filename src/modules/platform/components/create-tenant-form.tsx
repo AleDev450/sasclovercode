@@ -73,7 +73,27 @@ export function CreateTenantForm() {
         />
         <FieldError id="owner-error" messages={fieldErrors.ownerEmail} />
         <p id="owner-help" className="text-muted-foreground text-xs">
-          Debe tener cuenta antes de asignarlo.
+          Si ya tiene cuenta, se le asigna. Si no, escribe abajo una contrasena temporal.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="ownerPassword">Contrasena temporal (opcional)</Label>
+        <Input
+          id="ownerPassword"
+          name="ownerPassword"
+          type="password"
+          minLength={8}
+          autoComplete="new-password"
+          invalid={fieldErrors.ownerPassword !== undefined}
+          aria-describedby={
+            fieldErrors.ownerPassword !== undefined ? "owner-password-error" : "owner-password-help"
+          }
+        />
+        <FieldError id="owner-password-error" messages={fieldErrors.ownerPassword} />
+        <p id="owner-password-help" className="text-muted-foreground text-xs">
+          Crea la cuenta del propietario, ya confirmada. Pasale esta contrasena y pidele que la
+          cambie en su perfil. Minimo 8 caracteres.
         </p>
       </div>
 

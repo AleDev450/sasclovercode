@@ -67,6 +67,13 @@ const serverEnvSchema = z.object({
         .optional(),
     )
     .optional(),
+
+  /**
+   * Supabase secret key. OPTIONAL: without it the platform can only assign an
+   * owner who already has an account. Read by exactly one module,
+   * `src/lib/supabase/admin.ts`, and a test enforces that.
+   */
+  SUPABASE_SECRET_KEY: optionalText.optional(),
 });
 
 export type PublicEnv = z.output<typeof publicEnvSchema>;
@@ -129,6 +136,7 @@ export function getServerEnv(): ServerEnv {
     NODE_ENV: process.env.NODE_ENV,
     LOG_LEVEL: process.env.LOG_LEVEL,
     DEV_TENANT_SLUG: process.env.DEV_TENANT_SLUG,
+    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
   });
   if (!result.success) fail("server", result.error);
 

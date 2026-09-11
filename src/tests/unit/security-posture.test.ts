@@ -301,9 +301,10 @@ async function walk(dir: string, extensions: readonly string[]): Promise<readonl
 
 describe("the service role key never appears (TEST-2512)", () => {
   it("is absent from every application source file", async () => {
-    // Master section 9: never expose `service_role` to the browser. This
-    // project goes further and never references it at all - every privileged
-    // write goes through a narrow SECURITY DEFINER function (ADR-011).
+    // Master section 9: never expose `service_role` to the browser. Every
+    // privileged DATABASE write goes through a narrow SECURITY DEFINER function
+    // (ADR-011). The one exception, creating an owner's auth account, uses the
+    // secret key in a single module - see "the secret key is confined" below.
     //
     // `src/tests` is excluded and the exclusion is not a loophole: the PGlite
     // harness has to CREATE the role for the migrations' GRANTs to resolve, the
@@ -328,6 +329,33 @@ describe("the service role key never appears (TEST-2512)", () => {
   });
 });
 
+describe("the secret key is confined", () => {
+  const ALLOWED = [join("src", "config", "env.ts"), join("src", "lib", "supabase", "admin.ts")];
+
+  it("is named only by the env schema and the admin module", async () => {
+    const offenders: string[] = [];
+
+    for (const file of await walk(join(process.cwd(), "src"), [".ts", ".tsx"])) {
+      if (file.includes(join("src", "tests"))) continue;
+      if (ALLOWED.some((allowed) => file.endsWith(allowed))) continue;
+
+      const source = stripComments(await readFile(file, "utf8"));
+      if (/SUPABASE_SECRET_KEY/.test(source)) {
+        offenders.push(file.replace(process.cwd(), ""));
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the admin module server-only and clientless", async () => {
+    const source = await readFile(join(process.cwd(), "src", "lib", "supabase", "admin.ts"), "utf8");
+    expect(source).toMatch(/^import "server-only";/);
+    // It exports operations, never the client itself.
+    expect(source).not.toMatch(/export\s+(async\s+)?function\s+\w*[Cc]lient/);
+  });
+});
+
 describe("server-only modules stay on the server (TEST-2511)", () => {
   it("keeps the server Supabase client out of every client component", async () => {
     // `import "server-only"` already makes this a build error. This test says
@@ -342,7 +370,9 @@ describe("server-only modules stay on the server (TEST-2511)", () => {
       if (!isClient) continue;
 
       if (
-        /@\/lib\/supabase\/server|@\/lib\/permissions\/check|@\/lib\/features\/check/.test(source)
+        /@\/lib\/supabase\/(server|admin)|@\/lib\/permissions\/check|@\/lib\/features\/check/.test(
+          source,
+        )
       ) {
         offenders.push(file.replace(process.cwd(), ""));
       }
