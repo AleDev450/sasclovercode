@@ -37,6 +37,15 @@ export const RATE_LIMITS = {
   AUTH_SIGN_IN: { bucket: "auth.sign_in", limit: 10, windowSeconds: 300 },
   /** Password reset. Each one sends an email to somebody who did not ask. */
   AUTH_PASSWORD_RESET: { bucket: "auth.password_reset", limit: 5, windowSeconds: 900 },
+  /**
+   * The landing page contact form.
+   *
+   * The only WRITE surface in the product reachable with no session at all, so
+   * it is the one an automated submitter finds first. Five in fifteen minutes
+   * is far above what a person filling in a form once could need and far below
+   * what makes the inbox useless.
+   */
+  MARKETING_CONTACT: { bucket: "marketing.contact", limit: 5, windowSeconds: 900 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /*

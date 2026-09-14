@@ -52,6 +52,7 @@ type PurchaseRow = Database["public"]["Tables"]["purchases"]["Row"];
 type StockMovementRow = Database["public"]["Tables"]["stock_movements"]["Row"];
 type RecipeRow = Database["public"]["Tables"]["recipes"]["Row"];
 type RecipeItemRow = Database["public"]["Tables"]["recipe_items"]["Row"];
+type PlatformLeadRow = Database["public"]["Tables"]["platform_leads"]["Row"];
 
 // If a column is added to or removed from the declared types without updating
 // EXPECTED_COLUMNS below, `npm run typecheck` fails here.
@@ -497,6 +498,25 @@ export type _RecipeItemKeys = Expect<
   Equal<
     keyof RecipeItemRow,
     "id" | "recipe_id" | "tenant_id" | "inventory_item_id" | "quantity" | "position" | "created_at"
+  >
+>;
+
+export type _PlatformLeadKeys = Expect<
+  Equal<
+    keyof PlatformLeadRow,
+    | "id"
+    | "name"
+    | "email"
+    | "phone"
+    | "business_name"
+    | "business_type"
+    | "message"
+    | "source"
+    | "status"
+    | "internal_note"
+    | "contacted_at"
+    | "created_at"
+    | "updated_at"
   >
 >;
 
@@ -1053,6 +1073,21 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     quantity: { dataType: "numeric", nullable: false },
     position: { dataType: "smallint", nullable: false },
     created_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  platform_leads: {
+    id: { dataType: "uuid", nullable: false },
+    name: { dataType: "text", nullable: false },
+    email: { dataType: "text", nullable: false },
+    phone: { dataType: "text", nullable: true },
+    business_name: { dataType: "text", nullable: true },
+    business_type: { dataType: "text", nullable: true },
+    message: { dataType: "text", nullable: true },
+    source: { dataType: "text", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
+    internal_note: { dataType: "text", nullable: true },
+    contacted_at: { dataType: "timestamp with time zone", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
   },
 };
 

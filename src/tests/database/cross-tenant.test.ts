@@ -71,6 +71,25 @@ const PUBLICLY_READABLE = [
 ] as const;
 
 /**
+ * The PLATFORM's public surface, which is a different thing entirely.
+ *
+ * These three hold no tenant data and no personal data: they are CloverCode's
+ * own price list, and the landing page cannot show a pricing section without
+ * them - a visitor comparing plans has no session by definition.
+ *
+ * WHY THEY ARE A SEPARATE LIST FROM `PUBLICLY_READABLE`. The rule that governs
+ * that one - "every public policy must be predicated on `is_tenant_public`" -
+ * cannot apply here, because these tables have no `tenant_id` to predicate on.
+ * Folding them into the same list would have meant weakening that rule for all
+ * twelve tenant tables to accommodate three that are not tenant tables at all,
+ * which is how a security test quietly stops testing anything.
+ *
+ * The same discipline applies: enumerated by hand, so a fourth entry has to be
+ * typed into a security test by whoever opens it.
+ */
+const PLATFORM_PUBLIC = ["modules", "plan_modules", "plans"] as const;
+
+/**
  * Every table in `public` that carries a `tenant_id`, with its primary key.
  *
  * The primary key is needed because half these tables key on `id` and the
@@ -214,7 +233,7 @@ describe("RLS is on for every tenant table (TEST-2520)", () => {
 });
 
 describe("the public surface is exactly what it should be", () => {
-  it("grants anonymous SELECT on these twelve tables and no others", async () => {
+  it("grants anonymous SELECT on these fifteen tables and no others", async () => {
     const rows = await db.query<{ tablename: string }>(
       `select distinct tablename from pg_policies
        where schemaname = 'public' and cmd = 'SELECT'
@@ -222,7 +241,8 @@ describe("the public surface is exactly what it should be", () => {
        order by tablename`,
     );
 
-    expect(rows.map((r) => r.tablename)).toEqual([...PUBLICLY_READABLE]);
+    const expected = [...PUBLICLY_READABLE, ...PLATFORM_PUBLIC].sort();
+    expect(rows.map((r) => r.tablename)).toEqual(expected);
   });
 
   it("keeps the business's own details OUT of that list", async () => {
@@ -241,11 +261,18 @@ describe("the public surface is exactly what it should be", () => {
   it("predicates every public policy on the tenant still being public", async () => {
     // Without `is_tenant_public(tenant_id)`, a suspended or archived business
     // would keep serving its menu to the world after being switched off.
+    //
+    // The platform price list is excluded by name rather than by a looser
+    // pattern: it has no `tenant_id`, so there is nothing for the predicate to
+    // check, and anything else appearing here is a tenant table that lost its
+    // guard.
     const rows = await db.query<{ tablename: string; qual: string }>(
       `select tablename, qual from pg_policies
        where schemaname = 'public' and cmd = 'SELECT'
          and ('anon' = any(roles) or 'public' = any(roles))
-         and coalesce(qual, '') not like '%is_tenant_public%'`,
+         and coalesce(qual, '') not like '%is_tenant_public%'
+         and tablename <> all($1)`,
+      [[...PLATFORM_PUBLIC]],
     );
 
     expect(rows.map((r) => r.tablename)).toEqual([]);

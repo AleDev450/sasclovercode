@@ -18,11 +18,7 @@ import type { FormState } from "@/lib/forms/state";
 import { logger } from "@/lib/logger";
 import { isModule } from "@/lib/features";
 import { requirePlatformAdmin } from "@/lib/platform/access";
-import {
-  createConfirmedUser,
-  deleteUser,
-  isAccountCreationEnabled,
-} from "@/lib/supabase/admin";
+import { createConfirmedUser, deleteUser, isAccountCreationEnabled } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseOrThrow, toFieldErrors } from "@/lib/validation";
 
@@ -135,7 +131,9 @@ export async function createTenantAction(
         ? {
             status: "error",
             fieldErrors: {
-              ownerPassword: ["Ese correo ya tiene cuenta. Deja la contrasena vacia para asignarlo."],
+              ownerPassword: [
+                "Ese correo ya tiene cuenta. Deja la contrasena vacia para asignarlo.",
+              ],
             },
           }
         : { status: "error", message: "No se pudo crear la cuenta del propietario." };

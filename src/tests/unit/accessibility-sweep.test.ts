@@ -136,12 +136,32 @@ describe("labels (TEST-2813, TEST-2815)", () => {
   });
 });
 
+/**
+ * Where `tabindex="-1"` is deliberate, and why.
+ *
+ * This rule used to be a flat zero, with the note that legitimate uses exist
+ * but none of them were in this codebase yet. One now is: the honeypot on the
+ * public contact form is a field a person must NOT be able to reach, because
+ * reaching it is the signal that the submitter is a script. Taking it out of
+ * the tab order is the accessibility-correct behaviour rather than an exception
+ * to it — a keyboard user tabbing into an invisible input they cannot see is
+ * precisely the bug this prevents.
+ *
+ * Keyed by path, so a second file cannot inherit the exemption silently.
+ */
+const REVIEWED_UNFOCUSABLE: Readonly<Record<string, string>> = {
+  "/src/modules/marketing/components/contact-form.tsx":
+    "honeypot field: unreachable by design, paired with aria-hidden",
+};
+
 describe("keyboard reachability (TEST-2814)", () => {
   it("takes nothing interactive out of the tab order", async () => {
     const files = await collectFiles(join(ROOT, "src"), /\.tsx$/);
     const removed: string[] = [];
 
     for (const file of files) {
+      if (relative(file) in REVIEWED_UNFOCUSABLE) continue;
+
       const source = await readFile(file, "utf8");
       for (const match of source.matchAll(/tabIndex=\{?-1\}?/g)) {
         removed.push(`${relative(file)} → ${match[0]}`);
@@ -149,9 +169,19 @@ describe("keyboard reachability (TEST-2814)", () => {
     }
 
     // `tabindex="-1"` has legitimate uses — a container that receives focus
-    // programmatically — but none of them exist in this codebase yet, so the
-    // honest rule is zero until one does, with the reason written down.
+    // programmatically, a field nothing should focus at all — and each one that
+    // exists here is named above with its reason.
     expect(removed, `elements removed from the tab order:\n${removed.join("\n")}`).toEqual([]);
+  });
+
+  it("keeps every tab-order exemption pointing at a file that still exists", async () => {
+    // An exemption for a deleted file becomes a hole nobody notices the day
+    // somebody recreates the path.
+    const files = (await collectFiles(join(ROOT, "src"), /\.tsx$/)).map(relative);
+
+    for (const path of Object.keys(REVIEWED_UNFOCUSABLE)) {
+      expect(files, `${path} is exempted but no longer exists`).toContain(path);
+    }
   });
 
   it("uses real buttons rather than clickable divs", async () => {

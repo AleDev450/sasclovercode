@@ -86,6 +86,9 @@ export type SubscriptionEventType =
   | "payment_recorded"
   | "payment_voided";
 
+/** Landing page sales funnel. Pre-tenant by definition. */
+export type LeadStatus = "new" | "contacted" | "qualified" | "won" | "lost";
+
 /** Master section 33 (Phase 20). */
 export type PromotionType = "percentage" | "fixed_amount" | "free_delivery";
 export type LoyaltyTransactionType = "earn" | "redeem" | "campaign" | "adjustment" | "expiry";
@@ -2032,6 +2035,32 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      platform_leads: {
+        Row: {
+          id: string;
+          name: string;
+          email: string;
+          phone: string | null;
+          business_name: string | null;
+          business_type: string | null;
+          message: string | null;
+          source: string;
+          status: LeadStatus;
+          internal_note: string | null;
+          contacted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        /** No insert policy exists: only submit_lead() writes here. */
+        Insert: never;
+        /** Operators triage; nothing else about the row may change. */
+        Update: {
+          status?: LeadStatus;
+          internal_note?: string | null;
+          contacted_at?: string | null;
+        };
+        Relationships: [];
+      };
       payment_methods: {
         Row: {
           id: string;
@@ -2575,6 +2604,30 @@ export type Database = {
           oldest_overdue_due_at: string | null;
         }[];
       };
+      submit_lead: {
+        Args: {
+          p_name: string;
+          p_email: string;
+          p_phone?: string | null;
+          p_business_name?: string | null;
+          p_business_type?: string | null;
+          p_message?: string | null;
+          p_source?: string;
+        };
+        Returns: undefined;
+      };
+      platform_lead_counts: {
+        Args: Record<string, never>;
+        Returns: {
+          leads_total: number;
+          leads_new: number;
+          leads_contacted: number;
+          leads_qualified: number;
+          leads_won: number;
+          leads_lost: number;
+          leads_last_7d: number;
+        }[];
+      };
       has_module: {
         Args: { p_tenant_id: string; p_module: string };
         Returns: boolean;
@@ -2638,6 +2691,7 @@ export type Database = {
       plan_interval: PlanInterval;
       subscription_status: SubscriptionStatus;
       saas_payment_status: SaasPaymentStatus;
+      lead_status: LeadStatus;
       subscription_event_type: SubscriptionEventType;
       page_status: PageStatus;
       section_type: SectionTypeName;

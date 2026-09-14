@@ -101,7 +101,29 @@ const REVIEWED_UNGATED_ACTIONS: Readonly<Record<string, string>> = {
   "auth/server/actions.ts:updatePasswordAction": "authorised by the recovery token, not a role",
   "auth/server/actions.ts:changePasswordAction":
     "your own credentials, authorised by the current password and rate limited",
+
+  // The landing page contact form. Anonymous by definition - the person filling
+  // it in has no account, which is why they are writing to us - so there is no
+  // role to require and no tenant to require it in. What guards it instead: the
+  // `marketing.contact` rate limit, a honeypot field, and `submit_lead()` being
+  // the only writer of a table with no insert policy at all.
+  "marketing/server/actions.ts:submitContactAction": "runs before an account exists",
 };
+
+/**
+ * Modules whose actions may appear above.
+ *
+ * The exception list is only defensible while every entry on it is genuinely
+ * PRE-SESSION. These two are: `auth` is how a session begins, and `marketing`
+ * is the commercial surface somebody reaches before they have an account. An
+ * action in any other module has a tenant, and therefore has a permission to
+ * check.
+ *
+ * `marketing/server/lead-actions.ts` is deliberately NOT here: triaging a lead
+ * happens inside the operator console and calls `requirePlatformAdmin()` like
+ * everything else there.
+ */
+const PRE_SESSION_MODULES = ["auth/", "marketing/"] as const;
 
 interface ExportedFunction {
   readonly name: string;
@@ -210,10 +232,10 @@ describe("every Server Action passes a gate (TEST-2507)", () => {
   });
 
   it("keeps the list of reviewed exceptions to the pre-session surface", async () => {
-    // If this ever grows past `auth`, somebody has waved through an action that
-    // does touch tenant data.
+    // If this ever grows past the pre-session modules, somebody has waved
+    // through an action that does touch tenant data.
     for (const key of Object.keys(REVIEWED_UNGATED_ACTIONS)) {
-      expect(key.startsWith("auth/")).toBe(true);
+      expect(PRE_SESSION_MODULES.some((module) => key.startsWith(module))).toBe(true);
     }
   });
 });
@@ -349,7 +371,10 @@ describe("the secret key is confined", () => {
   });
 
   it("keeps the admin module server-only and clientless", async () => {
-    const source = await readFile(join(process.cwd(), "src", "lib", "supabase", "admin.ts"), "utf8");
+    const source = await readFile(
+      join(process.cwd(), "src", "lib", "supabase", "admin.ts"),
+      "utf8",
+    );
     expect(source).toMatch(/^import "server-only";/);
     // It exports operations, never the client itself.
     expect(source).not.toMatch(/export\s+(async\s+)?function\s+\w*[Cc]lient/);

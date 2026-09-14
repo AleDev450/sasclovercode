@@ -1,15 +1,37 @@
+import { type VariantProps, cva } from "class-variance-authority";
 import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 type DivProps = React.HTMLAttributes<HTMLDivElement>;
 
-export function Card({ className, ...props }: DivProps) {
-  return (
-    <div
-      className={cn("bg-card text-card-foreground rounded-xl border shadow-sm", className)}
-      {...props}
-    />
-  );
+const cardVariants = cva("bg-card text-card-foreground rounded-xl border", {
+  variants: {
+    variant: {
+      /** The default panel: resting on the page. */
+      default: "shadow-e1",
+      /** Lifted, for a card that is the focus of its screen. */
+      elevated: "shadow-e2",
+      /** No shadow. For cards packed edge to edge in a grid. */
+      flat: "shadow-none",
+      /**
+       * A card that is a link or a button. Only use it when the WHOLE card is
+       * clickable - a hover that leads nowhere is worse than no hover.
+       */
+      interactive:
+        "shadow-e1 transition-[box-shadow,border-color,transform] duration-200 hover:shadow-e2 hover:border-primary/30 hover:-translate-y-0.5",
+      /** Brand-tinted, for the one panel per screen that should stand out. */
+      brand: "border-primary/25 bg-accent/40 shadow-e1",
+    },
+  },
+  defaultVariants: {
+    variant: "default",
+  },
+});
+
+export interface CardProps extends DivProps, VariantProps<typeof cardVariants> {}
+
+export function Card({ className, variant, ...props }: CardProps) {
+  return <div className={cn(cardVariants({ variant }), className)} {...props} />;
 }
 
 export function CardHeader({ className, ...props }: DivProps) {
@@ -47,3 +69,5 @@ export function CardContent({ className, ...props }: DivProps) {
 export function CardFooter({ className, ...props }: DivProps) {
   return <div className={cn("flex items-center gap-2 p-6 pt-0", className)} {...props} />;
 }
+
+export { cardVariants };

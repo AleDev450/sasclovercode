@@ -211,7 +211,13 @@ describe("RLS posture (TEST-131, TEST-132)", () => {
                            'billing_document_transitions','delivery_transitions',
                            'modules','plans','plan_modules')`,
     );
-    expect(rows).toHaveLength(9);
+    // Twelve, not nine: `modules`, `plans` and `plan_modules` each carry a
+    // second SELECT policy for `anon`, added when the landing page needed to
+    // render a pricing section to a visitor with no session. What this test
+    // actually guards is the line below - every policy on these tables is a
+    // READ. The count is here so a write policy cannot slip in alongside one
+    // that happens to keep `cmd = 'SELECT'` true for the rows it returns.
+    expect(rows).toHaveLength(12);
     expect(rows.every((r) => r.cmd === "SELECT")).toBe(true);
   });
 });

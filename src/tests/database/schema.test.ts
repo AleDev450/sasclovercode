@@ -160,6 +160,9 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260831120100_allow_product_detach_from_closed_order.sql",
       // Phase 27
       "20260831130000_create_audit_retention.sql",
+      // Landing page and Super Admin console
+      "20260914120000_create_platform_leads.sql",
+      "20260914120100_publish_plan_catalog.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.
@@ -209,6 +212,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "plan_modules",
       "plans",
       "platform_admins",
+      "platform_leads",
       "product_images",
       "product_options",
       "product_variants",
@@ -251,6 +255,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "domain_provider_status",
       "domain_verification_status",
       "kitchen_station",
+      "lead_status",
       "loyalty_transaction_type",
       "membership_status",
       "nav_link_type",
