@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { CloverWordmark, ProductLogo } from "@/components/ui";
-import { IconMail, IconWhatsApp } from "@/components/ui/icons";
+import {
+  IconFacebook,
+  IconInstagram,
+  IconLinkedin,
+  IconMail,
+  IconWhatsApp,
+  IconYoutube,
+} from "@/components/ui/icons";
 import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
@@ -13,6 +20,8 @@ import {
   VENDOR_SITE,
 } from "@/config/app";
 import { SiteHeader } from "@/modules/marketing/components/site-header";
+import { MARKETING_FONT_CLASSNAME } from "@/modules/marketing/fonts";
+import { cn } from "@/lib/utils";
 
 /**
  * The public commercial surface.
@@ -48,27 +57,49 @@ const FOOTER_SECTIONS = [
   {
     title: "Producto",
     links: [
-      { href: "#producto", label: "Que es" },
-      { href: "#modulos", label: "Modulos" },
+      { href: "#producto", label: "Que incluye" },
+      { href: "#soluciones", label: "Soluciones" },
+      { href: "#planes", label: "Precios" },
       { href: "#como-funciona", label: "Como funciona" },
-      { href: "#planes", label: "Planes y precios" },
     ],
   },
   {
-    title: "Empezar",
+    title: "Recursos",
     links: [
+      { href: "#preguntas", label: "Centro de ayuda" },
       { href: "#contacto", label: "Pedir una demo" },
-      { href: "#preguntas", label: "Preguntas frecuentes" },
       { href: "/login", label: "Ingresar a mi cuenta" },
     ],
   },
+] as const;
+
+/**
+ * The social accounts.
+ *
+ * `href` is the product's own handle on each network. They are listed here
+ * rather than in `config/app.ts` because nothing outside this footer links to
+ * them - and if a second surface ever does, that is the moment to promote them,
+ * not before.
+ */
+const SOCIAL_LINKS = [
+  { href: "https://instagram.com/vendra.pe", label: "Instagram", Icon: IconInstagram },
+  { href: "https://facebook.com/vendra.pe", label: "Facebook", Icon: IconFacebook },
+  { href: "https://youtube.com/@vendrape", label: "YouTube", Icon: IconYoutube },
+  { href: "https://linkedin.com/company/vendra", label: "LinkedIn", Icon: IconLinkedin },
 ] as const;
 
 export default function MarketingLayout({ children }: { children: ReactNode }) {
   const year = new Date().getFullYear();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    /*
+      The commercial surface is set in its own type - see
+      `modules/marketing/fonts.ts` for why a landing page and a dashboard want
+      opposite things from a typeface. The class declares both faces AND makes
+      Inter the inherited default, so a heading opts into the serif with
+      `.type-display` rather than the other way round.
+    */
+    <div className={cn("flex min-h-dvh flex-col", MARKETING_FONT_CLASSNAME)}>
       {/*
         The keyboard escape hatch. First focusable element on the page, visible
         only while focused, because a landing page has a long navigation and
@@ -88,11 +119,29 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
       </main>
 
       <footer className="border-border bg-surface border-t">
-        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
+        <div className="mx-auto max-w-[1280px] px-6 py-14 sm:px-8 xl:px-12">
           <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
             <div className="flex flex-col gap-4">
               <ProductLogo size="md" withSlogan />
               <p className="text-muted-foreground max-w-xs text-sm">{PRODUCT_TAGLINE}</p>
+
+              <ul className="mt-1 flex items-center gap-2">
+                {SOCIAL_LINKS.map(({ href, label, Icon }) => (
+                  <li key={label}>
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      // The name is for a screen reader; the glyph is decorative
+                      // and would otherwise announce nothing at all.
+                      aria-label={label}
+                      className="border-border text-muted-foreground hover:border-primary/40 hover:text-foreground flex size-9 items-center justify-center rounded-lg border transition-colors"
+                    >
+                      <Icon className="size-4" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {FOOTER_SECTIONS.map((section) => (

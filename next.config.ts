@@ -57,6 +57,25 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
 
+  /**
+   * Remote images the optimiser is allowed to fetch.
+   *
+   * ONE HOST, AND IT IS A PLACEHOLDER. The landing page illustrates itself with
+   * stock photography of food until the real restaurant photography exists
+   * (`modules/marketing/landing-images.ts` is the single file that has to
+   * change). An allow-list of exactly one host is what keeps that convenience
+   * from becoming an open image proxy: without `remotePatterns`, `next/image`
+   * refuses every remote URL, and with a wildcard it would happily fetch and
+   * re-serve anything on the internet under this origin.
+   *
+   * Nothing in the PRODUCT loads images this way. Tenant photography lives in
+   * Supabase Storage and is served through signed URLs, which is why those
+   * `<img>` tags carry an eslint exception rather than appearing here.
+   */
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com", pathname: "/**" }],
+  },
+
   async headers() {
     return [
       {

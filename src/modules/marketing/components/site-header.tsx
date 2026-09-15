@@ -4,15 +4,23 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ProductLogo, buttonVariants } from "@/components/ui";
 import { PRODUCT_NAME } from "@/config/app";
-import { IconClose, IconMenu } from "@/components/ui/icons";
+import { IconArrowRight, IconClose, IconMenu } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
+/*
+ * The nav, and the chevrons that are deliberately absent.
+ *
+ * The brief asks for "pequenos chevrons en los elementos donde tenga sentido".
+ * A chevron is a promise of a submenu, and these are anchors that jump down one
+ * page - so on this nav there is nowhere it would have made sense, and drawing
+ * one would have been an affordance for a menu that never opens. The day
+ * Soluciones becomes a real dropdown is the day it earns its chevron.
+ */
 const SECTIONS = [
   { href: "#producto", label: "Producto" },
-  { href: "#modulos", label: "Modulos" },
+  { href: "#soluciones", label: "Soluciones" },
+  { href: "#planes", label: "Precios" },
   { href: "#como-funciona", label: "Como funciona" },
-  { href: "#planes", label: "Planes" },
-  { href: "#contacto", label: "Contacto" },
 ] as const;
 
 /**
@@ -58,7 +66,7 @@ export function SiteHeader() {
           : "border-b border-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-[1280px] items-center justify-between gap-4 px-6 sm:px-8 xl:px-12">
         <Link href="/" className="rounded-lg" aria-label={`${PRODUCT_NAME}, inicio`}>
           <ProductLogo size="md" />
         </Link>
@@ -79,8 +87,12 @@ export function SiteHeader() {
           <Link href="/login" className={buttonVariants({ variant: "ghost", size: "md" })}>
             Ingresar
           </Link>
-          <a href="#contacto" className={buttonVariants({ variant: "brand", size: "md" })}>
-            Pedir demo
+          <a
+            href="#contacto"
+            className={buttonVariants({ variant: "brand", size: "md", className: "group" })}
+          >
+            Crear mi restaurante
+            <IconArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
           </a>
         </div>
 
@@ -125,7 +137,8 @@ export function SiteHeader() {
               className={buttonVariants({ variant: "brand", size: "lg" })}
               onClick={() => setMenuOpen(false)}
             >
-              Pedir demo
+              Crear mi restaurante
+              <IconArrowRight />
             </a>
           </div>
         </nav>

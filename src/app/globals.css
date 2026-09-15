@@ -376,4 +376,60 @@
     background-size: 56px 56px;
     mask-image: radial-gradient(70% 60% at 50% 0%, #000 0%, transparent 100%);
   }
+
+  /*
+   * The editorial display face, opted into rather than inherited.
+   *
+   * `--font-marketing-display` is declared by `MARKETING_FONT_CLASSNAME`
+   * (`modules/marketing/fonts.ts`) on the wrapper of the commercial pages, so
+   * this class does nothing anywhere else - which is the intent. A serif set as
+   * the body default is how a stray paragraph ends up in Georgia.
+   *
+   * The tighter tracking is part of the face, not a preference: DM Serif
+   * Display is drawn for large sizes and sets loose at the defaults the base
+   * layer gives every other heading.
+   */
+  .type-display {
+    font-family: var(--font-marketing-display), Georgia, "Times New Roman", serif;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+  }
+
+  /*
+   * Entrance animation, in CSS and without a library.
+   *
+   * WHY NOT A MOTION LIBRARY. The brief asks for "fade-in, translate-y
+   * pequeno, hover elevation" and warns against heavy dependencies in the same
+   * breath. All of that is three declarations, and buying it in a package would
+   * mean turning every animated section into a client component - shipping
+   * JavaScript to a phone on a Peruvian mobile connection so that a heading can
+   * move eight pixels.
+   *
+   * `animation-timeline: view()` runs it on scroll where the browser supports
+   * it and is simply ignored where it does not, which leaves the content
+   * visible rather than hidden behind a script that never ran. The
+   * reduced-motion block in the base layer already neutralises it.
+   */
+  .reveal {
+    animation: reveal-in both 0.7s ease-out;
+  }
+
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation-timeline: view();
+      animation-range: entry 0% cover 22%;
+    }
+  }
+
+  @keyframes reveal-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

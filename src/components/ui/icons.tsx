@@ -397,3 +397,83 @@ export const IconMapPin = (p: IconProps) => (
     <circle cx="12" cy="10.2" r="2.6" />
   </Icon>
 );
+
+/* --------------------------------------------------------------- landing */
+
+/*
+ * Glyphs the commercial page needs and the product did not.
+ *
+ * They are here rather than in a package for the reason at the top of this
+ * file: the set is the thing being kept consistent. The landing names Lucide
+ * icons in its brief - Monitor, CreditCard, QrCode, ChefHat, Truck,
+ * ChartNoAxesColumnIncreasing - and five of the six already existed here under
+ * this project's own names, so importing four thousand SVGs to get the sixth
+ * would have been a dependency bought for one QR square.
+ */
+
+export const IconMonitor = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.8" y="4" width="18.4" height="12.4" rx="2" />
+    <path d="M8.5 20.4h7M12 16.4v4" />
+  </Icon>
+);
+
+export const IconQr = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.4" y="3.4" width="6.4" height="6.4" rx="1.4" />
+    <rect x="14.2" y="3.4" width="6.4" height="6.4" rx="1.4" />
+    <rect x="3.4" y="14.2" width="6.4" height="6.4" rx="1.4" />
+    <path d="M14.2 14.2h3v3h-3zM20.6 14.2v3M17.2 20.6h3.4M14.2 20.6h.01" />
+  </Icon>
+);
+
+export const IconPlay = (p: IconProps) => (
+  <Icon {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M10.2 8.9 15.4 12l-5.2 3.1V8.9Z" />
+  </Icon>
+);
+
+export const IconArrowUpRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M7.5 16.5 16.5 7.5M9 7.5h7.5V15" />
+  </Icon>
+);
+
+/* ----------------------------------------------------------------- social */
+
+/*
+ * Drawn to the same 24x24 grid and the same stroke as everything above, which
+ * is why they do not look like the official marks. A footer row of four brand
+ * logos at their real weights next to this set reads as four pasted stickers;
+ * matching the set is the more considered choice, and none of these is being
+ * used as a trademark.
+ */
+
+export const IconInstagram = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="5" />
+    <circle cx="12" cy="12" r="3.9" />
+    <path d="M16.9 7.1h.01" />
+  </Icon>
+);
+
+export const IconFacebook = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14.6 21v-7.6h2.6l.4-3h-3V8.5c0-.87.24-1.46 1.49-1.46h1.6V4.35A21 21 0 0 0 15.36 4c-2.31 0-3.9 1.41-3.9 4v2.35H8.9v3h2.56V21" />
+  </Icon>
+);
+
+export const IconYoutube = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="2.6" y="5.6" width="18.8" height="12.8" rx="4" />
+    <path d="M10.4 9.6 15 12l-4.6 2.4V9.6Z" />
+  </Icon>
+);
+
+export const IconLinkedin = (p: IconProps) => (
+  <Icon {...p}>
+    <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="3" />
+    <path d="M7.5 10.4v6.2M7.5 7.6h.01M11.4 16.6v-6.2M11.4 13.1c0-1.5.9-2.4 2.2-2.4s2.2.9 2.2 2.4v3.5" />
+  </Icon>
+);

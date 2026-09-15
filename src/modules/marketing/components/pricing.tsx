@@ -1,5 +1,5 @@
 import { Badge, Card, CardContent, CardHeader, buttonVariants } from "@/components/ui";
-import { IconCheck } from "@/components/ui/icons";
+import { IconArrowRight, IconCheck } from "@/components/ui/icons";
 import { formatCurrency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { listPlans } from "@/modules/platform/server/subscription-queries";
@@ -91,7 +91,7 @@ export async function Pricing() {
             key={plan.code}
             variant={featured ? "elevated" : "default"}
             className={cn(
-              "flex flex-col",
+              "flex flex-col rounded-[1.25rem]",
               featured && "border-primary/40 ring-primary/15 lg:-my-4 lg:ring-4",
             )}
           >
@@ -102,7 +102,12 @@ export async function Pricing() {
               </div>
 
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-semibold tracking-tight tabular-nums">
+                {/*
+                  The figure in the display face, like every other number this
+                  page wants read. It is the one word on the card a visitor is
+                  actually here for.
+                */}
+                <span className="type-display text-ink text-[2.75rem] tabular-nums">
                   {formatCurrency(plan.priceCents, plan.currency)}
                 </span>
                 <span className="text-muted-foreground text-sm">
@@ -131,14 +136,22 @@ export async function Pricing() {
                 ))}
               </ul>
 
+              {/*
+                The featured plan asks for the thing the whole page asks for,
+                and the other two ask for something smaller. Two labels rather
+                than one: a row of three identical buttons makes the choice
+                between them feel arbitrary, which is the opposite of what a
+                pricing table is for.
+              */}
               <a
                 href="#contacto"
                 className={cn(
                   buttonVariants({ variant: featured ? "brand" : "outline", size: "lg" }),
-                  "mt-auto w-full",
+                  "group mt-auto w-full",
                 )}
               >
-                Empezar con {plan.name}
+                {featured ? "Crear mi restaurante" : "Comenzar ahora"}
+                <IconArrowRight className="transition-transform duration-200 group-hover:translate-x-0.5" />
               </a>
             </CardContent>
           </Card>
