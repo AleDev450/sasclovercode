@@ -10,53 +10,28 @@ import "server-only";
  * The path is built HERE from a tenant id the server already resolved. It is
  * never assembled from anything the client sent - and even if it were, the
  * policy reads the tenant back out of the path and would refuse it.
+ *
+ * WHAT MOVED OUT. The allow-list and the size ceilings now live in
+ * `asset-folders.ts`, which carries no `server-only` marker, because the upload
+ * control in the browser needs exactly those three facts to build an honest
+ * file picker. They are imported back here and this module remains the only
+ * place that turns them into a decision.
  */
 
 import { ValidationError } from "@/lib/errors";
+import { PERMISSIONS, type Permission } from "@/lib/permissions";
+import {
+  ALLOWED_TYPES,
+  ASSET_FOLDERS,
+  MAX_BYTES,
+  isAssetFolder,
+  type AssetFolder,
+} from "./asset-folders";
 
 export const TENANT_ASSETS_BUCKET = "tenant-assets";
 
-/** Folders a tenant may write into, from master section 32. */
-export const ASSET_FOLDERS = ["branding", "products", "banners", "documents"] as const;
-export type AssetFolder = (typeof ASSET_FOLDERS)[number];
-
-/**
- * MIME allow-list per folder, with the extension we will actually use.
- *
- * An allow-list and not a deny-list: a deny-list is a promise to have thought
- * of every dangerous type, which nobody can keep. `image/svg+xml` is absent
- * from branding on purpose - an SVG is a document that can carry script, and
- * serving one from the tenant's own origin would be stored XSS.
- */
-const ALLOWED: Record<AssetFolder, Readonly<Record<string, string>>> = {
-  branding: {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/webp": "webp",
-    "image/x-icon": "ico",
-  },
-  products: {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/webp": "webp",
-  },
-  banners: {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/webp": "webp",
-  },
-  documents: {
-    "application/pdf": "pdf",
-  },
-};
-
-/** Per-folder size ceilings, all below the bucket's own limit. */
-const MAX_BYTES: Record<AssetFolder, number> = {
-  branding: 2 * 1024 * 1024,
-  products: 3 * 1024 * 1024,
-  banners: 4 * 1024 * 1024,
-  documents: 5 * 1024 * 1024,
-};
+export { ASSET_FOLDERS, isAssetFolder };
+export type { AssetFolder };
 
 export interface ValidatedAsset {
   readonly path: string;
@@ -88,12 +63,12 @@ export function validateAsset(params: {
     throw new ValidationError("Tenant invalido.", { file: ["No se pudo determinar la empresa."] });
   }
 
-  const allowed = ALLOWED[folder];
+  const allowed = ALLOWED_TYPES[folder];
   const extension = allowed[file.type];
 
   if (extension === undefined) {
     throw new ValidationError("Tipo de archivo no permitido.", {
-      file: [`Formatos aceptados: ${Object.values(allowed).join(", ")}.`],
+      file: [`Formatos aceptados: ${[...new Set(Object.values(allowed))].join(", ")}.`],
     });
   }
 
@@ -125,4 +100,80 @@ export function validateAsset(params: {
     contentType: file.type,
     bytes: file.size,
   };
+}
+
+/**
+ * Which permission a folder's WRITES require.
+ *
+ * WHY THIS IS NOT `settings.manage` EVERYWHERE. That is what the Phase 06
+ * storage policies said, and it was right when branding was the only thing
+ * anybody uploaded. It stopped being right the moment product photos and page
+ * images existed: `manager` holds `products.update` and cannot hold
+ * `settings.manage`, so the person whose job is the menu could not put a photo
+ * on it. The editor whose job is the website was in the same position with
+ * `content.manage`.
+ *
+ * The mapping is mirrored by the storage policies in
+ * `20260914130000_storage_folder_permissions.sql`, which read the folder out of
+ * the object path itself. This copy is the one the application checks BEFORE
+ * uploading, so a refusal is a readable error rather than an opaque 403 from
+ * Storage - but the policy is the layer that actually enforces it.
+ */
+export const ASSET_FOLDER_PERMISSION: Record<AssetFolder, Permission> = {
+  branding: PERMISSIONS.SETTINGS_MANAGE,
+  products: PERMISSIONS.PRODUCTS_UPDATE,
+  banners: PERMISSIONS.CONTENT_MANAGE,
+  documents: PERMISSIONS.SETTINGS_MANAGE,
+};
+
+/**
+ * The folder an existing asset path belongs to, or null when the path is not
+ * one of ours.
+ *
+ * Used to authorise a DELETE, which arrives as a path rather than as a folder
+ * choice. Parsing the path is the only honest way to answer it: trusting a
+ * folder the client sent alongside would let a caller name the cheap folder
+ * while deleting out of the expensive one.
+ */
+export function assetFolderFromPath(path: string): AssetFolder | null {
+  const parts = path.split("/");
+  if (parts.length < 4) return null;
+  if (parts[0] !== "tenants") return null;
+  if (!isUuid(parts[1] ?? "")) return null;
+  const folder = parts[2] ?? "";
+  return isAssetFolder(folder) ? folder : null;
+}
+
+/** True when `path` is inside THIS tenant's own folder. */
+export function isOwnAssetPath(tenantId: string, path: string): boolean {
+  return isUuid(tenantId) && path.startsWith(`tenants/${tenantId}/`);
+}
+
+/** The folder prefix a tenant's objects live under. */
+export function tenantFolderPrefix(tenantId: string, folder: AssetFolder): string {
+  return `tenants/${tenantId}/${folder}`;
+}
+
+/**
+ * A basename nothing else will collide with.
+ *
+ * `validateAsset` is deliberately deterministic - `logo` always lands on
+ * `logo.png`, so replacing a logo replaces it rather than accumulating eleven -
+ * and that is exactly wrong for a gallery, where two uploads called `foto.jpg`
+ * are two different photos. Callers that collect rather than replace pass the
+ * result of this as `basename`.
+ *
+ * `crypto.randomUUID` and not a timestamp: two photos chosen in the same file
+ * picker are uploaded in the same millisecond.
+ */
+export function uniqueBasename(hint: string): string {
+  const stem = hint
+    .toLowerCase()
+    .replace(/\.[a-z0-9]+$/, "")
+    .replace(/[^a-z0-9-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 24);
+
+  return `${stem.length > 0 ? stem : "img"}-${crypto.randomUUID().slice(0, 8)}`;
 }

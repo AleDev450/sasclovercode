@@ -9,11 +9,11 @@ import "server-only";
  */
 
 import { cache } from "react";
+import { SYSTEM_DOMAIN } from "@/config/app";
+import { getActiveTenant } from "@/lib/tenant/active";
 import { getCurrentTenant } from "@/lib/tenant/context";
+import { getPrimaryDomain } from "@/modules/seo/server/queries";
 import type { ResolvedTenant } from "@/lib/tenant/types";
-import { TENANT_ASSETS_BUCKET } from "@/lib/storage/assets";
-import { logger } from "@/lib/logger";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export interface SiteContext {
   readonly tenant: ResolvedTenant;
@@ -35,39 +35,50 @@ export const getSiteContext = cache(async (): Promise<SiteContext | null> => {
 });
 
 /**
- * Signs the asset paths a page needs, in one round trip.
- *
- * The bucket is private (Phase 06), so `getPublicUrl` would return a URL that
- * nobody can fetch - including the legitimate visitor. Signing is the only way
- * a private object reaches a browser.
- *
- * Returned as a Map rather than a function because signing is asynchronous and
- * a renderer needs the value synchronously: the page resolves every path first,
- * then renders.
- *
- * One hour: long enough for a page view and its images, short enough that a
- * leaked URL stops working. A path that fails to sign is simply absent from the
- * map, and the renderer skips that image rather than emitting a broken one.
+ * Signing moved to `lib/storage/sign.ts` when the admin side gained upload
+ * controls that also have to display what is stored. Re-exported here so every
+ * existing caller - the site layout, the page view, the SEO metadata builder,
+ * and the tests that mock this module - is untouched by the move.
  */
-export async function signAssetPaths(paths: readonly string[]): Promise<Map<string, string>> {
-  const unique = [...new Set(paths)];
-  const signed = new Map<string, string>();
-  if (unique.length === 0) return signed;
+export { signAssetPaths } from "@/lib/storage/sign";
 
-  const client = await createSupabaseServerClient();
-  const { data, error } = await client.storage
-    .from(TENANT_ASSETS_BUCKET)
-    .createSignedUrls(unique, 60 * 60);
+/**
+ * The site context for a PREVIEW, resolved from a slug instead of a hostname.
+ *
+ * WHY A PREVIEW EXISTS AT ALL. The dashboard lives on one hostname (master
+ * section 28) and a tenant site lives on its own, so "see my website" from
+ * inside the editor is a link to a different origin - which works in production
+ * once DNS exists, and does not work at all on a preview deployment, where the
+ * whole platform answers on a single `*.vercel.app` name that belongs to no
+ * tenant. Until this existed, the only way to look at a newly created business
+ * was to already have its domain serving.
+ *
+ * WHY IT IS NOT A HOLE. The tenant comes from `getActiveTenant`, which matches
+ * the slug against the CALLER'S OWN memberships - the same function every
+ * dashboard page uses, resolved from `auth.uid()` in the database. Somebody who
+ * is not a member of the business gets nothing, exactly as if they had typed
+ * its dashboard URL. Every query underneath still runs under that identity and
+ * under the same policies; nothing here elevates anything.
+ */
+export const getPreviewSiteContext = cache(async (slug: string): Promise<SiteContext | null> => {
+  const active = await getActiveTenant(slug);
+  if (active === null) return null;
 
-  if (error) {
-    logger.error("site.assets.sign_failed", { count: unique.length, error });
-    return signed;
-  }
+  const domain = await getPrimaryDomain(active.id);
 
-  for (const entry of data ?? []) {
-    if (entry.signedUrl !== null && entry.path !== null) {
-      signed.set(entry.path, entry.signedUrl);
-    }
-  }
-  return signed;
-}
+  return {
+    tenant: {
+      id: active.id,
+      slug: active.slug,
+      name: active.name,
+      status: active.status,
+      // The domain a real visitor WOULD arrive on. Used for canonical URLs and
+      // structured data, so a preview does not invent a different identity for
+      // the same business.
+      domain: domain ?? `${active.slug}.${SYSTEM_DOMAIN}`,
+      domainType: "system",
+      isPrimary: true,
+    },
+    isServing: active.status === "active",
+  };
+});

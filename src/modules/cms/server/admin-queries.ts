@@ -150,3 +150,72 @@ export async function listNavItems(tenantId: string): Promise<AdminNavItem[]> {
     };
   });
 }
+
+/**
+ * A page as the PREVIEW renders it: drafts and hidden sections included.
+ *
+ * Deliberately a separate function from `getPublicPage` rather than a flag on
+ * it. A boolean called `includeDrafts` threaded through the one query that
+ * serves every visitor is a single mistaken argument away from publishing
+ * unfinished content to the internet; two functions in two files cannot be
+ * confused by a default.
+ *
+ * It is safe here for the same reason the rest of this file is: the caller has
+ * already been matched to a membership, and the `content.view` policy decides
+ * again in the database.
+ */
+export async function getPreviewPage(
+  tenantId: string,
+  slug: string,
+): Promise<{
+  id: string;
+  slug: string;
+  title: string;
+  status: "draft" | "published";
+  sections: readonly { id: string; type: SectionType; content: unknown; isVisible: boolean }[];
+} | null> {
+  const client = await createSupabaseServerClient();
+
+  const { data, error } = await client
+    .from("pages")
+    .select("id, slug, title, status, page_sections(id, type, content, position, is_visible)")
+    .eq("tenant_id", tenantId)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    logger.error("cms.preview.query_failed", { tenantId, slug, error });
+    throw new DatabaseError("Preview page lookup failed.", { cause: error });
+  }
+  if (data === null) return null;
+
+  const sections = (data.page_sections ?? [])
+    .filter((section) => isSectionType(section.type))
+    .sort((a, b) => a.position - b.position || a.id.localeCompare(b.id))
+    .map((section) => ({
+      id: section.id,
+      type: section.type as SectionType,
+      content: section.content,
+      isVisible: section.is_visible,
+    }));
+
+  return { id: data.id, slug: data.slug, title: data.title, status: data.status, sections };
+}
+
+/** Every page slug of a tenant, for the preview switcher. */
+export async function listPageSlugs(
+  tenantId: string,
+): Promise<{ slug: string; title: string; status: "draft" | "published" }[]> {
+  const client = await createSupabaseServerClient();
+  const { data, error } = await client
+    .from("pages")
+    .select("slug, title, status")
+    .eq("tenant_id", tenantId)
+    .order("slug");
+
+  if (error) {
+    logger.error("cms.preview.slugs_failed", { tenantId, error });
+    return [];
+  }
+  return data ?? [];
+}

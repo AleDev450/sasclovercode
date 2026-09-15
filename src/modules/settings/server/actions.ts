@@ -13,13 +13,12 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { DatabaseError, ExternalServiceError, ValidationError } from "@/lib/errors";
+import { DatabaseError } from "@/lib/errors";
 import type { FormState } from "@/lib/forms/state";
 import { logger } from "@/lib/logger";
 import { PERMISSIONS } from "@/lib/permissions";
 import { requirePermission } from "@/lib/permissions/check";
-import { validateAsset } from "@/lib/storage/assets";
-import { TENANT_ASSETS_BUCKET } from "@/lib/storage/assets";
+import { assetFolderFromPath, isOwnAssetPath } from "@/lib/storage/assets";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { toFieldErrors } from "@/lib/validation";
@@ -245,67 +244,64 @@ export async function upsertSocialLinkAction(
 }
 
 /**
- * Uploads a branding asset.
+ * Saves which stored files are this business's logo and favicon.
  *
- * The path is built from the tenant the SERVER resolved, and the extension from
- * the VALIDATED MIME type - never from the uploaded filename, which is
- * attacker-controlled and is the usual way a wrong file type ends up stored.
+ * WHAT THIS REPLACES. `uploadBrandingAssetAction` - a single action that both
+ * uploaded the file AND wrote the column, and which no component in the
+ * repository ever called. It had existed since Phase 06, so for six phases a
+ * business could not put its own logo on its own website, and the theme screen
+ * did not mention that a logo was a thing it could have.
+ *
+ * Splitting it in two is what made the control possible. The upload happens the
+ * moment a file is dropped (`modules/assets`), because a person needs to see
+ * the thumbnail to know it worked; THIS runs when they press save, because
+ * which file is the logo is a decision, not a side effect of choosing a file.
+ * Uploading and then changing your mind now costs nothing.
+ *
+ * The paths are re-checked against this tenant's own folder. They arrive from
+ * the browser, and a path is the one part of an upload that a caller could
+ * retype - `isOwnAssetPath` is why pointing at another business's file is not
+ * storable, on top of the CHECK the column would fail anyway.
  */
-export async function uploadBrandingAssetAction(
+export async function updateBrandingAction(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const tenant = await requireSettingsAccess(formData);
 
-  const file = formData.get("file");
-  const kind = readText(formData, "kind");
+  const logoPath = readText(formData, "logoPath").trim();
+  const faviconPath = readText(formData, "faviconPath").trim();
 
-  if (!(file instanceof File)) {
-    return { status: "error", fieldErrors: { file: ["Selecciona un archivo."] } };
-  }
-  if (kind !== "logo" && kind !== "favicon") {
-    return { status: "error", fieldErrors: { file: ["Tipo de recurso invalido."] } };
-  }
+  const invalid = [logoPath, faviconPath].some(
+    (path) =>
+      path.length > 0 &&
+      (!isOwnAssetPath(tenant.id, path) || assetFolderFromPath(path) !== "branding"),
+  );
 
-  let asset;
-  try {
-    asset = validateAsset({
-      tenantId: tenant.id,
-      folder: "branding",
-      basename: kind,
-      file: { size: file.size, type: file.type },
-    });
-  } catch (error) {
-    if (error instanceof ValidationError) {
-      logger.warn("asset.rejected", { tenantId: tenant.id, reason: error.message });
-      return { status: "error", fieldErrors: error.fieldErrors };
-    }
-    throw error;
+  if (invalid) {
+    logger.warn("branding.foreign_path", { tenantId: tenant.id });
+    return { status: "error", message: "Ese archivo no es de esta empresa." };
   }
 
   const client = await createSupabaseServerClient();
-
-  const { error: uploadError } = await client.storage
-    .from(TENANT_ASSETS_BUCKET)
-    .upload(asset.path, file, { contentType: asset.contentType, upsert: true });
-
-  if (uploadError) {
-    logger.error("asset.upload_failed", { tenantId: tenant.id, error: uploadError });
-    throw new ExternalServiceError("Storage", "Asset upload failed.", { cause: uploadError });
-  }
-
-  const { error: themeError } = await client
+  const { error } = await client
     .from("tenant_themes")
-    .update(kind === "logo" ? { logo_path: asset.path } : { favicon_path: asset.path })
+    .update({
+      logo_path: logoPath.length > 0 ? logoPath : null,
+      favicon_path: faviconPath.length > 0 ? faviconPath : null,
+    })
     .eq("tenant_id", tenant.id);
 
-  if (themeError) {
-    logger.error("asset.path_save_failed", { tenantId: tenant.id, error: themeError });
-    throw new DatabaseError("Asset path save failed.", { cause: themeError });
+  if (error) {
+    logger.error("branding.save_failed", { tenantId: tenant.id, error });
+    throw new DatabaseError("Branding save failed.", { cause: error });
   }
 
-  logger.info("asset.uploaded", { tenantId: tenant.id, folder: "branding", bytes: asset.bytes });
+  logger.info("branding.saved", { tenantId: tenant.id });
   revalidatePath(`/dashboard/${tenant.slug}/configuracion/tema`);
+  // The public site paints the logo and serves the favicon, so its cache is
+  // stale the moment this succeeds.
+  revalidatePath("/sitio", "layout");
 
-  return { status: "success", message: "Archivo subido." };
+  return { status: "success", message: "Marca guardada." };
 }

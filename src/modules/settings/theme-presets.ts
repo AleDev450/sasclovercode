@@ -14,10 +14,18 @@
  * and then change one colour, and the site renderer never learns that presets
  * exist. That is deliberate - a preset is a STARTING POINT, not a mode.
  *
- * EVERY COMBINATION BELOW WAS CHECKED FOR CONTRAST. `primary` is used for
- * buttons with white text and for headings on `background`, so each one clears
- * 4.5:1 against white; `background` stays light enough for near-black body
- * text. A preset that looked good and failed that check is not in this file.
+ * EVERY COMBINATION BELOW WAS MEASURED, not eyeballed. Three ratios have to
+ * clear 4.5:1 for a palette to be in this file: `primary` against `background`
+ * (it sets prices and headings), and each of `primary` and `accent` against the
+ * label `readableOn` computes for it (they are button and badge fills).
+ *
+ * The previous set failed the third of those on six of eight entries - accent
+ * badges came out between 2.1:1 and 3.1:1 - and the cause was not the colours
+ * but `readableOn`, which thresholded at a luminance of 0.45 when the real
+ * crossover is near 0.18, so every mid-tone got white text where black was far
+ * more readable. That is fixed in `modules/seo/theme.ts`; these nine now land
+ * between 4.8:1 and 12.2:1. `src/tests/unit/seo-theme.test.ts` re-measures
+ * them, so a tenth preset cannot be added below the floor.
  */
 
 import type { ThemeValues } from "@/modules/seo/theme";
@@ -34,9 +42,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   {
     id: "clover",
     name: "Clover",
-    description: "El estilo de la casa. Turquesa sobre blanco, limpio y moderno.",
-    primaryColor: "#0e7c81",
-    accentColor: "#09b3ba",
+    description: "El estilo de la casa. Verde azulado sobre blanco, limpio y moderno.",
+    primaryColor: "#0f766e",
+    accentColor: "#14b8a6",
     backgroundColor: "#ffffff",
     fontFamily: "inter",
     borderRadius: "lg",
@@ -44,10 +52,10 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
   {
     id: "brasa",
     name: "Brasa",
-    description: "Rojo intenso y fondo calido. Para pollerias, parrillas y comida criolla.",
-    primaryColor: "#b91c1c",
-    accentColor: "#ea580c",
-    backgroundColor: "#fffbf7",
+    description: "Rojo ladrillo y fondo calido. Para pollerias, parrillas y comida criolla.",
+    primaryColor: "#b42318",
+    accentColor: "#e4762a",
+    backgroundColor: "#fffaf5",
     fontFamily: "poppins",
     borderRadius: "md",
   },
@@ -56,8 +64,8 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     name: "Menta",
     description: "Verde fresco. Comida saludable, jugueria, vegetariano.",
     primaryColor: "#15803d",
-    accentColor: "#22c55e",
-    backgroundColor: "#f7fdf9",
+    accentColor: "#34d399",
+    backgroundColor: "#f6fdf9",
     fontFamily: "inter",
     borderRadius: "lg",
   },
@@ -66,18 +74,21 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     name: "Dulce",
     description: "Rosa suave y esquinas redondas. Pasteleria, heladeria, postres.",
     primaryColor: "#be185d",
-    accentColor: "#ec4899",
-    backgroundColor: "#fff7fb",
+    accentColor: "#f472b6",
+    backgroundColor: "#fffafc",
     fontFamily: "poppins",
-    borderRadius: "full",
+    // `full` used to be here and it rounded the product photos into lozenges.
+    // A radius is applied to cards AND to images; `lg` is as soft as this
+    // system can go before that starts to look like a mistake.
+    borderRadius: "lg",
   },
   {
     id: "oceano",
     name: "Oceano",
     description: "Azul profundo y confiable. Cevicherias, farmacias, servicios.",
-    primaryColor: "#0369a1",
-    accentColor: "#0ea5e9",
-    backgroundColor: "#f8fbfe",
+    primaryColor: "#075985",
+    accentColor: "#38bdf8",
+    backgroundColor: "#f7fbff",
     fontFamily: "inter",
     borderRadius: "md",
   },
@@ -85,9 +96,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     id: "cafe",
     name: "Cafe",
     description: "Marrones calidos con tipografia serif. Cafeterias y panaderias.",
-    primaryColor: "#78350f",
-    accentColor: "#b45309",
-    backgroundColor: "#fdfaf5",
+    primaryColor: "#7c4a21",
+    accentColor: "#c08552",
+    backgroundColor: "#fdf9f3",
     fontFamily: "lora",
     borderRadius: "sm",
   },
@@ -95,9 +106,9 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     id: "noche",
     name: "Noche",
     description: "Morado sobre fondo claro. Licorerias, bares y discotecas.",
-    primaryColor: "#6d28d9",
-    accentColor: "#a855f7",
-    backgroundColor: "#faf8ff",
+    primaryColor: "#5b21b6",
+    accentColor: "#a78bfa",
+    backgroundColor: "#faf7ff",
     fontFamily: "poppins",
     borderRadius: "lg",
   },
@@ -105,11 +116,31 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     id: "sobrio",
     name: "Sobrio",
     description: "Gris carbon sin adornos. Boutiques, estudios y ropa.",
-    primaryColor: "#1f2937",
-    accentColor: "#4b5563",
-    backgroundColor: "#ffffff",
+    primaryColor: "#18181b",
+    accentColor: "#71717a",
+    backgroundColor: "#fafafa",
     fontFamily: "system",
     borderRadius: "none",
+  },
+  /*
+   * The one dark theme, and the reason it is worth having beyond taste.
+   *
+   * Everything a page needs beyond the three stored colours is DERIVED from
+   * them - body text, hairlines, panel tints, the label on a button - and the
+   * derivation measures against the background rather than assuming it is
+   * white. A dark preset is the only entry in this gallery that proves that is
+   * true, and the only one that would break loudly if somebody replaced a
+   * derived token with a hard-coded `text-black/60` again.
+   */
+  {
+    id: "medianoche",
+    name: "Medianoche",
+    description: "Fondo oscuro y lila claro. Bares de noche, gimnasios, tecnologia.",
+    primaryColor: "#c4b5fd",
+    accentColor: "#67e8f9",
+    backgroundColor: "#0f172a",
+    fontFamily: "inter",
+    borderRadius: "lg",
   },
 ] as const;
 

@@ -8,15 +8,22 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  PageHeader,
+  buttonVariants,
 } from "@/components/ui";
+import { IconArrowRight, IconGlobe, IconLayout } from "@/components/ui/icons";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { MODULES } from "@/lib/features";
 import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
-import { DeleteSectionForm, SectionEditor } from "@/modules/cms/components/section-editor";
+import {
+  AddSectionPanel,
+  SectionCard,
+  type CategoryChoice,
+} from "@/modules/cms/components/section-editor";
 import { getPageWithSections } from "@/modules/cms/server/admin-queries";
-import { SECTION_LABELS } from "@/modules/cms/sections";
+import { listCategories } from "@/modules/catalog/server/queries";
 import { PageSeoForm } from "@/modules/seo/components/page-seo-form";
 
 export const metadata = { title: "Editor de pagina" };
@@ -45,51 +52,103 @@ export default async function PageEditorPage({
 
   const { page, sections } = result;
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{page.title}</h1>
-          <p className="text-muted-foreground font-mono text-sm">/{page.slug}</p>
-        </div>
-        <Badge variant={page.status === "published" ? "success" : "neutral"}>
-          {page.status === "published" ? "Publicada" : "Borrador"}
-        </Badge>
-      </div>
+  /*
+   * The categories the `products` section may point at.
+   *
+   * Read here and passed down so the editor offers a LIST instead of asking
+   * somebody to type a slug they have to go and look up - and so a section can
+   * never point at a category that does not exist. Skipped entirely when the
+   * business has no catalogue module: there would be nothing to offer.
+   */
+  const categories: CategoryChoice[] = (await hasFeature(tenant.id, MODULES.CATALOG))
+    ? (await listCategories(tenant.id))
+        .filter((category) => category.isActive)
+        .map((category) => ({ slug: category.slug, name: category.name }))
+    : [];
 
-      {sections.length === 0 ? (
-        <EmptyState
-          title="Esta pagina no tiene secciones"
-          description="Anade la primera con el formulario de abajo."
-        />
-      ) : (
-        <ul className="flex flex-col gap-4">
-          {sections.map((section) => (
-            <li key={section.id} className="flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-sm font-medium">
-                  {SECTION_LABELS[section.type]}{" "}
-                  <span className="text-muted-foreground font-normal">
-                    (orden {section.position})
-                  </span>
-                </h2>
-                <DeleteSectionForm
+  const contentHref = `/dashboard/${tenant.slug}/contenido`;
+
+  return (
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        eyebrow={
+          <Link
+            href={contentHref}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
+          >
+            <IconLayout className="size-3.5" />
+            Paginas
+          </Link>
+        }
+        title={page.title}
+        description={`Ruta publica: /sitio/${page.slug}`}
+        actions={
+          <>
+            <Badge variant={page.status === "published" ? "success" : "neutral"} dot>
+              {page.status === "published" ? "Publicada" : "Borrador"}
+            </Badge>
+            <Link
+              href={`/vista/${tenant.slug}/${page.slug}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <IconGlobe />
+              Ver como cliente
+              <IconArrowRight />
+            </Link>
+          </>
+        }
+      />
+
+      {/* ------------------------------------------------------- the sections */}
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-lg font-semibold tracking-tight">Secciones</h2>
+          <p className="text-muted-foreground text-sm">
+            Se muestran en este orden. Usa las flechas para moverlas y el ojo para esconder una sin
+            borrarla.
+          </p>
+        </div>
+
+        {sections.length === 0 ? (
+          <EmptyState
+            title="Esta pagina esta vacia"
+            description="Anade una portada para empezar, y despues tus productos. Puedes cambiar el orden cuando quieras."
+            icon={<IconLayout className="size-8" />}
+          />
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {sections.map((section, index) => (
+              <li key={section.id}>
+                <SectionCard
                   tenantSlug={tenant.slug}
                   pageId={page.id}
-                  sectionId={section.id}
+                  section={section}
+                  categories={categories}
+                  index={index}
+                  total={sections.length}
                 />
-              </div>
-              <SectionEditor tenantSlug={tenant.slug} pageId={page.id} section={section} />
-            </li>
-          ))}
-        </ul>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
 
+        <div>
+          <AddSectionPanel
+            tenantSlug={tenant.slug}
+            pageId={page.id}
+            categories={categories}
+            nextPosition={sections.length}
+          />
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------ the SEO */}
       <Card>
         <CardHeader>
           <CardTitle as="h2">SEO de esta pagina</CardTitle>
           <CardDescription>
-            Opcional. Lo que dejes vacio se hereda del SEO del sitio.
+            Como aparece en Google y al compartirla por WhatsApp. Lo que dejes vacio se hereda del
+            SEO del sitio.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -104,25 +163,6 @@ export default async function PageEditorPage({
           />
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle as="h2">Anadir seccion</CardTitle>
-          <CardDescription>
-            El contenido es texto estructurado. No se admite HTML en ningun campo.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SectionEditor tenantSlug={tenant.slug} pageId={page.id} />
-        </CardContent>
-      </Card>
-
-      <Link
-        href={`/dashboard/${tenant.slug}/contenido`}
-        className="text-muted-foreground text-sm hover:underline"
-      >
-        Volver a contenido
-      </Link>
     </div>
   );
 }

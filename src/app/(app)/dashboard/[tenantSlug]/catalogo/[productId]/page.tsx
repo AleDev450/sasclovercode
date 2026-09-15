@@ -15,6 +15,7 @@ import {
   ProductForm,
   ProductStatusForms,
 } from "@/modules/catalog/components/catalog-forms";
+import { ProductImageGrid } from "@/modules/catalog/components/product-images";
 import { getProductDetail, listCategories } from "@/modules/catalog/server/queries";
 import { RecipeForm } from "@/modules/inventory/components/recipe-form";
 import { getRecipeForProduct, listInventoryItems } from "@/modules/inventory/server/queries";
@@ -127,31 +128,13 @@ export default async function ProductDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
-          {product.images.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Sin imagenes.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {product.images.map((image) => (
-                <li
-                  key={image.id}
-                  className="border-border flex flex-wrap items-center justify-between gap-3 border-b pb-2 last:border-0"
-                >
-                  <span className="font-mono text-xs break-all">{image.path}</span>
-                  <div className="flex items-center gap-2">
-                    {image.isPrimary ? <Badge variant="success">Principal</Badge> : null}
-                    {canManage ? (
-                      <DeleteChildForm
-                        tenantSlug={tenant.slug}
-                        productId={product.id}
-                        childId={image.id}
-                        kind="image"
-                      />
-                    ) : null}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <ProductImageGrid
+            tenantSlug={tenant.slug}
+            productId={product.id}
+            images={product.images}
+            canManage={canManage}
+          />
+
           {canManage ? <AddImageForm tenantSlug={tenant.slug} productId={product.id} /> : null}
         </CardContent>
       </Card>

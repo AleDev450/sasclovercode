@@ -30,13 +30,20 @@ export interface ThemeValues {
   readonly borderRadius: string;
 }
 
-/** Same defaults as the `tenant_themes` column defaults. */
+/**
+ * Same defaults as the `tenant_themes` column defaults, which are the "Clover"
+ * preset (migration 20260914140000).
+ *
+ * They have to match. This is the fallback the renderer uses when the theme row
+ * cannot be read, so a drift shows up as a business whose site changes colour
+ * for the duration of a database hiccup.
+ */
 export const THEME_DEFAULTS: ThemeValues = {
-  primaryColor: "#16a34a",
-  accentColor: "#0ea5e9",
+  primaryColor: "#0f766e",
+  accentColor: "#14b8a6",
   backgroundColor: "#ffffff",
-  fontFamily: "system",
-  borderRadius: "md",
+  fontFamily: "inter",
+  borderRadius: "lg",
 };
 
 const HEX = /^#[0-9a-f]{6}$/;
@@ -90,17 +97,40 @@ function luminance(hex: string): number {
   return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
 }
 
+/** WCAG contrast ratio between two colours. 1 is identical, 21 is black on white. */
+function contrast(a: string, b: string): number {
+  const one = luminance(a);
+  const two = luminance(b);
+  const [lighter, darker] = one > two ? [one, two] : [two, one];
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/** The near-black this design system uses for text. Never pure #000. */
+const INK = "#111827";
+
 /**
  * Black or white, whichever is readable ON `hex`.
  *
  * WHY THIS IS COMPUTED AND NOT STORED. A business picks three colours; it does
  * not pick "the colour of text on top of my button", and asking it to would be
- * asking it to solve a contrast problem it cannot see. The 0.45 threshold is
- * slightly above the naive 0.5 because black text wins ties comfortably and
- * white text on a mid-tone is the failure people actually notice.
+ * asking it to solve a contrast problem it cannot see.
+ *
+ * WHY IT MEASURES INSTEAD OF THRESHOLDING. It used to be
+ * `luminance(hex) > 0.45 ? ink : white`, and 0.45 is far above the point where
+ * the two actually cross over - which for WCAG is a luminance near 0.18. Every
+ * mid-tone therefore got WHITE text when black would have been far more
+ * readable, and mid-tones are exactly what a brand accent is. Measured across
+ * the preset gallery the old rule produced accent badges at 2.1:1 to 3.1:1 -
+ * all of them below the 4.5:1 floor, on a value the palette was chosen for.
+ * The same nine palettes under this rule land between 4.8:1 and 12.2:1.
+ *
+ * Asking which of the two candidates wins, rather than guessing from a
+ * constant, also means there is no threshold left to be wrong for a colour
+ * nobody anticipated - and a business typing its own hex into the custom editor
+ * is precisely that case.
  */
 function readableOn(hex: string): string {
-  return luminance(hex) > 0.45 ? "#111827" : "#ffffff";
+  return contrast(hex, INK) >= contrast(hex, "#ffffff") ? INK : "#ffffff";
 }
 
 /** `rgb(r g b / alpha)` from a hex. For tints that must sit on any background. */

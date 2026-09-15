@@ -410,11 +410,15 @@ describe("provisioning creates defaults (TEST-619, TEST-620)", () => {
     expect(settings[0]?.currency).toBe("PEN");
     expect(settings[0]?.timezone).toBe("America/Lima");
 
-    const theme = await db.query<{ primary_color: string }>(
-      "select primary_color from public.tenant_themes where tenant_id = $1",
+    const theme = await db.query<{ primary_color: string; font_family: string }>(
+      "select primary_color, font_family from public.tenant_themes where tenant_id = $1",
       [id],
     );
-    expect(theme[0]?.primary_color).toBe("#16a34a");
+    // The "Clover" preset, since migration 20260914140000. Before it the column
+    // default was a palette that appeared nowhere in the product, so a new
+    // business opened the theme gallery and found no card selected.
+    expect(theme[0]?.primary_color).toBe("#0f766e");
+    expect(theme[0]?.font_family).toBe("inter");
   });
 
   it("gives defaults to a tenant inserted DIRECTLY, not only to a provisioned one", async () => {

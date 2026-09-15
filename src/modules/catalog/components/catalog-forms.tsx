@@ -17,6 +17,7 @@ import {
   updateProductAction,
 } from "../server/actions";
 import type { Category, Product, ProductDetail } from "../server/queries";
+import { AssetPicker } from "@/modules/assets/components/asset-picker";
 
 type Action = (previous: FormState, formData: FormData) => Promise<FormState>;
 
@@ -375,6 +376,20 @@ export function DeleteChildForm({
   );
 }
 
+/**
+ * Adding a photo to a product.
+ *
+ * WHAT THIS REPLACED. A text field labelled "Ruta de la imagen", with the hint
+ * "Subela en Configuracion y pega aqui su ruta: tenants/.../products/foto.jpg".
+ * Configuracion had no uploader, so the instruction pointed at a screen that
+ * could not do the thing; the only way to get a photo onto a menu was to reach
+ * the Storage bucket some other way and copy a uuid out of a path by hand.
+ *
+ * The control uploads on drop and puts the stored path in a hidden input, so
+ * this form still submits exactly what `addProductImageAction` has always
+ * validated - including the CHECK that the path is inside this tenant's own
+ * products folder.
+ */
 export function AddImageForm({ tenantSlug, productId }: { tenantSlug: string; productId: string }) {
   const [state, formAction, isPending] = useActionState(addProductImageAction, IDLE_FORM_STATE);
   const e = state.fieldErrors ?? {};
@@ -385,26 +400,39 @@ export function AddImageForm({ tenantSlug, productId }: { tenantSlug: string; pr
       <input type="hidden" name="productId" value={productId} />
       <Feedback state={state} />
 
-      <Field
-        name="path"
-        label="Ruta de la imagen"
-        hint="Subela en Configuracion y pega aqui su ruta: tenants/…/products/foto.jpg"
-        errors={e.path}
-      />
-      <Field name="altText" label="Texto alternativo" errors={e.altText} />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <AssetPicker
+          tenantSlug={tenantSlug}
+          folder="products"
+          name="path"
+          label="Foto del producto"
+          aspect="wide"
+          hint="Arrastra la foto o eligela de las que ya subiste."
+        />
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="isPrimary" value="true" className="size-4" />
-        Es la imagen principal
-      </label>
-      {e.isPrimary !== undefined ? (
-        <p className="text-destructive text-sm">{e.isPrimary[0]}</p>
-      ) : null}
+        <div className="flex flex-col gap-4">
+          <Field
+            name="altText"
+            label="Texto alternativo"
+            hint="Describe la foto para quien no puede verla."
+            errors={e.altText}
+          />
 
-      <div>
-        <Button type="submit" loading={isPending} loadingLabel="Anadiendo">
-          Anadir imagen
-        </Button>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isPrimary" value="true" className="size-4" />
+            Es la imagen principal
+          </label>
+          {e.isPrimary !== undefined ? (
+            <p className="text-destructive text-sm">{e.isPrimary[0]}</p>
+          ) : null}
+          {e.path !== undefined ? <p className="text-destructive text-sm">{e.path[0]}</p> : null}
+
+          <div>
+            <Button type="submit" loading={isPending} loadingLabel="Anadiendo">
+              Anadir imagen
+            </Button>
+          </div>
+        </div>
       </div>
     </form>
   );

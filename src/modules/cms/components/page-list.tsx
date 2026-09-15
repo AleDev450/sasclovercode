@@ -2,9 +2,17 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
-import { Alert, AlertDescription, Badge, Button, Input, Label } from "@/components/ui";
+import { Alert, AlertDescription, Badge, Button, Card, Input, Label } from "@/components/ui";
+import {
+  IconArrowRight,
+  IconEye,
+  IconGlobe,
+  IconLayout,
+  IconPencil,
+  IconTrash,
+} from "@/components/ui/icons";
 import { IDLE_FORM_STATE } from "@/lib/forms/state";
-import { createPageAction, setPageStatusAction } from "../server/actions";
+import { createPageAction, deletePageAction, setPageStatusAction } from "../server/actions";
 import type { AdminPage } from "../server/admin-queries";
 
 export function CreatePageForm({ tenantSlug }: { tenantSlug: string }) {
@@ -29,6 +37,7 @@ export function CreatePageForm({ tenantSlug }: { tenantSlug: string }) {
             name="title"
             required
             maxLength={200}
+            placeholder="Nuestra carta"
             invalid={errors.title !== undefined}
             aria-describedby={errors.title !== undefined ? "title-error" : undefined}
           />
@@ -46,6 +55,7 @@ export function CreatePageForm({ tenantSlug }: { tenantSlug: string }) {
             name="slug"
             required
             maxLength={80}
+            placeholder="carta"
             invalid={errors.slug !== undefined}
             aria-describedby={errors.slug !== undefined ? "slug-error" : "slug-help"}
           />
@@ -98,26 +108,100 @@ export function PageStatusForm({ tenantSlug, page }: { tenantSlug: string; page:
   );
 }
 
-export function PageRow({ tenantSlug, page }: { tenantSlug: string; page: AdminPage }) {
+/**
+ * One page, as a card.
+ *
+ * WHAT IT REPLACED. A four-column table whose columns were the title, the
+ * status, a section COUNT and one button. It read as a database listing of a
+ * thing that is not a database row to the person who owns it - and the count
+ * was the only hint that a page had content, which is the least useful fact
+ * about it.
+ *
+ * The three actions are the three questions somebody actually has in front of a
+ * page: edit it, look at it, and put it in front of customers or take it back.
+ */
+export function PageCard({ tenantSlug, page }: { tenantSlug: string; page: AdminPage }) {
+  const isHome = page.slug === "inicio";
+
   return (
-    <tr className="border-border border-b last:border-0">
-      <th scope="row" className="px-4 py-3 text-left font-medium">
-        <Link href={`/dashboard/${tenantSlug}/contenido/${page.id}`} className="hover:underline">
-          {page.title}
+    <Card className="flex flex-col gap-4 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+            {isHome ? <IconGlobe className="size-4" /> : <IconLayout className="size-4" />}
+          </span>
+          <div className="min-w-0">
+            <Link
+              href={`/dashboard/${tenantSlug}/contenido/${page.id}`}
+              className="font-medium hover:underline"
+            >
+              {page.title}
+            </Link>
+            <p className="text-muted-foreground truncate font-mono text-xs">
+              /sitio/{page.slug}
+              {isHome ? " · portada" : null}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Badge variant={page.status === "published" ? "success" : "neutral"} dot>
+            {page.status === "published" ? "Publicada" : "Borrador"}
+          </Badge>
+          <span className="text-muted-foreground text-xs">
+            {page.sectionCount} {page.sectionCount === 1 ? "seccion" : "secciones"}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={`/dashboard/${tenantSlug}/contenido/${page.id}`}
+          className="bg-primary text-primary-foreground shadow-e1 hover:bg-primary/90 inline-flex h-8 items-center gap-2 rounded-md px-3 text-xs font-medium transition-colors"
+        >
+          <IconPencil className="size-3.5" />
+          Editar
         </Link>
-        <span className="text-muted-foreground block font-mono text-xs font-normal">
-          /{page.slug}
-        </span>
-      </th>
-      <td className="px-4 py-3">
-        <Badge variant={page.status === "published" ? "success" : "neutral"}>
-          {page.status === "published" ? "Publicada" : "Borrador"}
-        </Badge>
-      </td>
-      <td className="px-4 py-3 text-sm tabular-nums">{page.sectionCount}</td>
-      <td className="px-4 py-3">
+
+        <Link
+          href={`/vista/${tenantSlug}/${page.slug}`}
+          className="border-input hover:bg-accent inline-flex h-8 items-center gap-2 rounded-md border px-3 text-xs font-medium transition-colors"
+        >
+          <IconEye className="size-3.5" />
+          Ver
+          <IconArrowRight className="size-3.5" />
+        </Link>
+
         <PageStatusForm tenantSlug={tenantSlug} page={page} />
-      </td>
-    </tr>
+
+        <div className="ml-auto">
+          <DeletePageForm tenantSlug={tenantSlug} page={page} />
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+/**
+ * Deleting a page, which was not possible at all until now.
+ *
+ * The checkbox is the deliberate act master section 36 asks for, and it keeps
+ * the form usable without JavaScript. The sections go with it by cascade, which
+ * is why the label says so rather than leaving somebody to find out.
+ */
+export function DeletePageForm({ tenantSlug, page }: { tenantSlug: string; page: AdminPage }) {
+  return (
+    <form action={deletePageAction} className="flex items-center gap-2">
+      <input type="hidden" name="tenantSlug" value={tenantSlug} />
+      <input type="hidden" name="pageId" value={page.id} />
+      <label className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <input type="checkbox" required className="size-3.5" />
+        Confirmar
+      </label>
+      <Button type="submit" size="sm" variant="ghost" className="text-destructive">
+        <IconTrash className="size-3.5" />
+        Borrar
+      </Button>
+    </form>
   );
 }

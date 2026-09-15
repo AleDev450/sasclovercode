@@ -86,11 +86,14 @@ function SafeLink({
   children,
   className,
   style,
+  basePath = "/sitio",
 }: {
   href: string;
   children: string;
   className?: string;
   style?: React.CSSProperties;
+  /** Where an internal `/sitio/...` link should actually go. See the renderer. */
+  basePath?: string;
 }) {
   const isExternal = href.startsWith("https://");
 
@@ -101,8 +104,14 @@ function SafeLink({
       </a>
     );
   }
+  // A stored link is written against `/sitio`, which is where a visitor reads
+  // it. The preview renders the same content under a different base, and a
+  // button that navigated out of the preview would be a dead end.
+  const localised =
+    href === "/sitio" || href.startsWith("/sitio/") ? `${basePath}${href.slice(6)}` : href;
+
   return (
-    <Link href={href} className={className} style={style}>
+    <Link href={localised} className={className} style={style}>
       {children}
     </Link>
   );
@@ -122,9 +131,12 @@ export function SectionRenderer({
   section,
   assetUrls,
   catalog,
+  basePath = "/sitio",
 }: {
   section: RenderableSection;
   assetUrls: AssetUrls;
+  /** Forwarded to every internal link. `/sitio` for a visitor. */
+  basePath?: string;
   /**
    * The tenant's published catalogue, read once by the page and passed down.
    *
@@ -148,46 +160,73 @@ export function SectionRenderer({
       const c = parsed.data as (typeof SECTION_SCHEMAS)["hero"]["_output"];
       const image = c.imagePath !== undefined ? assetUrls.get(c.imagePath) : undefined;
 
+      /*
+       * The hero carries a tinted band, not a bare white top.
+       *
+       * The first version set the heading in `--site-primary` on the page
+       * background and stopped there, which is why every seeded site opened the
+       * same way whatever palette it had chosen: one coloured line of type on
+       * white. The band is `--site-primary-soft`, a 10% tint the theme already
+       * derives, so it picks up the brand on every palette including a dark one
+       * - and the heading moves to `--site-foreground`, which is computed for
+       * contrast against the background rather than assumed to be readable.
+       */
       return (
-        <section
-          className={cn(
-            "grid items-center gap-8 py-12 sm:py-16",
-            image !== undefined && "lg:grid-cols-2 lg:gap-12",
-          )}
-        >
-          <div className="flex flex-col items-start gap-5">
-            <h1
-              className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
-              style={{ color: "var(--site-primary)" }}
-            >
-              {c.heading}
-            </h1>
-            {c.subheading.length > 0 ? (
-              <p
-                className="max-w-prose text-lg leading-relaxed"
-                style={{ color: "var(--site-muted)" }}
+        <section className="relative py-12 sm:py-16">
+          <div
+            aria-hidden
+            className="absolute inset-x-0 -top-px bottom-12 -z-10"
+            style={{
+              background: "var(--site-primary-soft)",
+              borderRadius: "var(--site-radius)",
+            }}
+          />
+
+          <div
+            className={cn(
+              "grid items-center gap-8 px-6 py-10 sm:px-10 sm:py-14",
+              image !== undefined && "lg:grid-cols-[1.05fr_1fr] lg:gap-14",
+            )}
+          >
+            <div className="flex flex-col items-start gap-5">
+              <h1
+                className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
+                style={{ color: "var(--site-foreground)" }}
               >
-                {c.subheading}
-              </p>
-            ) : null}
-            {c.ctaLabel.length > 0 && c.ctaHref !== undefined ? (
-              <SafeLink href={c.ctaHref} className={buttonClass} style={primaryButtonStyle}>
-                {c.ctaLabel}
-              </SafeLink>
+                {c.heading}
+              </h1>
+              {c.subheading.length > 0 ? (
+                <p
+                  className="max-w-prose text-lg leading-relaxed"
+                  style={{ color: "var(--site-muted)" }}
+                >
+                  {c.subheading}
+                </p>
+              ) : null}
+              {c.ctaLabel.length > 0 && c.ctaHref !== undefined ? (
+                <SafeLink
+                  href={c.ctaHref}
+                  basePath={basePath}
+                  className={cn(buttonClass, "mt-1 shadow-lg")}
+                  style={primaryButtonStyle}
+                >
+                  {c.ctaLabel}
+                </SafeLink>
+              ) : null}
+            </div>
+
+            {image !== undefined ? (
+              /* eslint-disable-next-line @next/next/no-img-element -- the asset
+                 is a signed URL from Storage, whose host is not known at build
+                 time, so next/image cannot be configured for it. */
+              <img
+                src={image}
+                alt=""
+                className="aspect-[4/3] w-full object-cover shadow-xl"
+                style={{ borderRadius: "var(--site-radius)" }}
+              />
             ) : null}
           </div>
-
-          {image !== undefined ? (
-            /* eslint-disable-next-line @next/next/no-img-element -- the asset is
-               a signed URL from Storage, whose host is not known at build time,
-               so next/image cannot be configured for it until Phase 09. */
-            <img
-              src={image}
-              alt=""
-              className="aspect-[4/3] w-full object-cover"
-              style={{ borderRadius: "var(--site-radius)" }}
-            />
-          ) : null}
         </section>
       );
     }
@@ -262,6 +301,7 @@ export function SectionRenderer({
           {c.href !== undefined ? (
             <SafeLink
               href={c.href}
+              basePath={basePath}
               className="text-sm font-medium underline-offset-4 hover:underline"
             >
               {c.message}
@@ -294,7 +334,12 @@ export function SectionRenderer({
               {c.body}
             </p>
           ) : null}
-          <SafeLink href={c.buttonHref} className={buttonClass} style={primaryButtonStyle}>
+          <SafeLink
+            href={c.buttonHref}
+            basePath={basePath}
+            className={buttonClass}
+            style={primaryButtonStyle}
+          >
             {c.buttonLabel}
           </SafeLink>
         </section>
@@ -359,45 +404,82 @@ export function SectionRenderer({
                 product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
 
               return (
+                /*
+                 * The card carries a shadow and lifts on hover.
+                 *
+                 * It used to be a hairline border on a 3.5% tint, which on a
+                 * white background is a rectangle you have to look for. A menu
+                 * is the page a business is judged on, and the cards are the
+                 * only thing on it that should read as objects.
+                 */
                 <li
                   key={product.id}
-                  className="flex flex-col overflow-hidden border transition-transform hover:-translate-y-0.5"
+                  className={cn(
+                    "group flex flex-col overflow-hidden border shadow-sm",
+                    "transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-xl",
+                    !product.isAvailable && "opacity-75",
+                  )}
                   style={{
                     borderColor: "var(--site-border)",
                     background: "var(--site-surface)",
                     borderRadius: "var(--site-radius)",
                   }}
                 >
-                  {imageUrl !== undefined ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={imageUrl}
-                      alt={product.name}
-                      className="aspect-[4/3] w-full object-cover"
-                    />
-                  ) : (
-                    /* No photo is the common case for a business starting out.
-                       A tinted block keeps the grid even instead of leaving
-                       one card visibly shorter than its neighbours. */
-                    <div
-                      aria-hidden
-                      className="aspect-[4/3] w-full"
-                      style={{ background: "var(--site-accent-soft)" }}
-                    />
-                  )}
+                  <div className="relative overflow-hidden">
+                    {imageUrl !== undefined ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={imageUrl}
+                        alt={product.name}
+                        className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+                    ) : (
+                      /* No photo is the common case for a business starting
+                         out. A tinted block keeps the grid even instead of
+                         leaving one card visibly shorter than its neighbours. */
+                      <div
+                        aria-hidden
+                        className="aspect-[4/3] w-full"
+                        style={{ background: "var(--site-accent-soft)" }}
+                      />
+                    )}
 
-                  <div className="flex flex-1 flex-col gap-2 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="font-semibold" style={{ color: "var(--site-foreground)" }}>
-                        {product.name}
-                      </h3>
+                    {product.isFeatured ? (
                       <span
-                        className="shrink-0 font-semibold whitespace-nowrap tabular-nums"
-                        style={{ color: "var(--site-primary)" }}
+                        className="absolute top-3 left-3 px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide uppercase shadow-sm"
+                        style={{
+                          background: "var(--site-accent)",
+                          color: "var(--site-on-accent)",
+                          borderRadius: "var(--site-radius)",
+                        }}
                       >
-                        {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
+                        Recomendado
                       </span>
-                    </div>
+                    ) : null}
+
+                    {!product.isAvailable ? (
+                      // Sold out today, still on the menu. Hiding it would tell
+                      // a customer the business does not serve this at all.
+                      <span
+                        className="absolute top-3 right-3 px-2.5 py-1 text-[0.6875rem] font-semibold shadow-sm"
+                        style={{
+                          background: "var(--site-background)",
+                          color: "var(--site-muted)",
+                          borderRadius: "var(--site-radius)",
+                        }}
+                      >
+                        Agotado hoy
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-1 flex-col gap-2 p-5">
+                    <h3
+                      className="leading-snug font-semibold"
+                      style={{ color: "var(--site-foreground)" }}
+                    >
+                      {product.name}
+                    </h3>
 
                     {product.description !== null ? (
                       <p className="text-sm leading-relaxed" style={{ color: "var(--site-muted)" }}>
@@ -405,20 +487,15 @@ export function SectionRenderer({
                       </p>
                     ) : null}
 
-                    {!product.isAvailable ? (
-                      // Sold out today, still on the menu. Hiding it would tell
-                      // a customer the business does not serve this at all.
-                      <span
-                        className="mt-auto self-start px-2.5 py-1 text-xs font-medium"
-                        style={{
-                          background: "var(--site-border)",
-                          color: "var(--site-muted)",
-                          borderRadius: "var(--site-radius)",
-                        }}
-                      >
-                        Agotado por hoy
-                      </span>
-                    ) : null}
+                    {/* The price last and on its own line, where the eye lands
+                        after the description rather than fighting the name for
+                        the top row. */}
+                    <span
+                      className="mt-auto pt-2 text-lg font-semibold tabular-nums"
+                      style={{ color: "var(--site-primary)" }}
+                    >
+                      {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
+                    </span>
                   </div>
                 </li>
               );

@@ -7,13 +7,16 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  PageHeader,
+  buttonVariants,
 } from "@/components/ui";
+import { IconArrowRight, IconGlobe, IconLayout, IconPalette } from "@/components/ui/icons";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { MODULES } from "@/lib/features";
 import { hasFeature } from "@/lib/features/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
-import { CreatePageForm, PageRow } from "@/modules/cms/components/page-list";
+import { CreatePageForm, PageCard } from "@/modules/cms/components/page-list";
 import { listPages } from "@/modules/cms/server/admin-queries";
 
 export const metadata = { title: "Contenido" };
@@ -36,25 +39,69 @@ export default async function ContentPage({ params }: { params: Promise<{ tenant
   }
 
   const pages = await listPages(tenant.id);
+  const hasHome = pages.some((page) => page.slug === "inicio");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Contenido</h1>
-          <p className="text-muted-foreground text-sm">
-            Paginas del sitio publico de {tenant.name}.
-          </p>
-        </div>
-        {/* Static segment, so it never collides with `/contenido/[pageId]`:
-            page ids are uuids and Next.js matches a literal segment first. */}
-        <Link
-          href={`/dashboard/${tenant.slug}/contenido/seo`}
-          className="text-muted-foreground hover:text-foreground text-sm"
-        >
-          SEO del sitio
-        </Link>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader
+        title="Paginas"
+        description={`El sitio publico de ${tenant.name}. Cada pagina se compone de secciones que puedes ordenar y esconder.`}
+        actions={
+          <>
+            <Link
+              href={`/dashboard/${tenant.slug}/configuracion/tema`}
+              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            >
+              <IconPalette />
+              Diseno y marca
+            </Link>
+            <Link
+              href={`/vista/${tenant.slug}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <IconGlobe />
+              Ver mi web
+              <IconArrowRight />
+            </Link>
+          </>
+        }
+      />
+
+      {/*
+        The one piece of structure a site cannot do without.
+
+        `/sitio` renders the page whose slug is `inicio`, so a business with
+        pages but no `inicio` has a website whose front door is an empty state -
+        and nothing anywhere said so. Saying it here is cheaper than letting
+        them discover it from a customer.
+      */}
+      {pages.length > 0 && !hasHome ? (
+        <Card variant="brand">
+          <CardHeader>
+            <CardTitle as="h2">Te falta la portada</CardTitle>
+            <CardDescription>
+              La portada es la pagina con el enlace <code className="font-mono">inicio</code>. Sin
+              ella, quien entre a tu web no vera nada. Creala abajo.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      ) : null}
+
+      {pages.length === 0 ? (
+        <EmptyState
+          title="Aun no hay paginas"
+          description="Empieza por la portada: crea una pagina con el enlace inicio y anade tu carta."
+          icon={<IconLayout className="size-8" />}
+        />
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {pages.map((page) => (
+            <li key={page.id}>
+              <PageCard tenantSlug={tenant.slug} page={page} />
+            </li>
+          ))}
+        </ul>
+      )}
 
       <Card>
         <CardHeader>
@@ -65,40 +112,6 @@ export default async function ContentPage({ params }: { params: Promise<{ tenant
           <CreatePageForm tenantSlug={tenant.slug} />
         </CardContent>
       </Card>
-
-      {pages.length === 0 ? (
-        <EmptyState
-          title="Aun no hay paginas"
-          description="Crea la primera para empezar a construir el sitio."
-        />
-      ) : (
-        <Card className="overflow-x-auto">
-          <table className="w-full min-w-[36rem] border-collapse text-sm">
-            <caption className="sr-only">Paginas de {tenant.name}</caption>
-            <thead>
-              <tr className="border-border text-muted-foreground border-b text-left text-xs">
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Pagina
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Estado
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Secciones
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">
-                  Accion
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {pages.map((page) => (
-                <PageRow key={page.id} tenantSlug={tenant.slug} page={page} />
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
     </div>
   );
 }

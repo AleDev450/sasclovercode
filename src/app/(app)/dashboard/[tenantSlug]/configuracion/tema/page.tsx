@@ -14,6 +14,7 @@ import { IconArrowRight, IconGlobe } from "@/components/ui/icons";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
+import { BrandingForm } from "@/modules/settings/components/branding-form";
 import { ThemeForm } from "@/modules/settings/components/theme-form";
 import { ThemeGallery } from "@/modules/settings/components/theme-gallery";
 import { ThemePreview } from "@/modules/settings/components/theme-preview";
@@ -76,11 +77,18 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
               {active?.description ??
                 "Ajustaste los colores a mano, asi que este tema es unico de tu negocio."}
             </p>
+            {/*
+              The PREVIEW, not `/sitio`.
+
+              `/sitio` resolves its tenant from the hostname, and this link is
+              being clicked on the dashboard's hostname - which belongs to no
+              business, so it 404s everywhere except a machine browsing
+              `{slug}.localhost`. The preview route renders the same site and
+              works wherever the product is deployed.
+            */}
             <Link
-              href="/sitio"
+              href={`/vista/${tenant.slug}`}
               className={buttonVariants({ variant: "outline", size: "sm" })}
-              target="_blank"
-              rel="noopener noreferrer"
             >
               <IconGlobe />
               Ver mi web
@@ -89,6 +97,23 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
           </div>
 
           <ThemePreview theme={theme} businessName={tenant.name} size="full" />
+        </CardContent>
+      </Card>
+
+      {/* --------------------------------------------------------- branding */}
+      <Card>
+        <CardHeader>
+          <CardTitle as="h2">Logo y favicon</CardTitle>
+          <CardDescription>
+            Tu marca, en tu web. Arrastra los archivos o eligelos de los que ya subiste.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BrandingForm
+            tenantSlug={tenant.slug}
+            logoPath={theme.logoPath}
+            faviconPath={theme.faviconPath}
+          />
         </CardContent>
       </Card>
 

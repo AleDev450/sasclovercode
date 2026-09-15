@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { THEME_DEFAULTS, themeCssVariables } from "@/modules/seo/theme";
+import { THEME_DEFAULTS, themeCssVariables, type ThemeValues } from "@/modules/seo/theme";
+import { THEME_PRESETS } from "@/modules/settings/theme-presets";
 
 /**
  * The theme finally reaching the page (KL-708), and the injection surface that
@@ -89,11 +90,94 @@ describe("themeCssVariables", () => {
 
   it("uses the same defaults the database column defaults use", () => {
     // If these drift, a tenant that never opened the theme editor renders one
-    // way on the site and another way in the preview.
-    expect(THEME_DEFAULTS.primaryColor).toBe("#16a34a");
-    expect(THEME_DEFAULTS.accentColor).toBe("#0ea5e9");
+    // way on the site and another way in the preview. They are the "Clover"
+    // preset, set by migration 20260914140000 - before it, the column defaults
+    // were a palette that appeared nowhere in the product.
+    expect(THEME_DEFAULTS.primaryColor).toBe("#0f766e");
+    expect(THEME_DEFAULTS.accentColor).toBe("#14b8a6");
     expect(THEME_DEFAULTS.backgroundColor).toBe("#ffffff");
-    expect(THEME_DEFAULTS.fontFamily).toBe("system");
-    expect(THEME_DEFAULTS.borderRadius).toBe("md");
+    expect(THEME_DEFAULTS.fontFamily).toBe("inter");
+    expect(THEME_DEFAULTS.borderRadius).toBe("lg");
+  });
+});
+
+/**
+ * The palettes, measured rather than admired.
+ *
+ * WHY THIS TEST EXISTS. The preset file used to claim in a comment that "every
+ * combination below was checked for contrast", and six of its eight entries had
+ * accent badges between 2.1:1 and 3.1:1 - well under the 4.5:1 floor. A comment
+ * cannot fail, so it drifted from the truth and nobody found out. This can
+ * fail, and it re-derives the ratios from the same function the renderer uses,
+ * so a tenth preset added next year is measured on the way in.
+ *
+ * WHAT IT DOES NOT CHECK: whether a palette is nice. That is the gallery's job
+ * and a person's. This only refuses the ones that are unreadable.
+ */
+describe("preset contrast (TEST-806)", () => {
+  const channel = (value: number): number => {
+    const v = value / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+
+  const luminance = (hex: string): number =>
+    0.2126 * channel(Number.parseInt(hex.slice(1, 3), 16)) +
+    0.7152 * channel(Number.parseInt(hex.slice(3, 5), 16)) +
+    0.0722 * channel(Number.parseInt(hex.slice(5, 7), 16));
+
+  const ratio = (a: string, b: string): number => {
+    const one = luminance(a);
+    const two = luminance(b);
+    const [lighter, darker] = one > two ? [one, two] : [two, one];
+    return (lighter + 0.05) / (darker + 0.05);
+  };
+
+  /** Reads the value the renderer actually emits, never a second copy of it. */
+  const readFrom = (theme: ThemeValues, name: string): string =>
+    (themeCssVariables(theme) as unknown as Record<string, string>)[name]!;
+
+  it("has presets to measure", () => {
+    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(8);
+  });
+
+  it("keeps every button and badge label above 4.5:1", () => {
+    const failures: string[] = [];
+
+    for (const preset of THEME_PRESETS) {
+      const onPrimary = readFrom(preset, "--site-on-primary");
+      const onAccent = readFrom(preset, "--site-on-accent");
+
+      const checks: [string, number][] = [
+        ["boton principal", ratio(preset.primaryColor, onPrimary)],
+        ["badge de acento", ratio(preset.accentColor, onAccent)],
+        // `primary` also sets prices and headings directly on the background.
+        ["precio sobre el fondo", ratio(preset.primaryColor, preset.backgroundColor)],
+      ];
+
+      for (const [what, value] of checks) {
+        if (value < 4.5) failures.push(`${preset.id} — ${what}: ${value.toFixed(2)}:1`);
+      }
+    }
+
+    expect(failures, `contrasts below 4.5:1:\n${failures.join("\n")}`).toEqual([]);
+  });
+
+  it("keeps body text readable on every background, light or dark", () => {
+    for (const preset of THEME_PRESETS) {
+      const foreground = readFrom(preset, "--site-foreground");
+      expect(ratio(foreground, preset.backgroundColor), preset.id).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("covers a dark background, so the derived tokens are exercised", () => {
+    // Every `--site-*` value beyond the three stored colours is computed from
+    // the background. A gallery of light-only presets would let somebody
+    // hard-code `text-black/60` again and never see it break.
+    const dark = THEME_PRESETS.filter((preset) => luminance(preset.backgroundColor) < 0.2);
+    expect(dark.length).toBeGreaterThanOrEqual(1);
+
+    for (const preset of dark) {
+      expect(readFrom(preset, "--site-foreground")).toBe("#ffffff");
+    }
   });
 });

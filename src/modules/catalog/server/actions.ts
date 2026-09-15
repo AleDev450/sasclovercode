@@ -508,3 +508,57 @@ export async function deleteProductChildAction(
   revalidateCatalog(tenant.slug, parsed.data.productId);
   return { status: "success", message: "Elemento quitado." };
 }
+
+/**
+ * Promotes one photo to be the product's main image.
+ *
+ * `product_images_one_primary_per_product` is a PARTIAL UNIQUE INDEX, so two
+ * primaries cannot coexist - which means this cannot be one update. Clearing
+ * first and setting second is the order that never violates it; doing it the
+ * other way round fails on the index every time there is already a primary.
+ *
+ * Without this, "the main photo" was decided at insert time and never again: a
+ * business that uploaded a better photo had to delete the old one to promote
+ * it, and a product with no primary fell back to whichever row sorted first.
+ */
+export async function setPrimaryImageAction(formData: FormData): Promise<void> {
+  const tenant = await requireCatalogAccess(formData, PERMISSIONS.PRODUCTS_UPDATE);
+
+  const parsed = z.object({ productId: z.uuid(), imageId: z.uuid() }).safeParse({
+    productId: readText(formData, "productId"),
+    imageId: readText(formData, "imageId"),
+  });
+
+  if (!parsed.success) return;
+
+  const client = await createSupabaseServerClient();
+
+  const { error: clearError } = await client
+    .from("product_images")
+    .update({ is_primary: false })
+    .eq("product_id", parsed.data.productId)
+    .eq("tenant_id", tenant.id)
+    .eq("is_primary", true);
+
+  if (clearError) {
+    logger.error("catalog.image.unset_primary_failed", { tenantId: tenant.id, error: clearError });
+    throw new DatabaseError("Primary image reset failed.", { cause: clearError });
+  }
+
+  const { error } = await client
+    .from("product_images")
+    .update({ is_primary: true })
+    .eq("id", parsed.data.imageId)
+    .eq("tenant_id", tenant.id);
+
+  if (error) {
+    logger.error("catalog.image.set_primary_failed", { tenantId: tenant.id, error });
+    throw new DatabaseError("Primary image update failed.", { cause: error });
+  }
+
+  logger.info("catalog.image.primary_set", {
+    tenantId: tenant.id,
+    productId: parsed.data.productId,
+  });
+  revalidateCatalog(tenant.slug, parsed.data.productId);
+}

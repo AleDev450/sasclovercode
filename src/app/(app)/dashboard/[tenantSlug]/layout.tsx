@@ -9,7 +9,7 @@ import { SignOutButton } from "@/modules/auth";
 import { DashboardNav } from "@/modules/dashboard/components/dashboard-nav";
 import { TenantSwitcher } from "@/modules/dashboard/components/tenant-switcher";
 import { getMyModules } from "@/lib/features/check";
-import { visibleNavItems } from "@/modules/dashboard/navigation";
+import { visibleNavGroups } from "@/modules/dashboard/navigation";
 
 /**
  * The tenant-scoped shell.
@@ -39,7 +39,7 @@ export default async function TenantLayout({
   // Both sets, in one round trip each: the permission asks whether this person
   // may, the module asks whether this business bought it. Every page the menu
   // points at re-checks both, because hiding is not access control (§45).
-  const navItems = visibleNavItems(permissions, modules);
+  const navGroups = visibleNavGroups(permissions, modules);
 
   return (
     <div className="min-h-dvh">
@@ -76,8 +76,8 @@ export default async function TenantLayout({
       ) : null}
 
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-6 md:flex-row md:gap-10">
-        <aside className="md:w-48 md:shrink-0">
-          <DashboardNav tenantSlug={tenant.slug} items={navItems} />
+        <aside className="md:w-56 md:shrink-0">
+          <DashboardNav tenantSlug={tenant.slug} groups={navGroups} />
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>

@@ -303,3 +303,127 @@ export async function deleteNavItemAction(formData: FormData): Promise<void> {
   revalidatePath(`/dashboard/${tenant.slug}/navegacion`);
   revalidatePath("/sitio", "layout");
 }
+
+/**
+ * Moves a section one place up or down.
+ *
+ * WHY NOT A NUMBER FIELD. `position` used to be an input the person typed into,
+ * which meant reordering a five-section page was arithmetic: to put the banner
+ * above the hero you had to know what number the hero held and pick a smaller
+ * one, then discover that two sections now shared a position and the order was
+ * decided by whichever id sorted first.
+ *
+ * The whole page is renumbered on every move rather than only the two rows that
+ * swapped. That is a few more writes and one fewer thing that can be wrong: any
+ * page with duplicate or sparse positions - and every page seeded before this
+ * existed has them - comes out consecutive from 0 the first time anybody
+ * touches it.
+ */
+export async function moveSectionAction(formData: FormData): Promise<void> {
+  const tenant = await requireContentAccess(formData);
+
+  const pageId = readText(formData, "pageId");
+  const sectionId = readText(formData, "sectionId");
+  const direction = readText(formData, "direction") === "up" ? -1 : 1;
+
+  const client = await createSupabaseServerClient();
+
+  const { data, error } = await client
+    .from("page_sections")
+    .select("id, position")
+    .eq("page_id", pageId)
+    .eq("tenant_id", tenant.id)
+    .order("position")
+    .order("id");
+
+  if (error) {
+    logger.error("cms.section.move_read_failed", { tenantId: tenant.id, error });
+    throw new DatabaseError("Section read failed.", { cause: error });
+  }
+
+  const ordered = data ?? [];
+  const from = ordered.findIndex((section) => section.id === sectionId);
+  const to = from + direction;
+
+  // Off either end is a no-op, not an error: the button is disabled there, and
+  // a request that arrives anyway should do nothing rather than fail loudly.
+  if (from === -1 || to < 0 || to >= ordered.length) return;
+
+  const moved = [...ordered];
+  const [section] = moved.splice(from, 1);
+  if (section === undefined) return;
+  moved.splice(to, 0, section);
+
+  for (const [index, row] of moved.entries()) {
+    if (row.position === index) continue;
+    const { error: writeError } = await client
+      .from("page_sections")
+      .update({ position: index })
+      .eq("id", row.id)
+      .eq("tenant_id", tenant.id);
+
+    if (writeError) {
+      logger.error("cms.section.move_failed", { tenantId: tenant.id, error: writeError });
+      throw new DatabaseError("Section move failed.", { cause: writeError });
+    }
+  }
+
+  logger.info("cms.section.moved", { tenantId: tenant.id, pageId });
+  revalidatePath(`/dashboard/${tenant.slug}/contenido/${pageId}`);
+  revalidatePath("/sitio", "layout");
+}
+
+/**
+ * Hides a section without deleting it.
+ *
+ * `is_visible` has been in the schema and honoured by the public query since
+ * Phase 07, with nothing anywhere able to set it. It is the answer to "we do
+ * not do delivery in January": the section comes back in February with its
+ * content intact, which deleting and retyping does not give you.
+ */
+export async function toggleSectionVisibilityAction(formData: FormData): Promise<void> {
+  const tenant = await requireContentAccess(formData);
+
+  const pageId = readText(formData, "pageId");
+  const sectionId = readText(formData, "sectionId");
+  const isVisible = readText(formData, "isVisible") === "true";
+
+  const client = await createSupabaseServerClient();
+  const { error } = await client
+    .from("page_sections")
+    .update({ is_visible: !isVisible })
+    .eq("id", sectionId)
+    .eq("tenant_id", tenant.id);
+
+  if (error) {
+    logger.error("cms.section.visibility_failed", { tenantId: tenant.id, error });
+    throw new DatabaseError("Section visibility change failed.", { cause: error });
+  }
+
+  revalidatePath(`/dashboard/${tenant.slug}/contenido/${pageId}`);
+  revalidatePath("/sitio", "layout");
+}
+
+/**
+ * Deletes a page and everything on it.
+ *
+ * `page_sections` cascades, so this is one statement. A page could be created
+ * and published from the first commit of Phase 07 and never removed, which
+ * meant a typo in a slug was permanent.
+ */
+export async function deletePageAction(formData: FormData): Promise<void> {
+  const tenant = await requireContentAccess(formData);
+  const pageId = readText(formData, "pageId");
+
+  const client = await createSupabaseServerClient();
+  const { error } = await client.from("pages").delete().eq("id", pageId).eq("tenant_id", tenant.id);
+
+  if (error) {
+    logger.error("cms.page.delete_failed", { tenantId: tenant.id, error });
+    throw new DatabaseError("Page delete failed.", { cause: error });
+  }
+
+  logger.info("cms.page.deleted", { tenantId: tenant.id, pageId });
+  revalidatePath(`/dashboard/${tenant.slug}/contenido`);
+  revalidatePath("/sitio", "layout");
+}

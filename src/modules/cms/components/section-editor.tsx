@@ -1,63 +1,718 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Alert, AlertDescription, Badge, Button, Input, Label } from "@/components/ui";
+/**
+ * The section editor.
+ *
+ * WHAT IT REPLACES. A plain text box containing the section's raw JSON, with
+ * the note that a field-by-field form was "Phase 08's job once the shapes
+ * settle". They settled. What was left was a content editor that asked a baker
+ * to balance braces, where a missing comma lost the whole section and an image
+ * meant pasting `tenants/6f2e.../products/foto.jpg` from somewhere else.
+ *
+ * WHAT DID NOT CHANGE, AND MUST NOT. Every field below is still plain text, a
+ * URL, or a list of those. There is no rich-text box, no HTML field and nothing
+ * to sanitise, because nothing accepts markup (master section 33). The server
+ * validates against exactly the same schemas as before - this form is a nicer
+ * way to produce the same JSON, not a second way to write content.
+ *
+ * HOW THE VALUE TRAVELS. The fields are React state, serialised into one hidden
+ * input on every keystroke, and `upsertSectionAction` parses that as it always
+ * has. The alternative - naming every input so the server could reassemble
+ * `content.images[2].alt` - would have meant inventing a form encoding and a
+ * parser for it, and the parser would be the new place for a bug in the one
+ * code path that decides what a business publishes.
+ */
+
+import { useActionState, useId, useState } from "react";
+import type { ComponentType } from "react";
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  Input,
+  Label,
+  Select,
+  Textarea,
+} from "@/components/ui";
+import type { IconProps } from "@/components/ui/icons";
+import {
+  IconCard,
+  IconChevronDown,
+  IconChevronUp,
+  IconEye,
+  IconEyeOff,
+  IconGrid,
+  IconImage,
+  IconLayout,
+  IconMegaphone,
+  IconPlus,
+  IconQuestion,
+  IconSparkle,
+  IconTrash,
+  IconType,
+} from "@/components/ui/icons";
 import { IDLE_FORM_STATE } from "@/lib/forms/state";
-import { deleteSectionAction, upsertSectionAction } from "../server/actions";
+import { cn } from "@/lib/utils";
+import { AssetPicker } from "@/modules/assets/components/asset-picker";
+import {
+  deleteSectionAction,
+  moveSectionAction,
+  toggleSectionVisibilityAction,
+  upsertSectionAction,
+} from "../server/actions";
 import { SECTION_LABELS, SECTION_TYPES, type SectionType } from "../sections";
+import { BANNER_TONES, SECTION_META, SECTION_TEMPLATES } from "../section-meta";
 import type { AdminSection } from "../server/admin-queries";
 
-/**
- * Starting content for each type, so a new section is valid the moment it is
- * created rather than a blank the person has to decode from an error message.
- */
-const TEMPLATES: Record<SectionType, unknown> = {
-  hero: { heading: "Titulo principal", subheading: "" },
-  text: { heading: "", paragraphs: ["Escribe aqui."] },
-  image: { imagePath: "", alt: "" },
-  banner: { message: "Aviso", tone: "info" },
-  cta: { heading: "Titulo", buttonLabel: "Ir", buttonHref: "/" },
-  gallery: { heading: "", images: [] },
-  products: { heading: "", limit: 8 },
-  faq: { heading: "", items: [{ question: "Pregunta", answer: "Respuesta" }] },
+const SECTION_ICONS: Record<string, ComponentType<IconProps>> = {
+  hero: IconLayout,
+  text: IconType,
+  image: IconImage,
+  banner: IconMegaphone,
+  cta: IconSparkle,
+  gallery: IconGrid,
+  products: IconCard,
+  faq: IconQuestion,
 };
 
-/**
- * The section editor is a JSON field, deliberately.
- *
- * A field-by-field form per type is Phase 08's job once the shapes settle; this
- * is honest about what a section is - structured data - and the schema is what
- * rejects anything malformed, with the message attached to the field that broke.
- *
- * Note what it is NOT: a rich-text box. There is nowhere to put markup, so
- * there is nothing to sanitise (master section 33).
- */
+function SectionGlyph({ type, className }: { type: SectionType; className?: string }) {
+  const Glyph = SECTION_ICONS[SECTION_META[type].icon] ?? IconLayout;
+  return <Glyph className={cn("size-4", className)} />;
+}
+
+/** A category the `products` section may point at. */
+export interface CategoryChoice {
+  readonly slug: string;
+  readonly name: string;
+}
+
+type Content = Record<string, unknown>;
+
+/* -------------------------------------------------------------------------- */
+/*  Small field helpers                                                        */
+/* -------------------------------------------------------------------------- */
+
+function TextField({
+  label,
+  value,
+  onChange,
+  hint,
+  errors,
+  placeholder,
+  maxLength,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+  errors?: readonly string[];
+  placeholder?: string;
+  maxLength?: number;
+  type?: string;
+}) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Input
+        id={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        invalid={errors !== undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {errors !== undefined ? (
+        <p className="text-destructive text-xs">{errors[0]}</p>
+      ) : hint !== undefined ? (
+        <p className="text-muted-foreground text-xs">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function LongTextField({
+  label,
+  value,
+  onChange,
+  hint,
+  errors,
+  rows = 4,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  hint?: string;
+  errors?: readonly string[];
+  rows?: number;
+}) {
+  const id = useId();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor={id}>{label}</Label>
+      <Textarea
+        id={id}
+        rows={rows}
+        value={value}
+        invalid={errors !== undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {errors !== undefined ? (
+        <p className="text-destructive text-xs">{errors[0]}</p>
+      ) : hint !== undefined ? (
+        <p className="text-muted-foreground text-xs">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** The header of one entry in a repeatable list, with its remove button. */
+function RowHeader({
+  title,
+  onRemove,
+  canRemove,
+}: {
+  title: string;
+  onRemove: () => void;
+  canRemove: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-muted-foreground text-xs font-medium">{title}</span>
+      {canRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="text-muted-foreground hover:text-destructive inline-flex items-center gap-1 text-xs transition-colors"
+        >
+          <IconTrash className="size-3.5" />
+          Quitar
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  The fields of each section type                                            */
+/* -------------------------------------------------------------------------- */
+
+function SectionFields({
+  type,
+  content,
+  set,
+  tenantSlug,
+  categories,
+  errors,
+}: {
+  type: SectionType;
+  content: Content;
+  set: (patch: Content) => void;
+  tenantSlug: string;
+  categories: readonly CategoryChoice[];
+  errors: Readonly<Record<string, readonly string[]>>;
+}) {
+  /** Reads a string field, whatever the row happens to hold. */
+  const str = (key: string): string => {
+    const value = content[key];
+    return typeof value === "string" ? value : "";
+  };
+
+  const list = <T,>(key: string): T[] => {
+    const value = content[key];
+    return Array.isArray(value) ? (value as T[]) : [];
+  };
+
+  switch (type) {
+    case "hero":
+      return (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="flex flex-col gap-4">
+            <TextField
+              label="Titular"
+              value={str("heading")}
+              maxLength={120}
+              errors={errors.heading}
+              onChange={(value) => set({ heading: value })}
+            />
+            <LongTextField
+              label="Subtitulo"
+              value={str("subheading")}
+              rows={3}
+              hint="Opcional. Una linea que explique que ofreces."
+              errors={errors.subheading}
+              onChange={(value) => set({ subheading: value })}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <TextField
+                label="Texto del boton"
+                value={str("ctaLabel")}
+                maxLength={40}
+                placeholder="Ver la carta"
+                errors={errors.ctaLabel}
+                onChange={(value) => set({ ctaLabel: value })}
+              />
+              <TextField
+                label="Enlace del boton"
+                value={str("ctaHref")}
+                placeholder="/sitio/carta"
+                hint="Una ruta interna o un enlace https://"
+                errors={errors.ctaHref}
+                onChange={(value) => set({ ctaHref: value })}
+              />
+            </div>
+          </div>
+
+          <AssetPicker
+            tenantSlug={tenantSlug}
+            folder="banners"
+            label="Imagen de portada"
+            aspect="wide"
+            hint="Opcional. Se muestra junto al titular."
+            value={str("imagePath") || null}
+            onChange={(path) => set({ imagePath: path ?? undefined })}
+          />
+        </div>
+      );
+
+    case "text": {
+      const paragraphs = list<string>("paragraphs");
+      const shown = paragraphs.length > 0 ? paragraphs : [""];
+
+      return (
+        <div className="flex flex-col gap-4">
+          <TextField
+            label="Titulo"
+            value={str("heading")}
+            maxLength={120}
+            hint="Opcional."
+            errors={errors.heading}
+            onChange={(value) => set({ heading: value })}
+          />
+
+          <div className="flex flex-col gap-3">
+            <span className="text-sm font-medium">Parrafos</span>
+            {shown.map((paragraph, index) => (
+              <div key={index} className="border-border flex flex-col gap-2 rounded-lg border p-3">
+                <RowHeader
+                  title={`Parrafo ${index + 1}`}
+                  canRemove={shown.length > 1}
+                  onRemove={() =>
+                    set({ paragraphs: shown.filter((_, position) => position !== index) })
+                  }
+                />
+                <LongTextField
+                  label={`Texto del parrafo ${index + 1}`}
+                  value={paragraph}
+                  rows={3}
+                  errors={errors[`paragraphs.${index}`]}
+                  onChange={(value) =>
+                    set({
+                      paragraphs: shown.map((item, position) =>
+                        position === index ? value : item,
+                      ),
+                    })
+                  }
+                />
+              </div>
+            ))}
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => set({ paragraphs: [...shown, ""] })}
+              >
+                <IconPlus />
+                Anadir parrafo
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case "image":
+      return (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <AssetPicker
+            tenantSlug={tenantSlug}
+            folder="banners"
+            label="Imagen"
+            aspect="wide"
+            value={str("imagePath") || null}
+            onChange={(path) => set({ imagePath: path ?? "" })}
+          />
+          <div className="flex flex-col gap-4">
+            <TextField
+              label="Texto alternativo"
+              value={str("alt")}
+              maxLength={200}
+              hint="Describe la foto para quien no puede verla. Es obligatorio."
+              errors={errors.alt}
+              onChange={(value) => set({ alt: value })}
+            />
+            <TextField
+              label="Pie de foto"
+              value={str("caption")}
+              maxLength={200}
+              hint="Opcional. Se muestra debajo de la imagen."
+              errors={errors.caption}
+              onChange={(value) => set({ caption: value })}
+            />
+            {errors.imagePath !== undefined ? (
+              <p className="text-destructive text-xs">{errors.imagePath[0]}</p>
+            ) : null}
+          </div>
+        </div>
+      );
+
+    case "banner": {
+      const toneId = "tone";
+      return (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <TextField
+            label="Mensaje"
+            value={str("message")}
+            maxLength={200}
+            errors={errors.message}
+            onChange={(value) => set({ message: value })}
+          />
+          <TextField
+            label="Enlace"
+            value={str("href")}
+            hint="Opcional. Ruta interna o https://"
+            errors={errors.href}
+            onChange={(value) => set({ href: value })}
+          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor={toneId}>Tono</Label>
+            <Select
+              id={toneId}
+              value={str("tone") || "info"}
+              onChange={(event) => set({ tone: event.target.value })}
+            >
+              {BANNER_TONES.map((tone) => (
+                <option key={tone.value} value={tone.value}>
+                  {tone.label}
+                </option>
+              ))}
+            </Select>
+            <p className="text-muted-foreground text-xs">
+              El color del aviso no depende de tu tema: un aviso de atencion se ve igual en todas
+              las webs.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    case "cta":
+      return (
+        <div className="flex flex-col gap-4">
+          <TextField
+            label="Titulo"
+            value={str("heading")}
+            maxLength={120}
+            errors={errors.heading}
+            onChange={(value) => set({ heading: value })}
+          />
+          <LongTextField
+            label="Texto"
+            value={str("body")}
+            rows={2}
+            hint="Opcional."
+            errors={errors.body}
+            onChange={(value) => set({ body: value })}
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              label="Texto del boton"
+              value={str("buttonLabel")}
+              maxLength={40}
+              errors={errors.buttonLabel}
+              onChange={(value) => set({ buttonLabel: value })}
+            />
+            <TextField
+              label="Enlace del boton"
+              value={str("buttonHref")}
+              placeholder="/sitio/contacto"
+              errors={errors.buttonHref}
+              onChange={(value) => set({ buttonHref: value })}
+            />
+          </div>
+        </div>
+      );
+
+    case "gallery": {
+      const images = list<{ imagePath?: string; alt?: string }>("images");
+
+      return (
+        <div className="flex flex-col gap-4">
+          <TextField
+            label="Titulo"
+            value={str("heading")}
+            maxLength={120}
+            hint="Opcional."
+            errors={errors.heading}
+            onChange={(value) => set({ heading: value })}
+          />
+
+          {errors.images !== undefined ? (
+            <p className="text-destructive text-xs">{errors.images[0]}</p>
+          ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {images.map((image, index) => (
+              <div key={index} className="border-border flex flex-col gap-3 rounded-lg border p-3">
+                <RowHeader
+                  title={`Foto ${index + 1}`}
+                  canRemove
+                  onRemove={() =>
+                    set({ images: images.filter((_, position) => position !== index) })
+                  }
+                />
+                <AssetPicker
+                  tenantSlug={tenantSlug}
+                  folder="banners"
+                  label={`Imagen ${index + 1}`}
+                  aspect="square"
+                  value={image.imagePath ?? null}
+                  onChange={(path) =>
+                    set({
+                      images: images.map((item, position) =>
+                        position === index ? { ...item, imagePath: path ?? "" } : item,
+                      ),
+                    })
+                  }
+                />
+                <TextField
+                  label={`Descripcion de la imagen ${index + 1}`}
+                  value={image.alt ?? ""}
+                  maxLength={200}
+                  errors={errors[`images.${index}.alt`]}
+                  onChange={(value) =>
+                    set({
+                      images: images.map((item, position) =>
+                        position === index ? { ...item, alt: value } : item,
+                      ),
+                    })
+                  }
+                />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => set({ images: [...images, { imagePath: "", alt: "" }] })}
+            >
+              <IconPlus />
+              Anadir foto
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    case "products": {
+      const limitId = "limit";
+      const categoryId = "category";
+      const limit = typeof content.limit === "number" ? content.limit : 8;
+
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <TextField
+              label="Titulo"
+              value={str("heading")}
+              maxLength={120}
+              hint="Opcional."
+              errors={errors.heading}
+              onChange={(value) => set({ heading: value })}
+            />
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={limitId}>Cuantos mostrar</Label>
+              <Input
+                id={limitId}
+                type="number"
+                min={1}
+                max={24}
+                value={limit}
+                invalid={errors.limit !== undefined}
+                onChange={(event) => set({ limit: Number(event.target.value) })}
+              />
+              {errors.limit !== undefined ? (
+                <p className="text-destructive text-xs">{errors.limit[0]}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={categoryId}>Categoria</Label>
+              <Select
+                id={categoryId}
+                value={str("categorySlug")}
+                onChange={(event) =>
+                  set({ categorySlug: event.target.value === "" ? undefined : event.target.value })
+                }
+              >
+                <option value="">Toda la carta</option>
+                {categories.map((category) => (
+                  <option key={category.slug} value={category.slug}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+              {errors.categorySlug !== undefined ? (
+                <p className="text-destructive text-xs">{errors.categorySlug[0]}</p>
+              ) : null}
+            </div>
+          </div>
+
+          <p className="text-muted-foreground text-xs">
+            Esta seccion no guarda productos: los lee de tu catalogo al mostrar la pagina. Si
+            cambias un precio, aqui cambia solo. Los destacados salen primero.
+          </p>
+        </div>
+      );
+    }
+
+    case "faq": {
+      const items = list<{ question?: string; answer?: string }>("items");
+      const shown = items.length > 0 ? items : [{ question: "", answer: "" }];
+
+      return (
+        <div className="flex flex-col gap-4">
+          <TextField
+            label="Titulo"
+            value={str("heading")}
+            maxLength={120}
+            hint="Opcional."
+            errors={errors.heading}
+            onChange={(value) => set({ heading: value })}
+          />
+
+          <div className="flex flex-col gap-3">
+            {shown.map((item, index) => (
+              <div key={index} className="border-border flex flex-col gap-3 rounded-lg border p-3">
+                <RowHeader
+                  title={`Pregunta ${index + 1}`}
+                  canRemove={shown.length > 1}
+                  onRemove={() => set({ items: shown.filter((_, position) => position !== index) })}
+                />
+                <TextField
+                  label={`Pregunta ${index + 1}`}
+                  value={item.question ?? ""}
+                  maxLength={200}
+                  errors={errors[`items.${index}.question`]}
+                  onChange={(value) =>
+                    set({
+                      items: shown.map((row, position) =>
+                        position === index ? { ...row, question: value } : row,
+                      ),
+                    })
+                  }
+                />
+                <LongTextField
+                  label={`Respuesta ${index + 1}`}
+                  value={item.answer ?? ""}
+                  rows={3}
+                  errors={errors[`items.${index}.answer`]}
+                  onChange={(value) =>
+                    set({
+                      items: shown.map((row, position) =>
+                        position === index ? { ...row, answer: value } : row,
+                      ),
+                    })
+                  }
+                />
+              </div>
+            ))}
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => set({ items: [...shown, { question: "", answer: "" }] })}
+              >
+                <IconPlus />
+                Anadir pregunta
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    default:
+      return null;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  The form around them                                                       */
+/* -------------------------------------------------------------------------- */
+
 export function SectionEditor({
   tenantSlug,
   pageId,
   section,
-  onDone,
+  categories = [],
+  position,
+  onSaved,
 }: {
   tenantSlug: string;
   pageId: string;
   section?: AdminSection;
-  onDone?: () => void;
+  categories?: readonly CategoryChoice[];
+  /** Where a NEW section lands. Ignored when editing an existing one. */
+  position?: number;
+  onSaved?: () => void;
 }) {
   const [state, formAction, isPending] = useActionState(upsertSectionAction, IDLE_FORM_STATE);
-  const [type, setType] = useState<SectionType>(section?.type ?? "text");
+  const typeId = useId();
+
+  const [type, setType] = useState<SectionType>(section?.type ?? "hero");
+  const [content, setContent] = useState<Content>(() =>
+    section !== undefined && typeof section.content === "object" && section.content !== null
+      ? (section.content as Content)
+      : { ...SECTION_TEMPLATES[section?.type ?? "hero"] },
+  );
+
   const errors = state.fieldErrors ?? {};
 
-  const initialContent = JSON.stringify(section?.content ?? TEMPLATES[type], null, 2);
+  /*
+   * Changing the type of an EXISTING section keeps nothing.
+   *
+   * The shapes do not overlap enough to be worth merging - a gallery has
+   * `images`, a banner has `message` - and carrying stale keys across would
+   * fail validation against the new schema with an error naming a field the
+   * person cannot see. Resetting to the template is the honest behaviour.
+   */
+  function changeType(next: SectionType) {
+    setType(next);
+    setContent({ ...SECTION_TEMPLATES[next] });
+  }
+
+  const set = (patch: Content) => setContent((current) => ({ ...current, ...patch }));
 
   return (
-    <form
-      action={formAction}
-      className="border-border flex flex-col gap-4 rounded-lg border p-4"
-      onSubmit={() => onDone?.()}
-    >
+    <form action={formAction} className="flex flex-col gap-5" onSubmit={() => onSaved?.()}>
       <input type="hidden" name="tenantSlug" value={tenantSlug} />
       <input type="hidden" name="pageId" value={pageId} />
+      <input type="hidden" name="type" value={type} />
+      <input type="hidden" name="position" value={section?.position ?? position ?? 0} />
       {section !== undefined ? <input type="hidden" name="sectionId" value={section.id} /> : null}
+      {/* The whole section, as the server has always received it. */}
+      <input type="hidden" name="content" value={JSON.stringify(content)} />
 
       {state.status === "success" && state.message !== undefined ? (
         <Alert variant="success">
@@ -65,66 +720,233 @@ export function SectionEditor({
         </Alert>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`type-${section?.id ?? "new"}`}>Tipo</Label>
-          <select
-            id={`type-${section?.id ?? "new"}`}
-            name="type"
+      {section === undefined ? (
+        /* --------------------------------------------- choosing a type */
+        <fieldset className="flex flex-col gap-3">
+          <legend className="text-sm font-medium">Que quieres anadir?</legend>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {SECTION_TYPES.map((value) => {
+              const meta = SECTION_META[value];
+              const selected = value === type;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => changeType(value)}
+                  aria-pressed={selected}
+                  className={cn(
+                    "focus-visible:outline-ring flex flex-col items-start gap-1.5 rounded-xl border p-3 text-left transition-[border-color,box-shadow,background-color] focus-visible:outline-2 focus-visible:outline-offset-2",
+                    selected
+                      ? "border-primary bg-accent/50 ring-primary/20 ring-2"
+                      : "border-border hover:border-primary/40 hover:bg-accent/30",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "flex size-8 items-center justify-center rounded-lg",
+                      selected ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
+                    )}
+                  >
+                    <SectionGlyph type={value} />
+                  </span>
+                  <span className="text-sm font-medium">{meta.label}</span>
+                  <span className="text-muted-foreground text-xs leading-snug">
+                    {meta.description}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      ) : (
+        /* ------------------------------------- changing an existing one */
+        <div className="flex max-w-xs flex-col gap-1.5">
+          <Label htmlFor={typeId}>Tipo de seccion</Label>
+          <Select
+            id={typeId}
             value={type}
-            onChange={(event) => setType(event.target.value as SectionType)}
-            className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+            onChange={(event) => changeType(event.target.value as SectionType)}
           >
             {SECTION_TYPES.map((value) => (
               <option key={value} value={value}>
                 {SECTION_LABELS[value]}
               </option>
             ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`position-${section?.id ?? "new"}`}>Orden</Label>
-          <Input
-            id={`position-${section?.id ?? "new"}`}
-            name="position"
-            type="number"
-            min={0}
-            max={1000}
-            defaultValue={section?.position ?? 0}
-          />
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={`content-${section?.id ?? "new"}`}>Contenido</Label>
-        <textarea
-          id={`content-${section?.id ?? "new"}`}
-          name="content"
-          rows={10}
-          defaultValue={initialContent}
-          key={`${type}-${section?.id ?? "new"}`}
-          aria-invalid={Object.keys(errors).length > 0 ? true : undefined}
-          className="border-input bg-background rounded-md border p-3 font-mono text-xs"
-        />
-        {Object.entries(errors).map(([field, messages]) => (
-          <p key={field} className="text-destructive text-sm">
-            <span className="font-mono">{field}</span>: {messages[0]}
+          </Select>
+          <p className="text-muted-foreground text-xs">
+            Cambiar el tipo reemplaza los campos: cada tipo guarda cosas distintas.
           </p>
-        ))}
+        </div>
+      )}
+
+      <div className="border-border border-t pt-5">
+        <SectionFields
+          type={type}
+          content={content}
+          set={set}
+          tenantSlug={tenantSlug}
+          categories={categories}
+          errors={errors}
+        />
       </div>
+
+      {/*
+        The errors the fields could not claim.
+
+        Every field draws its own message inline, which is where somebody can
+        act on it. This is the second half of that: `_form` is what
+        `parseSectionContent` uses for an issue with no path, and a key this
+        editor does not draw yet - a schema that grew a field - would otherwise
+        save nothing and say nothing.
+      */}
+      {state.status === "error" && Object.keys(errors).length > 0 ? (
+        <Alert variant="destructive">
+          <AlertDescription>
+            {errors._form?.[0] ??
+              errors.content?.[0] ??
+              "Revisa los campos marcados en rojo y vuelve a guardar."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" size="sm" loading={isPending} loadingLabel="Guardando">
-          Guardar seccion
+        <Button type="submit" loading={isPending} loadingLabel="Guardando">
+          {section === undefined ? "Anadir seccion" : "Guardar cambios"}
         </Button>
         {section !== undefined ? (
-          <span className="text-muted-foreground text-xs">
-            <Badge variant="neutral">{SECTION_LABELS[section.type]}</Badge>
-          </span>
+          <Badge variant="neutral">
+            <SectionGlyph type={section.type} className="size-3" />
+            {SECTION_LABELS[section.type]}
+          </Badge>
         ) : null}
       </div>
     </form>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  One section in the page's list                                             */
+/* -------------------------------------------------------------------------- */
+
+export function SectionCard({
+  tenantSlug,
+  pageId,
+  section,
+  categories,
+  index,
+  total,
+}: {
+  tenantSlug: string;
+  pageId: string;
+  section: AdminSection;
+  categories: readonly CategoryChoice[];
+  index: number;
+  total: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  const meta = SECTION_META[section.type];
+
+  return (
+    <Card className={cn("overflow-hidden", !section.isVisible && "opacity-70")}>
+      <div className="flex flex-wrap items-center gap-3 p-4">
+        <span className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+          <SectionGlyph type={section.type} />
+        </span>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">
+            {meta.label}
+            {!section.isVisible ? (
+              <Badge variant="neutral" className="ml-2">
+                Oculta
+              </Badge>
+            ) : null}
+          </p>
+          <p className="text-muted-foreground truncate text-xs">{meta.description}</p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          {/* Reorder. Each is its own form because each is its own write. */}
+          <form action={moveSectionAction}>
+            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+            <input type="hidden" name="pageId" value={pageId} />
+            <input type="hidden" name="sectionId" value={section.id} />
+            <input type="hidden" name="direction" value="up" />
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              disabled={index === 0}
+              aria-label="Subir seccion"
+            >
+              <IconChevronUp />
+            </Button>
+          </form>
+
+          <form action={moveSectionAction}>
+            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+            <input type="hidden" name="pageId" value={pageId} />
+            <input type="hidden" name="sectionId" value={section.id} />
+            <input type="hidden" name="direction" value="down" />
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              disabled={index === total - 1}
+              aria-label="Bajar seccion"
+            >
+              <IconChevronDown />
+            </Button>
+          </form>
+
+          <form action={toggleSectionVisibilityAction}>
+            <input type="hidden" name="tenantSlug" value={tenantSlug} />
+            <input type="hidden" name="pageId" value={pageId} />
+            <input type="hidden" name="sectionId" value={section.id} />
+            <input type="hidden" name="isVisible" value={String(section.isVisible)} />
+            <Button
+              type="submit"
+              variant="ghost"
+              size="icon"
+              aria-label={section.isVisible ? "Ocultar seccion" : "Mostrar seccion"}
+            >
+              {section.isVisible ? <IconEye /> : <IconEyeOff />}
+            </Button>
+          </form>
+
+          <Button
+            type="button"
+            variant={open ? "secondary" : "outline"}
+            size="sm"
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setOpen((value) => !value)}
+          >
+            {open ? "Cerrar" : "Editar"}
+          </Button>
+        </div>
+      </div>
+
+      {open ? (
+        <div id={bodyId} className="border-border bg-muted/20 border-t p-4">
+          <SectionEditor
+            tenantSlug={tenantSlug}
+            pageId={pageId}
+            section={section}
+            categories={categories}
+          />
+
+          <div className="border-border mt-5 flex items-center justify-between gap-3 border-t pt-4">
+            <p className="text-muted-foreground text-xs">
+              Borrar una seccion no se puede deshacer. Si solo quieres que deje de verse, usa el
+              ojo.
+            </p>
+            <DeleteSectionForm tenantSlug={tenantSlug} pageId={pageId} sectionId={section.id} />
+          </div>
+        </div>
+      ) : null}
+    </Card>
   );
 }
 
@@ -138,7 +960,7 @@ export function DeleteSectionForm({
   sectionId: string;
 }) {
   return (
-    <form action={deleteSectionAction} className="flex items-center gap-2">
+    <form action={deleteSectionAction} className="flex shrink-0 items-center gap-2">
       <input type="hidden" name="tenantSlug" value={tenantSlug} />
       <input type="hidden" name="pageId" value={pageId} />
       <input type="hidden" name="sectionId" value={sectionId} />
@@ -149,8 +971,56 @@ export function DeleteSectionForm({
         Confirmar
       </label>
       <Button type="submit" size="sm" variant="destructive">
-        Eliminar
+        <IconTrash />
+        Borrar
       </Button>
     </form>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Adding a new one                                                           */
+/* -------------------------------------------------------------------------- */
+
+export function AddSectionPanel({
+  tenantSlug,
+  pageId,
+  categories,
+  nextPosition,
+}: {
+  tenantSlug: string;
+  pageId: string;
+  categories: readonly CategoryChoice[];
+  nextPosition: number;
+}) {
+  const [open, setOpen] = useState(false);
+
+  if (!open) {
+    return (
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        <IconPlus />
+        Anadir seccion
+      </Button>
+    );
+  }
+
+  return (
+    <Card className="p-5">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold tracking-tight">Anadir seccion</h2>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+          Cancelar
+        </Button>
+      </div>
+      {/* Remounted on close so the next "Anadir" starts from the template
+          rather than from what was half-typed and abandoned. */}
+      <SectionEditor
+        tenantSlug={tenantSlug}
+        pageId={pageId}
+        categories={categories}
+        position={nextPosition}
+        onSaved={() => setOpen(false)}
+      />
+    </Card>
   );
 }
