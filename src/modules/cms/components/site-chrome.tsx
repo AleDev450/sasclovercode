@@ -10,7 +10,9 @@ import {
   getSiteSeo,
 } from "@/modules/seo/server/queries";
 import { JsonLd, localBusinessJsonLd } from "@/modules/seo/structured-data";
+import { SITE_FONT_CLASSNAME } from "@/modules/seo/fonts";
 import { themeCssVariables } from "@/modules/seo/theme";
+import { cn } from "@/lib/utils";
 import { signAssetPaths } from "@/lib/storage/sign";
 import { PRODUCT_NAME, VENDOR_NAME, VENDOR_SITE } from "@/config/app";
 import { getPublicNavigation } from "../server/public-queries";
@@ -37,6 +39,12 @@ import type { SiteContext } from "../server/site-context";
  * no stored value can end the attribute or open a rule - see the header of
  * `modules/seo/theme.ts` for why that is a security distinction and not a
  * stylistic one.
+ *
+ * The same element carries `SITE_FONT_CLASSNAME`, which declares the
+ * `--font-*` variables the theme's stacks resolve against. Both have to be on
+ * the SAME element and the font class has to be a class: `next/font` emits the
+ * declarations into the stylesheet, and `style-src` in the CSP has no
+ * `'unsafe-inline'` in production, so the font could not arrive any other way.
  */
 export async function SiteChrome({
   site,
@@ -89,12 +97,13 @@ export async function SiteChrome({
 
   return (
     <div
-      className="flex min-h-dvh flex-col"
+      className={cn("flex min-h-dvh flex-col", SITE_FONT_CLASSNAME)}
       style={{
         ...themeCssVariables(theme),
         background: "var(--site-background)",
         color: "var(--site-foreground)",
         fontFamily: "var(--site-font)",
+        letterSpacing: "var(--site-body-tracking)",
       }}
     >
       <JsonLd
@@ -130,9 +139,22 @@ export async function SiteChrome({
                 className="h-9 w-auto max-w-[180px] object-contain"
               />
             ) : (
+              /*
+                The wordmark in the DISPLAY face, not the body one.
+
+                A business without a logo is represented by its name set in
+                type, which makes this the most-seen piece of typography on the
+                site - and setting it in the same sans as the paragraphs is why
+                every site in the product used to look like a form with a title.
+              */
               <span
-                className="text-lg font-semibold tracking-tight"
-                style={{ color: "var(--site-primary)" }}
+                className="truncate text-xl"
+                style={{
+                  color: "var(--site-primary)",
+                  fontFamily: "var(--site-display-font)",
+                  fontWeight: "var(--site-display-weight)",
+                  letterSpacing: "var(--site-display-tracking)",
+                }}
               >
                 {identity.name}
               </span>
@@ -147,7 +169,11 @@ export async function SiteChrome({
                     <li key={item.id}>
                       <Link
                         href={localise(item.href)}
-                        className="text-sm font-medium transition-opacity hover:opacity-70"
+                        className="text-xs font-medium transition-opacity hover:opacity-70"
+                        style={{
+                          letterSpacing: "var(--site-eyebrow-tracking)",
+                          textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+                        }}
                       >
                         {item.label}
                       </Link>
@@ -183,11 +209,15 @@ export async function SiteChrome({
             {identity.phone !== null ? (
               <a
                 href={`tel:${identity.phone.replace(/[^+0-9]/g, "")}`}
-                className="inline-flex h-9 items-center px-4 text-sm font-semibold transition-opacity hover:opacity-90"
+                className="inline-flex h-10 items-center px-5 text-xs font-semibold transition-opacity hover:opacity-90"
                 style={{
                   background: "var(--site-primary)",
                   color: "var(--site-on-primary)",
-                  borderRadius: "var(--site-radius)",
+                  // The CHIP radius: a phone number is a control, and a card
+                  // radius on a 40px-tall button is what turns `lg` into a pill.
+                  borderRadius: "var(--site-radius-chip)",
+                  letterSpacing: "var(--site-eyebrow-tracking)",
+                  boxShadow: "var(--site-shadow)",
                 }}
               >
                 {identity.phone}
@@ -197,10 +227,22 @@ export async function SiteChrome({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6">{children}</main>
+      {/*
+        Wider than it was, because the grid inside it is now three dishes across
+        on a large screen and `max-w-5xl` made those columns narrower than a
+        phone. The gutter grows with the viewport rather than staying at 24px,
+        which is most of what separates a page that looks designed from one that
+        looks centred.
+      */}
+      <main className="mx-auto w-full max-w-6xl flex-1 px-6 sm:px-10">{children}</main>
 
-      <footer className="mt-20" style={{ borderTop: "1px solid var(--site-border)" }}>
-        <div className="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-12">
+      <footer
+        style={{
+          borderTop: "1px solid var(--site-border)",
+          marginTop: "var(--site-section-space)",
+        }}
+      >
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-14 sm:px-10">
           {/* Master section 30: direccion y horarios. Rendered from the Phase
               10 rows, and omitted entirely when a business has not filled any
               of it in - an empty heading is worse than no heading. */}
@@ -210,7 +252,14 @@ export async function SiteChrome({
             className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center sm:justify-between"
             style={{ borderTop: "1px solid var(--site-border)" }}
           >
-            <p className="text-sm font-medium">
+            <p
+              className="text-base"
+              style={{
+                fontFamily: "var(--site-display-font)",
+                fontWeight: "var(--site-display-weight)",
+                letterSpacing: "var(--site-display-tracking)",
+              }}
+            >
               {identity.name}
               {identity.city !== null ? ` · ${identity.city}` : null}
             </p>

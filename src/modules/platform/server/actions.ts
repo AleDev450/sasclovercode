@@ -21,6 +21,8 @@ import { requirePlatformAdmin } from "@/lib/platform/access";
 import { createConfirmedUser, deleteUser, isAccountCreationEnabled } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { parseOrThrow, toFieldErrors } from "@/lib/validation";
+import { themeSchema } from "@/modules/settings/schemas";
+import { DEFAULT_PRESET_ID, findPreset } from "@/modules/settings/theme-presets";
 
 const RESERVED_SLUGS = new Set([
   "www",
@@ -75,6 +77,19 @@ const createTenantSchema = z.object({
     (value) => (typeof value === "string" && value.length > 0 ? value : undefined),
     newPasswordSchema.optional(),
   ),
+  /*
+   * The theme the business is handed over on.
+   *
+   * An ID from the gallery, never the colours themselves: sending five values
+   * under the name of a preset would make "preset" a label on arbitrary input
+   * rather than a choice from a list, and would put a colour picker on a screen
+   * whose job is to create a company. Defaulted rather than required, because
+   * an operator in a hurry should still produce a business that looks finished.
+   */
+  presetId: z.preprocess(
+    (value) => (typeof value === "string" && value.length > 0 ? value : DEFAULT_PRESET_ID),
+    z.string(),
+  ),
 });
 
 const setStatusSchema = z.object({
@@ -102,6 +117,7 @@ export async function createTenantAction(
     slug: formData.get("slug"),
     ownerEmail: formData.get("ownerEmail"),
     ownerPassword: formData.get("ownerPassword"),
+    presetId: formData.get("presetId"),
   });
 
   if (!parsed.success) {
@@ -183,8 +199,112 @@ export async function createTenantAction(
     operatorId: operator?.id ?? null,
   });
 
+  /*
+   * The theme, applied AFTER provisioning and allowed to fail quietly.
+   *
+   * `provision_tenant` creates the theme row from the column defaults, so the
+   * business already has a complete, valid theme at this point - this only
+   * moves it onto the one the operator picked. A failure here would leave a
+   * fully working company on the default theme, which is a cosmetic difference
+   * an operator can fix from the tenant's own page in two clicks; rolling the
+   * whole provisioning back over it - deleting the owner's account included -
+   * would be wildly out of proportion.
+   */
+  await applyPresetToTenant(String(data), input.presetId);
+
   revalidatePath("/super-admin/tenants");
   redirect(`/super-admin/tenants/${String(data)}`);
+}
+
+/**
+ * Writes one of the offered themes onto a tenant.
+ *
+ * Shared by tenant creation and the theme card on the tenant page, and the only
+ * path either of them has to `tenant_themes`. Resolving the ID here means the
+ * set of reachable outcomes is exactly the set in `theme-presets.ts`, and
+ * running the literals through `themeSchema` on the way costs nothing and
+ * catches the day somebody adds a fourth preset with a typo in a hex value.
+ *
+ * Returns whether it wrote, rather than throwing. Both callers have something
+ * better to do with a failure than a 500: one has just created a company, the
+ * other is looking at a form that can say so.
+ */
+async function applyPresetToTenant(tenantId: string, presetId: string): Promise<boolean> {
+  const preset = findPreset(presetId);
+  if (preset === undefined) {
+    logger.warn("platform.theme.unknown_preset", { tenantId, presetId });
+    return false;
+  }
+
+  const parsed = themeSchema.safeParse(preset);
+  if (!parsed.success) {
+    logger.error("platform.theme.preset_invalid", { presetId });
+    return false;
+  }
+
+  const input = parsed.data;
+  const client = await createSupabaseServerClient();
+
+  const { error } = await client
+    .from("tenant_themes")
+    .update({
+      primary_color: input.primaryColor,
+      accent_color: input.accentColor,
+      background_color: input.backgroundColor,
+      font_family: input.fontFamily,
+      border_radius: input.borderRadius,
+      style: input.style,
+    })
+    .eq("tenant_id", tenantId);
+
+  if (error) {
+    logger.error("platform.theme.apply_failed", { tenantId, presetId, error });
+    return false;
+  }
+
+  logger.info("platform.theme.applied", { tenantId, presetId });
+  return true;
+}
+
+const setThemeSchema = z.object({
+  tenantId: z.uuid(),
+  presetId: z.string().min(1),
+});
+
+/**
+ * Sets a tenant's theme from the super-admin.
+ *
+ * WHY AN OPERATOR MAY DO THIS AT ALL. A business is sold, set up and handed
+ * over before its owner ever signs in, and the theme is the first thing they
+ * see. Leaving it to them means the demo is given on the column defaults and
+ * the owner's first impression of the product is a page nobody chose.
+ *
+ * WHAT IT DOES NOT DO: touch the logo, the copy or the catalogue. An operator
+ * setting a theme is finishing the setup, not editing the business.
+ *
+ * Returns `void` and throws, like `setTenantStatusAction` beside it. That is
+ * what keeps the card a Server Component: a form that needs no `useActionState`
+ * to report back needs no client bundle, and the answer to "did it work" is the
+ * badge on the page it comes back to.
+ */
+export async function setTenantThemeAction(formData: FormData): Promise<void> {
+  await requirePlatformAdmin();
+
+  const input = parseOrThrow(setThemeSchema, {
+    tenantId: formData.get("tenantId"),
+    presetId: formData.get("presetId"),
+  });
+
+  if (!(await applyPresetToTenant(input.tenantId, input.presetId))) {
+    throw new DatabaseError("Tenant theme update failed.", {
+      context: { tenantId: input.tenantId, presetId: input.presetId },
+    });
+  }
+
+  revalidatePath(`/super-admin/tenants/${input.tenantId}`);
+  // The tenant's own site renders the theme, so its cache is stale the moment
+  // this succeeds.
+  revalidatePath("/sitio", "layout");
 }
 
 export async function setTenantStatusAction(formData: FormData): Promise<void> {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useActionState } from "react";
 import { Alert, AlertDescription, Button, Input, Label, buttonVariants } from "@/components/ui";
@@ -15,7 +16,19 @@ function FieldError({ id, messages }: { id: string; messages?: readonly string[]
   );
 }
 
-export function CreateTenantForm() {
+export interface CreateTenantFormProps {
+  /**
+   * A `<ThemePicker>`, built by the page.
+   *
+   * It arrives as a node rather than being imported here because it is a Server
+   * Component that renders three full previews, and a client component cannot
+   * render one - only place one it was handed. That keeps every miniature out
+   * of this bundle while the form around them stays interactive.
+   */
+  themePicker: ReactNode;
+}
+
+export function CreateTenantForm({ themePicker }: CreateTenantFormProps) {
   const [state, formAction, isPending] = useActionState(createTenantAction, IDLE_FORM_STATE);
   const fieldErrors = state.fieldErrors ?? {};
 
@@ -96,6 +109,16 @@ export function CreateTenantForm() {
           cambie en su perfil. Minimo 8 caracteres.
         </p>
       </div>
+
+      {/*
+        The theme, last and inside the same form.
+
+        A separate step after creation is how a business ends up handed over on
+        the default: the operator has what they came for - the company exists -
+        and the second screen is somebody else's problem. One submit means every
+        business created from here was created looking like a decision.
+      */}
+      <div className="border-border border-t pt-5">{themePicker}</div>
 
       <div className="flex items-center gap-3">
         <Button type="submit" loading={isPending} loadingLabel="Creando empresa">

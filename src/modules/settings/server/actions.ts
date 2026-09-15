@@ -119,13 +119,14 @@ export async function applyThemePresetAction(
   // Through the schema, not straight to the update. The presets are literals in
   // this repository and should always pass - which is exactly why running them
   // through the same validation costs nothing and catches the day somebody adds
-  // a ninth preset with a typo in a hex value.
+  // a fourth preset with a typo in a hex value.
   const parsed = themeSchema.safeParse({
     primaryColor: preset.primaryColor,
     accentColor: preset.accentColor,
     backgroundColor: preset.backgroundColor,
     fontFamily: preset.fontFamily,
     borderRadius: preset.borderRadius,
+    style: preset.style,
   });
 
   if (!parsed.success) {
@@ -144,6 +145,7 @@ export async function applyThemePresetAction(
       background_color: input.backgroundColor,
       font_family: input.fontFamily,
       border_radius: input.borderRadius,
+      style: input.style,
     })
     .eq("tenant_id", tenant.id);
 
@@ -173,6 +175,7 @@ export async function updateThemeAction(
     backgroundColor: readText(formData, "backgroundColor"),
     fontFamily: readText(formData, "fontFamily"),
     borderRadius: readText(formData, "borderRadius"),
+    style: readText(formData, "style"),
   });
 
   if (!parsed.success) {
@@ -190,6 +193,7 @@ export async function updateThemeAction(
       background_color: input.backgroundColor,
       font_family: input.fontFamily,
       border_radius: input.borderRadius,
+      style: input.style,
     })
     .eq("tenant_id", tenant.id);
 

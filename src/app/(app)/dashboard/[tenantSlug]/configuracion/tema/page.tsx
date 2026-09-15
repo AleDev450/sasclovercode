@@ -41,7 +41,7 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
    *
    * `ThemePreview` is a Server Component and `ThemeGallery` is a client one, so
    * the gallery cannot render them itself - it receives them as a map and
-   * places them. Eight previews therefore cost nothing in the client bundle.
+   * places them. The previews therefore cost nothing in the client bundle.
    */
   const previews = Object.fromEntries(
     THEME_PRESETS.map((preset) => [
@@ -54,7 +54,7 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Tema de tu web"
-        description={`Asi se vera ${tenant.name} para tus clientes. Elige un tema listo o ajusta los colores a mano.`}
+        description={`Asi se vera ${tenant.name} para tus clientes. Elige uno de los tres disenos o ajusta los detalles a mano.`}
         actions={
           <Link
             href={`/dashboard/${tenant.slug}/configuracion`}
@@ -75,7 +75,7 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
             </h2>
             <p className="text-muted-foreground text-sm">
               {active?.description ??
-                "Ajustaste los colores a mano, asi que este tema es unico de tu negocio."}
+                "Ajustaste el tema a mano, asi que este diseno es unico de tu negocio."}
             </p>
             {/*
               The PREVIEW, not `/sitio`.
@@ -120,10 +120,10 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
       {/* ---------------------------------------------------------- presets */}
       <section className="flex flex-col gap-5">
         <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold tracking-tight">Temas listos para usar</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Tres disenos para restaurante</h2>
           <p className="text-muted-foreground text-sm">
-            Un clic y tu web cambia. Puedes probar cuantos quieras: no se pierde nada de tu
-            contenido.
+            Cada uno cambia la tipografia, el espaciado y la forma de las fotos, no solo los
+            colores. Puedes probar los tres: no se pierde nada de tu contenido.
           </p>
         </div>
 
@@ -141,8 +141,8 @@ export default async function ThemePage({ params }: { params: Promise<{ tenantSl
         <CardHeader>
           <CardTitle as="h2">Ajuste fino</CardTitle>
           <CardDescription>
-            Para cuando tu negocio ya tiene colores de marca. Los cambios de aqui reemplazan al tema
-            elegido arriba.
+            Para cuando tu negocio ya tiene colores de marca. Los cambios de aqui reemplazan al
+            diseno elegido arriba.
           </CardDescription>
         </CardHeader>
         <CardContent>

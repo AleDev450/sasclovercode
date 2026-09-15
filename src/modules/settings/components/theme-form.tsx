@@ -4,9 +4,38 @@ import { useActionState } from "react";
 import { Alert, AlertDescription, Button, Input, Label } from "@/components/ui";
 import { IDLE_FORM_STATE } from "@/lib/forms/state";
 import { updateThemeAction } from "../server/actions";
+import { THEME_FONTS, THEME_STYLES } from "../schemas";
 import type { TenantTheme } from "../server/queries";
 
-const FONTS = ["system", "inter", "poppins", "lora", "roboto"] as const;
+/**
+ * Labels, because a `<select>` full of lowercase keys is a database column with
+ * a dropdown on it. An owner choosing type should be reading the name of a
+ * typeface, not the string it happens to be stored as.
+ */
+const FONT_LABELS: Record<(typeof THEME_FONTS)[number], string> = {
+  system: "Del sistema",
+  inter: "Inter — sans moderna",
+  jost: "Jost — sans geometrica",
+  "dm-sans": "DM Sans — sans abierta",
+  cormorant: "Cormorant — serif fina",
+  playfair: "Playfair — serif editorial",
+  fraunces: "Fraunces — serif con peso",
+};
+
+const STYLE_LABELS: Record<(typeof THEME_STYLES)[number], string> = {
+  atelier: "Atelier — alta cocina",
+  brasa: "Brasa — parrilla y criollo",
+  marea: "Marea — cevicheria y marina",
+};
+
+const RADIUS_LABELS = {
+  none: "Recto",
+  sm: "Apenas redondeado",
+  md: "Redondeado",
+  lg: "Muy redondeado",
+  full: "Circular",
+} as const;
+
 const RADII = ["none", "sm", "md", "lg", "full"] as const;
 
 function ColorField({
@@ -53,6 +82,18 @@ export function ThemeForm({ tenantSlug, theme }: { tenantSlug: string; theme: Te
   const [state, formAction, isPending] = useActionState(updateThemeAction, IDLE_FORM_STATE);
   const e = state.fieldErrors ?? {};
 
+  /*
+   * A row written before the theme rework can hold `poppins`, `lora` or
+   * `roboto`, which are still legal in the database and no longer offered here.
+   * Passing one straight to `defaultValue` would select nothing, so the browser
+   * would show - and on save submit - whatever option happens to be first,
+   * silently changing the typeface of a business that came to edit a colour.
+   * Falling back to `system` makes the change visible in the field first.
+   */
+  const selectableFont = (THEME_FONTS as readonly string[]).includes(theme.fontFamily)
+    ? theme.fontFamily
+    : "system";
+
   return (
     <form action={formAction} className="flex flex-col gap-6">
       <input type="hidden" name="tenantSlug" value={tenantSlug} />
@@ -84,18 +125,44 @@ export function ThemeForm({ tenantSlug, theme }: { tenantSlug: string; theme: Te
         />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-3">
+        {/*
+          The style first, because it decides more than the other two together:
+          the display face, the vertical rhythm, the shape of every photograph.
+          It is the one field here that can make a page look like a different
+          restaurant.
+        */}
         <div className="flex flex-col gap-2">
-          <Label htmlFor="fontFamily">Tipografia</Label>
+          <Label htmlFor="style">Estilo de diseno</Label>
+          <select
+            id="style"
+            name="style"
+            defaultValue={theme.style}
+            className="border-input bg-background h-9 rounded-md border px-3 text-sm"
+            aria-describedby="style-help"
+          >
+            {THEME_STYLES.map((style) => (
+              <option key={style} value={style}>
+                {STYLE_LABELS[style]}
+              </option>
+            ))}
+          </select>
+          <p id="style-help" className="text-muted-foreground text-xs">
+            Tipografia de titulos, espaciado y forma de las fotos.
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="fontFamily">Tipografia del texto</Label>
           <select
             id="fontFamily"
             name="fontFamily"
-            defaultValue={theme.fontFamily}
+            defaultValue={selectableFont}
             className="border-input bg-background h-9 rounded-md border px-3 text-sm"
           >
-            {FONTS.map((font) => (
+            {THEME_FONTS.map((font) => (
               <option key={font} value={font}>
-                {font}
+                {FONT_LABELS[font]}
               </option>
             ))}
           </select>
@@ -111,7 +178,7 @@ export function ThemeForm({ tenantSlug, theme }: { tenantSlug: string; theme: Te
           >
             {RADII.map((radius) => (
               <option key={radius} value={radius}>
-                {radius}
+                {RADIUS_LABELS[radius]}
               </option>
             ))}
           </select>

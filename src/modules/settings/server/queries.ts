@@ -34,6 +34,7 @@ export interface TenantTheme {
   readonly backgroundColor: string;
   readonly fontFamily: string;
   readonly borderRadius: string;
+  readonly style: string;
   readonly logoPath: string | null;
   readonly faviconPath: string | null;
 }
@@ -107,6 +108,7 @@ export async function getTenantTheme(tenantId: string): Promise<TenantTheme> {
     backgroundColor: data.background_color,
     fontFamily: data.font_family,
     borderRadius: data.border_radius,
+    style: data.style,
     logoPath: data.logo_path,
     faviconPath: data.favicon_path,
   };

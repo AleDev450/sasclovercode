@@ -13,8 +13,9 @@ import {
 import { listTenantDomains } from "@/modules/domains/server/queries";
 import { PlatformTenantDomains } from "@/modules/platform/components/tenant-domains";
 import { setTenantStatusAction } from "@/modules/platform/server/actions";
-import { getPlatformTenant } from "@/modules/platform/server/queries";
+import { getPlatformTenant, getPlatformTenantTheme } from "@/modules/platform/server/queries";
 import { TenantPlanCard } from "@/modules/platform/components/tenant-plan";
+import { TenantThemeCard } from "@/modules/platform/components/tenant-theme";
 import { TenantBillingCard } from "@/modules/platform/components/saas-billing";
 import {
   listSubscriptionEvents,
@@ -85,15 +86,17 @@ export default async function PlatformTenantDetailPage({
   const tenant = await getPlatformTenant(id);
   // The platform SELECT policy on `tenant_domains` lets an operator read any
   // tenant's rows, so the same query the business uses serves this screen too.
-  const [domains, subscription, plans, modules, overrides, charges, events] = await Promise.all([
-    listTenantDomains(tenant.id),
-    getTenantSubscription(tenant.id),
-    listPlans(),
-    listModules(),
-    listTenantModuleOverrides(tenant.id),
-    listTenantCharges(tenant.id),
-    listSubscriptionEvents(tenant.id),
-  ]);
+  const [domains, subscription, plans, modules, overrides, charges, events, theme] =
+    await Promise.all([
+      listTenantDomains(tenant.id),
+      getTenantSubscription(tenant.id),
+      listPlans(),
+      listModules(),
+      listTenantModuleOverrides(tenant.id),
+      listTenantCharges(tenant.id),
+      listSubscriptionEvents(tenant.id),
+      getPlatformTenantTheme(tenant.id),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -179,6 +182,13 @@ export default async function PlatformTenantDetailPage({
         modules={modules}
         overrides={overrides}
       />
+
+      {/*
+        The theme sits between the plan and the billing history because that is
+        the order of a handover: what the business pays for, what it will look
+        like, what it has been charged.
+      */}
+      <TenantThemeCard tenantId={tenant.id} tenantName={tenant.name} theme={theme} />
 
       <TenantBillingCard
         tenantId={tenant.id}

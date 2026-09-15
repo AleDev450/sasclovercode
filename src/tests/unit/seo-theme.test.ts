@@ -1,5 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { THEME_DEFAULTS, themeCssVariables, type ThemeValues } from "@/modules/seo/theme";
+import {
+  SITE_STYLES,
+  THEME_DEFAULTS,
+  themeCssVariables,
+  type ThemeValues,
+} from "@/modules/seo/theme";
 import { THEME_PRESETS } from "@/modules/settings/theme-presets";
 
 /**
@@ -13,12 +20,13 @@ import { THEME_PRESETS } from "@/modules/settings/theme-presets";
  * and validating six characters costs nothing.
  */
 
-const VALID = {
+const VALID: ThemeValues = {
   primaryColor: "#16a34a",
   accentColor: "#0ea5e9",
   backgroundColor: "#ffffff",
-  fontFamily: "poppins",
+  fontFamily: "jost",
   borderRadius: "lg",
+  style: "marea",
 };
 
 describe("themeCssVariables", () => {
@@ -27,8 +35,10 @@ describe("themeCssVariables", () => {
     expect(vars["--site-primary"]).toBe("#16a34a");
     expect(vars["--site-accent"]).toBe("#0ea5e9");
     expect(vars["--site-background"]).toBe("#ffffff");
-    expect(vars["--site-font"]).toContain("Poppins");
+    expect(vars["--site-font"]).toContain("--font-jost");
     expect(vars["--site-radius"]).toBe("1rem");
+    // The chip radius is derived from the same key, never stored beside it.
+    expect(vars["--site-radius-chip"]).toBe("0.5rem");
   });
 
   it("prefixes every property so a tenant theme cannot repaint the dashboard", () => {
@@ -90,14 +100,138 @@ describe("themeCssVariables", () => {
 
   it("uses the same defaults the database column defaults use", () => {
     // If these drift, a tenant that never opened the theme editor renders one
-    // way on the site and another way in the preview. They are the "Clover"
-    // preset, set by migration 20260914140000 - before it, the column defaults
-    // were a palette that appeared nowhere in the product.
-    expect(THEME_DEFAULTS.primaryColor).toBe("#0f766e");
-    expect(THEME_DEFAULTS.accentColor).toBe("#14b8a6");
-    expect(THEME_DEFAULTS.backgroundColor).toBe("#ffffff");
-    expect(THEME_DEFAULTS.fontFamily).toBe("inter");
-    expect(THEME_DEFAULTS.borderRadius).toBe("lg");
+    // way on the site and another way in the preview. They are the "Atelier"
+    // theme, set by migration 20260915120000.
+    expect(THEME_DEFAULTS.primaryColor).toBe("#e8d3a9");
+    expect(THEME_DEFAULTS.accentColor).toBe("#d9a441");
+    expect(THEME_DEFAULTS.backgroundColor).toBe("#121214");
+    expect(THEME_DEFAULTS.fontFamily).toBe("jost");
+    expect(THEME_DEFAULTS.borderRadius).toBe("none");
+    expect(THEME_DEFAULTS.style).toBe("atelier");
+  });
+
+  /*
+   * The style is the other half of a theme, and it reaches the page the same
+   * way the colours do: as custom properties whose values are literals in
+   * `SITE_STYLES`. These assert that half behaves like the first - a key from
+   * the closed list resolves, and anything else falls back rather than reaching
+   * the DOM.
+   */
+  it("emits the display face and rhythm of the named style", () => {
+    const vars = themeCssVariables({ ...VALID, style: "atelier" }) as unknown as Record<
+      string,
+      string
+    >;
+    expect(vars["--site-display-font"]).toContain("--font-cormorant");
+    expect(vars["--site-eyebrow-transform"]).toBe("uppercase");
+    expect(vars["--site-media-ratio"]).toBe("4 / 5");
+    expect(vars["--site-hero-columns"]).toBe("1fr");
+  });
+
+  it("falls back to the default style for an unknown one", () => {
+    const vars = themeCssVariables({
+      ...VALID,
+      style: "'; content: 'x",
+    }) as unknown as Record<string, string>;
+
+    const atelier = themeCssVariables({ ...VALID, style: "atelier" }) as unknown as Record<
+      string,
+      string
+    >;
+    expect(vars["--site-display-font"]).toBe(atelier["--site-display-font"]);
+    expect(vars["--site-media-ratio"]).not.toContain("content:");
+  });
+
+  /*
+   * A DARK PAGE GETS NO SHADOW, which is a rule `shadowFor` holds and nothing
+   * else in the product knows about. A drop shadow darkens what is behind it,
+   * so on a near-black background the same CSS costs a paint and changes
+   * nothing; dark surfaces separate by getting LIGHTER, which `--site-surface`
+   * already does because it is a tint of the foreground.
+   */
+  it("drops shadows on a dark background and keeps the surface lift", () => {
+    const dark = themeCssVariables({
+      ...VALID,
+      backgroundColor: "#121214",
+      style: "brasa",
+    }) as unknown as Record<string, string>;
+
+    expect(dark["--site-shadow"]).toBe("none");
+    // A near-white lift, because the foreground flipped to the light end
+    // against this page. `pageInk` warms it, so it is not literally 255s.
+    expect(dark["--site-surface"]).toMatch(/rgb\(2\d\d 2\d\d 2\d\d \/ 0.035\)/);
+
+    const light = themeCssVariables({
+      ...VALID,
+      backgroundColor: "#ffffff",
+      style: "brasa",
+    }) as unknown as Record<string, string>;
+    expect(light["--site-shadow"]).not.toBe("none");
+  });
+
+  /*
+   * The scrim is the one token assembled by concatenation, so it gets its own
+   * assertion that the colour inside it went through `safeColor` first.
+   */
+  it("builds the image scrim from a validated colour only", () => {
+    const vars = themeCssVariables({
+      ...VALID,
+      backgroundColor: "red; background: url(https://evil.example/x)",
+      accentColor: "red; background: url(https://evil.example/y)",
+    }) as unknown as Record<string, string>;
+
+    for (const token of ["--site-scrim", "--site-hero-wash"]) {
+      expect(vars[token]).not.toContain("url(");
+      expect(vars[token]).toContain("linear-gradient");
+    }
+  });
+});
+
+/**
+ * The fonts are declared in one file and referenced in another, and
+ * `next/font` will not let them share a constant - it needs literal options so
+ * it can resolve the files during the build. So the two are checked against
+ * each other here instead.
+ *
+ * WHAT BREAKS WITHOUT THIS. Rename `--font-cormorant` in `fonts.ts` and every
+ * Atelier heading silently falls back to Georgia: nothing throws, no test
+ * fails, and the only symptom is that the flagship theme stops being the
+ * flagship theme on production.
+ */
+describe("font declarations match the stacks that use them (TEST-0815)", () => {
+  const read = (relative: string): string =>
+    readFileSync(join(process.cwd(), "src", "modules", "seo", relative), "utf8");
+
+  const DECLARED = /variable:\s*"(--font-[a-z-]+)"/g;
+  const USED = /var\((--font-[a-z-]+)\)/g;
+
+  it("references every declared font variable from a stack", () => {
+    const declared = [...read("fonts.ts").matchAll(DECLARED)].map((match) => match[1]!);
+    const theme = read("theme.ts");
+
+    expect(declared.length).toBeGreaterThanOrEqual(6);
+    for (const variable of declared) {
+      expect(theme, `${variable} is declared but no stack uses it`).toContain(`var(${variable})`);
+    }
+  });
+
+  it("declares every font variable a stack asks for", () => {
+    const used = [...read("theme.ts").matchAll(USED)].map((match) => match[1]!);
+    const fonts = read("fonts.ts");
+
+    expect(used.length).toBeGreaterThanOrEqual(6);
+    for (const variable of new Set(used)) {
+      expect(fonts, `${variable} is used but never declared`).toContain(`"${variable}"`);
+    }
+  });
+
+  it("puts every style's display face in the stack table", () => {
+    const theme = read("theme.ts");
+    for (const style of Object.values(SITE_STYLES)) {
+      expect(theme, `${style.id} names a display font nothing declares`).toContain(
+        `${style.displayFont}:`,
+      );
+    }
   });
 });
 
@@ -137,7 +271,17 @@ describe("preset contrast (TEST-806)", () => {
     (themeCssVariables(theme) as unknown as Record<string, string>)[name]!;
 
   it("has presets to measure", () => {
-    expect(THEME_PRESETS.length).toBeGreaterThanOrEqual(8);
+    // Three, and all three restaurants. The number is asserted rather than
+    // floored: the point of the rework was that nine half-designs are worse
+    // than three finished ones, and a fourth should be a decision somebody
+    // makes on purpose rather than one that slips in.
+    expect(THEME_PRESETS).toHaveLength(3);
+  });
+
+  it("gives every preset a style that exists", () => {
+    for (const preset of THEME_PRESETS) {
+      expect(SITE_STYLES[preset.style], preset.id).toBeDefined();
+    }
   });
 
   it("keeps every button and badge label above 4.5:1", () => {
@@ -152,6 +296,9 @@ describe("preset contrast (TEST-806)", () => {
         ["badge de acento", ratio(preset.accentColor, onAccent)],
         // `primary` also sets prices and headings directly on the background.
         ["precio sobre el fondo", ratio(preset.primaryColor, preset.backgroundColor)],
+        // `accent` sets the overline above every heading, which is type on the
+        // page rather than a fill. It was never measured before.
+        ["cintillo sobre el fondo", ratio(preset.accentColor, preset.backgroundColor)],
       ];
 
       for (const [what, value] of checks) {
@@ -177,7 +324,10 @@ describe("preset contrast (TEST-806)", () => {
     expect(dark.length).toBeGreaterThanOrEqual(1);
 
     for (const preset of dark) {
-      expect(readFrom(preset, "--site-foreground")).toBe("#ffffff");
+      // Near-white rather than exactly white: `pageInk` mixes a tenth of the
+      // page into the ink so the two agree, which on a dark theme takes the
+      // glare off. What matters is that it flipped to the light end at all.
+      expect(luminance(readFrom(preset, "--site-foreground")), preset.id).toBeGreaterThan(0.7);
     }
   });
 });

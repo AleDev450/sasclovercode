@@ -31,10 +31,40 @@ function relative(file: string): string {
   return file.replace(ROOT, "").replace(/\\/g, "/");
 }
 
+/**
+ * Source with its comments removed.
+ *
+ * WHY THIS IS NEEDED. This sweep reads markup as text, and a component whose
+ * documentation explains why it is NOT using a `<select>` was reported as a
+ * `<select>` with no label. The prose was right and the sweep was measuring the
+ * wrong thing - the guarantee is about controls that render, not about the word
+ * appearing in a file.
+ *
+ * The same trap was found and closed once already, in `cms-sections.test.ts`,
+ * where the renderer's own header names `dangerouslySetInnerHTML` in order to
+ * say it is never used. Stripping first is the fix that worked there.
+ *
+ * It can only ever produce FALSE NEGATIVES for controls that exist solely
+ * inside a comment, which do not render and cannot be unlabelled.
+ */
+function stripComments(source: string): string {
+  const withoutBlocks = source.replace(/\/\*[\s\S]*?\*\//g, "");
+  return withoutBlocks
+    .split("\n")
+    .map((line) => {
+      // `(?<!:)` so an `https://` inside an attribute is not mistaken for the
+      // start of a comment, which would cut the line - and with it a `>` the
+      // tag matcher below depends on.
+      const index = line.search(/(?<!:)\/\//);
+      return index === -1 ? line : line.slice(0, index);
+    })
+    .join("\n");
+}
+
 /** Every `<input`, `<select` and `<textarea` opening tag, with its attributes. */
 function controlTags(source: string): { tag: string; kind: string }[] {
   const found: { tag: string; kind: string }[] = [];
-  for (const match of source.matchAll(/<(input|select|textarea)\b([^>]*)>/gs)) {
+  for (const match of stripComments(source).matchAll(/<(input|select|textarea)\b([^>]*)>/gs)) {
     found.push({ kind: match[1] ?? "", tag: match[0] });
   }
   return found;

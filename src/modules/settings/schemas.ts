@@ -68,12 +68,36 @@ const hexColor = z
   .toLowerCase()
   .regex(/^#[0-9a-f]{6}$/, "Usa un color hexadecimal, por ejemplo #16a34a.");
 
+/**
+ * The body faces a business may choose, and the three it may no longer.
+ *
+ * `poppins`, `lora` and `roboto` are still accepted by the CHECK - rows written
+ * before the theme rework hold them and have to stay writable - but they are
+ * deliberately absent here, because none of the three is self-hosted and
+ * offering a face that silently resolves to something else is what this rework
+ * exists to stop. A row already holding one keeps rendering; nothing can choose
+ * one again.
+ */
+export const THEME_FONTS = [
+  "system",
+  "inter",
+  "jost",
+  "dm-sans",
+  "cormorant",
+  "playfair",
+  "fraunces",
+] as const;
+
+/** Mirrors `tenant_themes_style_allowed` and the keys of `SITE_STYLES`. */
+export const THEME_STYLES = ["atelier", "brasa", "marea"] as const;
+
 export const themeSchema = z.object({
   primaryColor: hexColor,
   accentColor: hexColor,
   backgroundColor: hexColor,
-  fontFamily: z.enum(["system", "inter", "poppins", "lora", "roboto"]),
+  fontFamily: z.enum(THEME_FONTS),
   borderRadius: z.enum(["none", "sm", "md", "lg", "full"]),
+  style: z.enum(THEME_STYLES),
 });
 
 export type ThemeInput = z.output<typeof themeSchema>;

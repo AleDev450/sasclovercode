@@ -61,12 +61,54 @@ export interface CatalogForSections {
   readonly currency: string;
 }
 
+/**
+ * The vertical rhythm every section shares.
+ *
+ * HALF the style's section space on each side, so the gap between two adjacent
+ * sections is exactly one unit of it rather than two. Spacing is the loudest
+ * difference between the three themes - `atelier` breathes at up to 9rem and
+ * `brasa` at 6 - and hard-coded `py-10` everywhere is why they used to look
+ * identical below the fold.
+ */
+const sectionSpacing: React.CSSProperties = {
+  paddingBlock: "calc(var(--site-section-space) / 2)",
+};
+
+/**
+ * The small capitalised label above a heading.
+ *
+ * Tracking and case come from the style, not from this file: `atelier` sets it
+ * at 0.34em in caps and a theme that wanted sentence case would say so. It is
+ * the cheapest piece of typographic craft in the system and the one that most
+ * reliably makes a section look composed rather than dumped.
+ */
+function Eyebrow({ children }: { children: string }) {
+  return (
+    <span
+      className="text-xs font-semibold"
+      style={{
+        color: "var(--site-accent)",
+        letterSpacing: "var(--site-eyebrow-tracking)",
+        textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 function Heading({ children, className }: { children: string; className?: string }) {
   if (children.length === 0) return null;
   return (
     <h2
-      className={cn("text-2xl font-semibold tracking-tight sm:text-3xl", className)}
-      style={{ color: "var(--site-foreground)" }}
+      className={cn("text-3xl text-balance sm:text-4xl", className)}
+      style={{
+        color: "var(--site-foreground)",
+        fontFamily: "var(--site-display-font)",
+        fontWeight: "var(--site-display-weight)",
+        letterSpacing: "var(--site-display-tracking)",
+        lineHeight: "var(--site-display-leading)",
+      }}
     >
       {children}
     </h2>
@@ -119,12 +161,17 @@ function SafeLink({
 
 /** Shared geometry of every call to action. Colour arrives separately. */
 const buttonClass =
-  "inline-flex h-11 items-center justify-center px-6 text-sm font-semibold transition-opacity hover:opacity-90";
+  "inline-flex h-12 items-center justify-center px-8 text-xs font-semibold transition-opacity hover:opacity-90";
 
 const primaryButtonStyle: React.CSSProperties = {
   background: "var(--site-primary)",
   color: "var(--site-on-primary)",
-  borderRadius: "var(--site-radius)",
+  // The CHIP radius, not the card one. `--site-radius` is `lg` on Marea, and a
+  // 48px-tall button with a 16px radius is a pill nobody asked for.
+  borderRadius: "var(--site-radius-chip)",
+  letterSpacing: "var(--site-eyebrow-tracking)",
+  textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+  boxShadow: "var(--site-shadow)",
 };
 
 export function SectionRenderer({
@@ -161,40 +208,60 @@ export function SectionRenderer({
       const image = c.imagePath !== undefined ? assetUrls.get(c.imagePath) : undefined;
 
       /*
-       * The hero carries a tinted band, not a bare white top.
+       * THE HERO IS THE PAGE.
        *
-       * The first version set the heading in `--site-primary` on the page
-       * background and stopped there, which is why every seeded site opened the
-       * same way whatever palette it had chosen: one coloured line of type on
-       * white. The band is `--site-primary-soft`, a 10% tint the theme already
-       * derives, so it picks up the brand on every palette including a dark one
-       * - and the heading moves to `--site-foreground`, which is computed for
-       * contrast against the background rather than assumed to be readable.
+       * What was here was a tinted rounded rectangle with a 4xl heading and a
+       * 4:3 photograph, identical on every theme, and it is the single reason
+       * the product's sites looked like a template. A restaurant is judged on
+       * this block: the type size, the space around it, and the shape of the
+       * one photograph.
+       *
+       * Everything that varies now comes from the theme rather than from a
+       * branch here - the column track, the photograph's ratio, where the words
+       * sit, how far the section breathes. `atelier` resolves to one centred
+       * column over a wide establishing shot; `marea` to type beside a tall
+       * frame. Same markup, two restaurants.
+       *
+       * The band survives as a WASH: full-bleed, no radius, and fading to
+       * nothing at the bottom instead of ending in a seam. Its job is unchanged
+       * - a heading on a bare background was one coloured line of type and
+       * nothing else - but see `--site-hero-wash` for why a flat slab of the
+       * primary was the wrong way to do it.
        */
       return (
-        <section className="relative py-12 sm:py-16">
+        <section className="relative -mx-6 px-6 sm:-mx-10 sm:px-10" style={sectionSpacing}>
           <div
             aria-hidden
-            className="absolute inset-x-0 -top-px bottom-12 -z-10"
-            style={{
-              background: "var(--site-primary-soft)",
-              borderRadius: "var(--site-radius)",
-            }}
+            className="absolute inset-0 -z-10"
+            style={{ background: "var(--site-hero-wash)" }}
           />
 
           <div
             className={cn(
-              "grid items-center gap-8 px-6 py-10 sm:px-10 sm:py-14",
-              image !== undefined && "lg:grid-cols-[1.05fr_1fr] lg:gap-14",
+              "grid items-center gap-10",
+              image !== undefined && "lg:grid-cols-[var(--site-hero-columns)] lg:gap-16",
             )}
           >
-            <div className="flex flex-col items-start gap-5">
+            <div
+              className="flex flex-col gap-6"
+              style={{
+                alignItems: "var(--site-hero-items)" as "center",
+                textAlign: "var(--site-hero-align)" as "center",
+              }}
+            >
               <h1
-                className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
-                style={{ color: "var(--site-foreground)" }}
+                className="text-[clamp(2.5rem,6vw,4.5rem)] text-balance"
+                style={{
+                  color: "var(--site-foreground)",
+                  fontFamily: "var(--site-display-font)",
+                  fontWeight: "var(--site-display-weight)",
+                  letterSpacing: "var(--site-display-tracking)",
+                  lineHeight: "var(--site-display-leading)",
+                }}
               >
                 {c.heading}
               </h1>
+
               {c.subheading.length > 0 ? (
                 <p
                   className="max-w-prose text-lg leading-relaxed"
@@ -203,11 +270,12 @@ export function SectionRenderer({
                   {c.subheading}
                 </p>
               ) : null}
+
               {c.ctaLabel.length > 0 && c.ctaHref !== undefined ? (
                 <SafeLink
                   href={c.ctaHref}
                   basePath={basePath}
-                  className={cn(buttonClass, "mt-1 shadow-lg")}
+                  className={cn(buttonClass, "mt-2")}
                   style={primaryButtonStyle}
                 >
                   {c.ctaLabel}
@@ -216,15 +284,36 @@ export function SectionRenderer({
             </div>
 
             {image !== undefined ? (
-              /* eslint-disable-next-line @next/next/no-img-element -- the asset
-                 is a signed URL from Storage, whose host is not known at build
-                 time, so next/image cannot be configured for it. */
-              <img
-                src={image}
-                alt=""
-                className="aspect-[4/3] w-full object-cover shadow-xl"
-                style={{ borderRadius: "var(--site-radius)" }}
-              />
+              <div className="relative w-full">
+                {/* eslint-disable-next-line @next/next/no-img-element -- the asset
+                    is a signed URL from Storage, whose host is not known at build
+                    time, so next/image cannot be configured for it. */}
+                <img
+                  src={image}
+                  alt=""
+                  className="w-full object-cover"
+                  style={{
+                    aspectRatio: "var(--site-hero-ratio)",
+                    borderRadius: "var(--site-radius)",
+                    boxShadow: "var(--site-shadow-lifted)",
+                  }}
+                />
+                {/*
+                  The photograph fades into the page instead of stopping at a
+                  hard edge. The gradient is built from the tenant's own
+                  background (`--site-scrim`), so it works on bone and on
+                  near-black without either being special-cased.
+                */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3"
+                  style={{
+                    background: "var(--site-scrim)",
+                    borderBottomLeftRadius: "var(--site-radius)",
+                    borderBottomRightRadius: "var(--site-radius)",
+                  }}
+                />
+              </div>
             ) : null}
           </div>
         </section>
@@ -234,7 +323,7 @@ export function SectionRenderer({
     case "text": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["text"]["_output"];
       return (
-        <section className="flex flex-col gap-4 py-10">
+        <section className="flex max-w-3xl flex-col gap-5" style={sectionSpacing}>
           <Heading>{c.heading}</Heading>
           {/* One <p> per stored paragraph. Line structure survives without any
               markup ever being stored. */}
@@ -254,13 +343,16 @@ export function SectionRenderer({
     case "image": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["image"]["_output"];
       return (
-        <figure className="flex flex-col gap-3 py-10">
+        <figure className="flex flex-col gap-3" style={sectionSpacing}>
           {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
           <img
             src={assetUrls.get(c.imagePath) ?? ""}
             alt={c.alt}
             className="w-full"
-            style={{ borderRadius: "var(--site-radius)" }}
+            style={{
+              borderRadius: "var(--site-radius)",
+              boxShadow: "var(--site-shadow)",
+            }}
           />
           {c.caption.length > 0 ? (
             <figcaption className="text-sm" style={{ color: "var(--site-subtle)" }}>
@@ -317,15 +409,22 @@ export function SectionRenderer({
       const c = parsed.data as (typeof SECTION_SCHEMAS)["cta"]["_output"];
       return (
         <section
-          className="my-10 flex flex-col items-center gap-5 px-6 py-12 text-center sm:px-12"
+          className="my-10 flex flex-col items-center gap-6 px-6 py-16 text-center sm:px-12"
           style={{
             background: "var(--site-primary-soft)",
             borderRadius: "var(--site-radius)",
+            border: "1px solid var(--site-primary-line)",
           }}
         >
           <h2
-            className="max-w-2xl text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
-            style={{ color: "var(--site-primary)" }}
+            className="max-w-2xl text-3xl text-balance sm:text-4xl"
+            style={{
+              color: "var(--site-primary)",
+              fontFamily: "var(--site-display-font)",
+              fontWeight: "var(--site-display-weight)",
+              letterSpacing: "var(--site-display-tracking)",
+              lineHeight: "var(--site-display-leading)",
+            }}
           >
             {c.heading}
           </h2>
@@ -349,19 +448,28 @@ export function SectionRenderer({
     case "gallery": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["gallery"]["_output"];
       return (
-        <section className="flex flex-col gap-5 py-10">
+        <section className="flex flex-col gap-8" style={sectionSpacing}>
           <Heading>{c.heading}</Heading>
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6">
             {c.images
               .filter((image) => assetUrls.has(image.imagePath))
               .map((image, index) => (
-                <li key={index}>
+                <li
+                  key={index}
+                  className="group overflow-hidden"
+                  style={{ borderRadius: "var(--site-radius)" }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
                   <img
                     src={assetUrls.get(image.imagePath) ?? ""}
                     alt={image.alt}
-                    className="aspect-square w-full object-cover"
-                    style={{ borderRadius: "var(--site-radius)" }}
+                    className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    style={{
+                      // The theme's ratio, so a gallery of a tasting menu is a
+                      // column of portraits and a parrilla's is panoramic.
+                      aspectRatio: "var(--site-media-ratio)",
+                      borderRadius: "var(--site-radius)",
+                    }}
                   />
                 </li>
               ))}
@@ -396,42 +504,53 @@ export function SectionRenderer({
       if (shown.length === 0) return null;
 
       return (
-        <section className="flex flex-col gap-6 py-10">
-          <Heading>{c.heading}</Heading>
-          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="flex flex-col gap-10" style={sectionSpacing}>
+          <div className="flex flex-col gap-3">
+            <Eyebrow>Nuestra carta</Eyebrow>
+            <Heading>{c.heading}</Heading>
+          </div>
+
+          <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
             {shown.map((product) => {
               const imageUrl =
                 product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
 
               return (
                 /*
-                 * The card carries a shadow and lifts on hover.
+                 * A DISH, NOT A PRODUCT TILE.
                  *
-                 * It used to be a hairline border on a 3.5% tint, which on a
-                 * white background is a rectangle you have to look for. A menu
-                 * is the page a business is judged on, and the cards are the
-                 * only thing on it that should read as objects.
+                 * This was a bordered, tinted, shadowed rectangle with a 4:3
+                 * photograph and the price at the bottom - the shape of an
+                 * e-commerce grid, which is what made every menu in the product
+                 * read as a catalogue of things rather than a carta.
+                 *
+                 * What changed is what a restaurant's own menu does: the
+                 * photograph carries the frame and the type sits on the page
+                 * under it, with the name and the price on one line separated by
+                 * a leader rule. The box is gone; the elevation the theme asks
+                 * for lives on the IMAGE, which is the object worth lifting.
                  */
                 <li
                   key={product.id}
-                  className={cn(
-                    "group flex flex-col overflow-hidden border shadow-sm",
-                    "transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-xl",
-                    !product.isAvailable && "opacity-75",
-                  )}
-                  style={{
-                    borderColor: "var(--site-border)",
-                    background: "var(--site-surface)",
-                    borderRadius: "var(--site-radius)",
-                  }}
+                  className={cn("group flex flex-col gap-4", !product.isAvailable && "opacity-70")}
                 >
-                  <div className="relative overflow-hidden">
+                  <div
+                    className="relative overflow-hidden"
+                    style={{
+                      borderRadius: "var(--site-radius)",
+                      boxShadow: "var(--site-shadow)",
+                      // On a dark theme the shadow resolves to `none` and this
+                      // hairline is what separates the frame from the page.
+                      border: "1px solid var(--site-border)",
+                    }}
+                  >
                     {imageUrl !== undefined ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={imageUrl}
                         alt={product.name}
-                        className="aspect-[4/3] w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        style={{ aspectRatio: "var(--site-media-ratio)" }}
                       />
                     ) : (
                       /* No photo is the common case for a business starting
@@ -439,18 +558,23 @@ export function SectionRenderer({
                          leaving one card visibly shorter than its neighbours. */
                       <div
                         aria-hidden
-                        className="aspect-[4/3] w-full"
-                        style={{ background: "var(--site-accent-soft)" }}
+                        className="w-full"
+                        style={{
+                          aspectRatio: "var(--site-media-ratio)",
+                          background: "var(--site-accent-soft)",
+                        }}
                       />
                     )}
 
                     {product.isFeatured ? (
                       <span
-                        className="absolute top-3 left-3 px-2.5 py-1 text-[0.6875rem] font-semibold tracking-wide uppercase shadow-sm"
+                        className="absolute top-3 left-3 px-3 py-1 text-[0.625rem] font-semibold"
                         style={{
                           background: "var(--site-accent)",
                           color: "var(--site-on-accent)",
-                          borderRadius: "var(--site-radius)",
+                          borderRadius: "var(--site-radius-chip)",
+                          letterSpacing: "var(--site-eyebrow-tracking)",
+                          textTransform: "var(--site-eyebrow-transform)" as "uppercase",
                         }}
                       >
                         Recomendado
@@ -461,11 +585,13 @@ export function SectionRenderer({
                       // Sold out today, still on the menu. Hiding it would tell
                       // a customer the business does not serve this at all.
                       <span
-                        className="absolute top-3 right-3 px-2.5 py-1 text-[0.6875rem] font-semibold shadow-sm"
+                        className="absolute top-3 right-3 px-3 py-1 text-[0.625rem] font-semibold"
                         style={{
                           background: "var(--site-background)",
                           color: "var(--site-muted)",
-                          borderRadius: "var(--site-radius)",
+                          borderRadius: "var(--site-radius-chip)",
+                          letterSpacing: "var(--site-eyebrow-tracking)",
+                          textTransform: "var(--site-eyebrow-transform)" as "uppercase",
                         }}
                       >
                         Agotado hoy
@@ -473,29 +599,46 @@ export function SectionRenderer({
                     ) : null}
                   </div>
 
-                  <div className="flex flex-1 flex-col gap-2 p-5">
-                    <h3
-                      className="leading-snug font-semibold"
-                      style={{ color: "var(--site-foreground)" }}
-                    >
-                      {product.name}
-                    </h3>
+                  <div className="flex flex-col gap-2">
+                    {/*
+                      Name and price on one line, joined by a leader.
+
+                      It is how a printed menu has set a dish for a century, and
+                      it answers the two questions a diner has in one eye
+                      movement. The rule is a flexible spacer rather than dot
+                      leaders, which do not survive a 40-character dish name on
+                      a phone.
+                    */}
+                    <div className="flex items-baseline gap-3">
+                      <h3
+                        className="text-lg leading-snug"
+                        style={{
+                          color: "var(--site-foreground)",
+                          fontFamily: "var(--site-display-font)",
+                          fontWeight: "var(--site-display-weight)",
+                          letterSpacing: "var(--site-display-tracking)",
+                        }}
+                      >
+                        {product.name}
+                      </h3>
+                      <span
+                        aria-hidden
+                        className="min-w-4 flex-1"
+                        style={{ borderBottom: "1px solid var(--site-border)" }}
+                      />
+                      <span
+                        className="shrink-0 text-base font-semibold tabular-nums"
+                        style={{ color: "var(--site-primary)" }}
+                      >
+                        {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
+                      </span>
+                    </div>
 
                     {product.description !== null ? (
                       <p className="text-sm leading-relaxed" style={{ color: "var(--site-muted)" }}>
                         {product.description}
                       </p>
                     ) : null}
-
-                    {/* The price last and on its own line, where the eye lands
-                        after the description rather than fighting the name for
-                        the top row. */}
-                    <span
-                      className="mt-auto pt-2 text-lg font-semibold tabular-nums"
-                      style={{ color: "var(--site-primary)" }}
-                    >
-                      {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
-                    </span>
                   </div>
                 </li>
               );
@@ -508,19 +651,29 @@ export function SectionRenderer({
     case "faq": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["faq"]["_output"];
       return (
-        <section className="flex flex-col gap-5 py-10">
+        <section className="flex max-w-3xl flex-col gap-8" style={sectionSpacing}>
           <Heading>{c.heading}</Heading>
-          <dl className="flex flex-col gap-3">
+          <dl className="flex flex-col">
             {c.items.map((item, index) => (
               <div
                 key={index}
-                className="flex flex-col gap-2 border p-5"
+                className="flex flex-col gap-2 py-6 first:pt-0"
                 style={{
-                  borderColor: "var(--site-border)",
-                  borderRadius: "var(--site-radius)",
+                  // A rule between answers, not a box around each one. Six
+                  // bordered rectangles stacked vertically read as a form;
+                  // hairlines read as a printed page.
+                  borderTop: index === 0 ? "none" : "1px solid var(--site-border)",
                 }}
               >
-                <dt className="font-semibold" style={{ color: "var(--site-foreground)" }}>
+                <dt
+                  className="text-lg"
+                  style={{
+                    color: "var(--site-foreground)",
+                    fontFamily: "var(--site-display-font)",
+                    fontWeight: "var(--site-display-weight)",
+                    letterSpacing: "var(--site-display-tracking)",
+                  }}
+                >
                   {item.question}
                 </dt>
                 <dd className="max-w-prose leading-relaxed" style={{ color: "var(--site-muted)" }}>

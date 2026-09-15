@@ -165,6 +165,7 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260914120100_publish_plan_catalog.sql",
       "20260914130000_storage_folder_permissions.sql",
       "20260914140000_default_theme_to_clover.sql",
+      "20260915120000_create_theme_styles.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.

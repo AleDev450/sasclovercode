@@ -442,6 +442,8 @@ export type Database = {
           background_color: string;
           font_family: string;
           border_radius: string;
+          /** Design language key. One of `atelier`, `brasa`, `marea`. */
+          style: string;
           logo_path: string | null;
           favicon_path: string | null;
           created_at: string;

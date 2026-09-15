@@ -167,7 +167,7 @@ export const getPublicTheme = cache(async (tenantId: string): Promise<PublicThem
   const { data, error } = await client
     .from("tenant_themes")
     .select(
-      "primary_color, accent_color, background_color, font_family, border_radius, favicon_path, logo_path",
+      "primary_color, accent_color, background_color, font_family, border_radius, style, favicon_path, logo_path",
     )
     .eq("tenant_id", tenantId)
     .maybeSingle();
@@ -183,6 +183,7 @@ export const getPublicTheme = cache(async (tenantId: string): Promise<PublicThem
     backgroundColor: data.background_color,
     fontFamily: data.font_family,
     borderRadius: data.border_radius,
+    style: data.style,
     faviconPath: data.favicon_path,
     logoPath: data.logo_path,
   };

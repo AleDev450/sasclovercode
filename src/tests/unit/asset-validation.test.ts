@@ -158,6 +158,7 @@ describe("theme schema (TEST-621)", () => {
     backgroundColor: "#ffffff",
     fontFamily: "system",
     borderRadius: "md",
+    style: "brasa",
   };
 
   it("accepts valid values", () => {
@@ -166,6 +167,25 @@ describe("theme schema (TEST-621)", () => {
 
   it("lowercases a colour so it matches the database CHECK", () => {
     expect(themeSchema.parse({ ...base, primaryColor: "#AABBCC" }).primaryColor).toBe("#aabbcc");
+  });
+
+  /*
+   * The style is the sixth stored value and the only one that is not a colour,
+   * a font or a length: it selects a whole design language out of a closed list
+   * in `SITE_STYLES`. Anything outside that list has to be refused HERE, before
+   * the CHECK, because the value is looked up rather than printed - an unknown
+   * key would silently fall back and a business would be told its theme saved
+   * while nothing about the page changed.
+   */
+  it.each(["", "atelier ", "ATELIER", "clover", "'; content: 'x"])(
+    "rejects the style %j",
+    (style) => {
+      expect(themeSchema.safeParse({ ...base, style }).success).toBe(false);
+    },
+  );
+
+  it.each(["atelier", "brasa", "marea"])("accepts the style %j", (style) => {
+    expect(themeSchema.safeParse({ ...base, style }).success).toBe(true);
   });
 
   it.each(["red", "#FFF", "#12345", "rgb(0,0,0)", "javascript:alert(1)"])(
