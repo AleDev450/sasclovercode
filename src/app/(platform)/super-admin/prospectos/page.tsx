@@ -9,6 +9,7 @@ import {
   StatGrid,
 } from "@/components/ui";
 import { IconMail, IconPhone, IconUsers, IconWhatsApp } from "@/components/ui/icons";
+import { PRODUCT_NAME } from "@/config/app";
 import { formatDateTime, formatRelative } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import { LEAD_STATUS_LABEL, LeadTriageForm } from "@/modules/marketing/components/lead-triage-form";
@@ -145,7 +146,7 @@ export default async function LeadsPage({
     <div className="flex flex-col gap-8">
       <PageHeader
         title="Prospectos"
-        description="Solicitudes de demostracion recibidas desde la web publica de Tu Tiendita."
+        description={`Solicitudes de demostracion recibidas desde la web publica de ${PRODUCT_NAME}.`}
       />
 
       <StatGrid>

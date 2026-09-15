@@ -15,8 +15,20 @@ export const APP_NAME = "CloverCode";
  * invoice and in the dashboard a shop owner uses. They are two different names
  * for two different audiences and the codebase keeps them apart deliberately:
  * renaming the product later must not mean renaming the platform.
+ *
+ * That separation earned itself the day the product was renamed from
+ * "Tu Tiendita" to "Vendra": it was this one line, plus the artwork.
  */
-export const PRODUCT_NAME = "Tu Tiendita";
+export const PRODUCT_NAME = "Vendra";
+
+/**
+ * The three words under the wordmark.
+ *
+ * Part of the logo lockup, so it is reproduced as text wherever the lockup
+ * appears without its artwork. Short enough to sit under a mark; the sentence
+ * that explains what the product DOES is `PRODUCT_TAGLINE` below.
+ */
+export const PRODUCT_SLOGAN = "Vende. Gestiona. Crece.";
 
 /** Who makes it. Shown wherever authorship is the point. */
 export const VENDOR_NAME = "Clover Code";

@@ -15,6 +15,17 @@ import { SECTION_SCHEMAS, type SectionType } from "../sections";
  *
  * A business that types `<script>` into a heading gets those characters printed
  * on their page. That is their content, not their code.
+ *
+ * COLOURS COME FROM THE TENANT, NOT FROM THE PLATFORM. Every visual value here
+ * is a `--site-*` custom property set by the layout from `tenant_themes`. This
+ * used to be `bg-primary` and `text-muted-foreground` — the DASHBOARD's tokens
+ * — which meant a business could pick any three colours it liked and its
+ * website would still come out CloverCode-coloured. That was the real reason
+ * the theming feature looked like it did nothing.
+ *
+ * The one thing still borrowed from Tailwind is layout: spacing, grid and type
+ * scale are the product's opinion, not the tenant's, and a business choosing a
+ * theme is not choosing a margin.
  */
 
 export interface RenderableSection {
@@ -50,9 +61,16 @@ export interface CatalogForSections {
   readonly currency: string;
 }
 
-function Heading({ children }: { children: string }) {
+function Heading({ children, className }: { children: string; className?: string }) {
   if (children.length === 0) return null;
-  return <h2 className="text-2xl font-semibold tracking-tight">{children}</h2>;
+  return (
+    <h2
+      className={cn("text-2xl font-semibold tracking-tight sm:text-3xl", className)}
+      style={{ color: "var(--site-foreground)" }}
+    >
+      {children}
+    </h2>
+  );
 }
 
 /**
@@ -67,29 +85,38 @@ function SafeLink({
   href,
   children,
   className,
+  style,
 }: {
   href: string;
   children: string;
   className?: string;
+  style?: React.CSSProperties;
 }) {
   const isExternal = href.startsWith("https://");
 
   if (isExternal) {
     return (
-      <a href={href} target="_blank" rel="noreferrer noopener" className={className}>
+      <a href={href} target="_blank" rel="noreferrer noopener" className={className} style={style}>
         {children}
       </a>
     );
   }
   return (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} style={style}>
       {children}
     </Link>
   );
 }
 
+/** Shared geometry of every call to action. Colour arrives separately. */
 const buttonClass =
-  "bg-primary text-primary-foreground inline-flex h-10 items-center rounded-md px-5 text-sm font-medium";
+  "inline-flex h-11 items-center justify-center px-6 text-sm font-semibold transition-opacity hover:opacity-90";
+
+const primaryButtonStyle: React.CSSProperties = {
+  background: "var(--site-primary)",
+  color: "var(--site-on-primary)",
+  borderRadius: "var(--site-radius)",
+};
 
 export function SectionRenderer({
   section,
@@ -119,26 +146,47 @@ export function SectionRenderer({
   switch (section.type) {
     case "hero": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["hero"]["_output"];
+      const image = c.imagePath !== undefined ? assetUrls.get(c.imagePath) : undefined;
+
       return (
-        <section className="flex flex-col items-start gap-4 py-12">
-          <h1 className="text-4xl font-semibold tracking-tight">{c.heading}</h1>
-          {c.subheading.length > 0 ? (
-            <p className="text-muted-foreground max-w-prose text-lg">{c.subheading}</p>
-          ) : null}
-          {c.imagePath !== undefined && assetUrls.has(c.imagePath) ? (
+        <section
+          className={cn(
+            "grid items-center gap-8 py-12 sm:py-16",
+            image !== undefined && "lg:grid-cols-2 lg:gap-12",
+          )}
+        >
+          <div className="flex flex-col items-start gap-5">
+            <h1
+              className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
+              style={{ color: "var(--site-primary)" }}
+            >
+              {c.heading}
+            </h1>
+            {c.subheading.length > 0 ? (
+              <p
+                className="max-w-prose text-lg leading-relaxed"
+                style={{ color: "var(--site-muted)" }}
+              >
+                {c.subheading}
+              </p>
+            ) : null}
+            {c.ctaLabel.length > 0 && c.ctaHref !== undefined ? (
+              <SafeLink href={c.ctaHref} className={buttonClass} style={primaryButtonStyle}>
+                {c.ctaLabel}
+              </SafeLink>
+            ) : null}
+          </div>
+
+          {image !== undefined ? (
             /* eslint-disable-next-line @next/next/no-img-element -- the asset is
                a signed URL from Storage, whose host is not known at build time,
                so next/image cannot be configured for it until Phase 09. */
             <img
-              src={assetUrls.get(c.imagePath) ?? ""}
+              src={image}
               alt=""
-              className="w-full rounded-lg object-cover"
+              className="aspect-[4/3] w-full object-cover"
+              style={{ borderRadius: "var(--site-radius)" }}
             />
-          ) : null}
-          {c.ctaLabel.length > 0 && c.ctaHref !== undefined ? (
-            <SafeLink href={c.ctaHref} className={buttonClass}>
-              {c.ctaLabel}
-            </SafeLink>
           ) : null}
         </section>
       );
@@ -147,12 +195,16 @@ export function SectionRenderer({
     case "text": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["text"]["_output"];
       return (
-        <section className="flex flex-col gap-4 py-8">
+        <section className="flex flex-col gap-4 py-10">
           <Heading>{c.heading}</Heading>
           {/* One <p> per stored paragraph. Line structure survives without any
               markup ever being stored. */}
           {c.paragraphs.map((paragraph, index) => (
-            <p key={index} className="max-w-prose leading-relaxed">
+            <p
+              key={index}
+              className="max-w-prose leading-relaxed"
+              style={{ color: "var(--site-muted)" }}
+            >
               {paragraph}
             </p>
           ))}
@@ -163,11 +215,18 @@ export function SectionRenderer({
     case "image": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["image"]["_output"];
       return (
-        <figure className="flex flex-col gap-2 py-8">
+        <figure className="flex flex-col gap-3 py-10">
           {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
-          <img src={assetUrls.get(c.imagePath) ?? ""} alt={c.alt} className="w-full rounded-lg" />
+          <img
+            src={assetUrls.get(c.imagePath) ?? ""}
+            alt={c.alt}
+            className="w-full"
+            style={{ borderRadius: "var(--site-radius)" }}
+          />
           {c.caption.length > 0 ? (
-            <figcaption className="text-muted-foreground text-sm">{c.caption}</figcaption>
+            <figcaption className="text-sm" style={{ color: "var(--site-subtle)" }}>
+              {c.caption}
+            </figcaption>
           ) : null}
         </figure>
       );
@@ -175,20 +234,40 @@ export function SectionRenderer({
 
     case "banner": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["banner"]["_output"];
+
+      /*
+       * A banner keeps SEMANTIC colour, not theme colour.
+       *
+       * "Cerrado por feriado" has to read as a warning on every site, including
+       * one whose brand colour happens to be amber. The tint is the only thing
+       * on the public site that ignores the tenant palette, and it does so on
+       * purpose.
+       */
       const tone = {
-        info: "border-info/30 bg-info/10",
-        success: "border-success/30 bg-success/10",
-        warning: "border-warning/30 bg-warning/10",
+        info: { border: "#bfdbfe", background: "#eff6ff", color: "#1e40af" },
+        success: { border: "#bbf7d0", background: "#f0fdf4", color: "#166534" },
+        warning: { border: "#fde68a", background: "#fffbeb", color: "#92400e" },
       }[c.tone];
 
       return (
-        <section className={cn("my-6 rounded-lg border px-4 py-3", tone)}>
+        <section
+          className="my-6 border px-5 py-4"
+          style={{
+            borderColor: tone.border,
+            background: tone.background,
+            color: tone.color,
+            borderRadius: "var(--site-radius)",
+          }}
+        >
           {c.href !== undefined ? (
-            <SafeLink href={c.href} className="text-sm underline-offset-4 hover:underline">
+            <SafeLink
+              href={c.href}
+              className="text-sm font-medium underline-offset-4 hover:underline"
+            >
               {c.message}
             </SafeLink>
           ) : (
-            <p className="text-sm">{c.message}</p>
+            <p className="text-sm font-medium">{c.message}</p>
           )}
         </section>
       );
@@ -197,10 +276,25 @@ export function SectionRenderer({
     case "cta": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["cta"]["_output"];
       return (
-        <section className="border-border my-8 flex flex-col items-start gap-4 rounded-lg border p-8">
-          <h2 className="text-2xl font-semibold tracking-tight">{c.heading}</h2>
-          {c.body.length > 0 ? <p className="text-muted-foreground max-w-prose">{c.body}</p> : null}
-          <SafeLink href={c.buttonHref} className={buttonClass}>
+        <section
+          className="my-10 flex flex-col items-center gap-5 px-6 py-12 text-center sm:px-12"
+          style={{
+            background: "var(--site-primary-soft)",
+            borderRadius: "var(--site-radius)",
+          }}
+        >
+          <h2
+            className="max-w-2xl text-2xl font-semibold tracking-tight text-balance sm:text-3xl"
+            style={{ color: "var(--site-primary)" }}
+          >
+            {c.heading}
+          </h2>
+          {c.body.length > 0 ? (
+            <p className="max-w-prose" style={{ color: "var(--site-muted)" }}>
+              {c.body}
+            </p>
+          ) : null}
+          <SafeLink href={c.buttonHref} className={buttonClass} style={primaryButtonStyle}>
             {c.buttonLabel}
           </SafeLink>
         </section>
@@ -210,7 +304,7 @@ export function SectionRenderer({
     case "gallery": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["gallery"]["_output"];
       return (
-        <section className="flex flex-col gap-4 py-8">
+        <section className="flex flex-col gap-5 py-10">
           <Heading>{c.heading}</Heading>
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             {c.images
@@ -221,7 +315,8 @@ export function SectionRenderer({
                   <img
                     src={assetUrls.get(image.imagePath) ?? ""}
                     alt={image.alt}
-                    className="aspect-square w-full rounded-md object-cover"
+                    className="aspect-square w-full object-cover"
+                    style={{ borderRadius: "var(--site-radius)" }}
                   />
                 </li>
               ))}
@@ -256,38 +351,75 @@ export function SectionRenderer({
       if (shown.length === 0) return null;
 
       return (
-        <section className="flex flex-col gap-4 py-8">
+        <section className="flex flex-col gap-6 py-10">
           <Heading>{c.heading}</Heading>
-          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {shown.map((product) => {
               const imageUrl =
                 product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
+
               return (
-                <li key={product.id} className="flex flex-col gap-2">
+                <li
+                  key={product.id}
+                  className="flex flex-col overflow-hidden border transition-transform hover:-translate-y-0.5"
+                  style={{
+                    borderColor: "var(--site-border)",
+                    background: "var(--site-surface)",
+                    borderRadius: "var(--site-radius)",
+                  }}
+                >
                   {imageUrl !== undefined ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={imageUrl}
                       alt={product.name}
-                      className="aspect-[4/3] w-full rounded-md object-cover"
+                      className="aspect-[4/3] w-full object-cover"
                     />
-                  ) : null}
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-sm font-medium">{product.name}</h3>
-                    <span className="font-mono text-sm whitespace-nowrap tabular-nums">
-                      {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
-                    </span>
+                  ) : (
+                    /* No photo is the common case for a business starting out.
+                       A tinted block keeps the grid even instead of leaving
+                       one card visibly shorter than its neighbours. */
+                    <div
+                      aria-hidden
+                      className="aspect-[4/3] w-full"
+                      style={{ background: "var(--site-accent-soft)" }}
+                    />
+                  )}
+
+                  <div className="flex flex-1 flex-col gap-2 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="font-semibold" style={{ color: "var(--site-foreground)" }}>
+                        {product.name}
+                      </h3>
+                      <span
+                        className="shrink-0 font-semibold whitespace-nowrap tabular-nums"
+                        style={{ color: "var(--site-primary)" }}
+                      >
+                        {formatCurrency(product.basePriceCents, catalog?.currency ?? "PEN")}
+                      </span>
+                    </div>
+
+                    {product.description !== null ? (
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--site-muted)" }}>
+                        {product.description}
+                      </p>
+                    ) : null}
+
+                    {!product.isAvailable ? (
+                      // Sold out today, still on the menu. Hiding it would tell
+                      // a customer the business does not serve this at all.
+                      <span
+                        className="mt-auto self-start px-2.5 py-1 text-xs font-medium"
+                        style={{
+                          background: "var(--site-border)",
+                          color: "var(--site-muted)",
+                          borderRadius: "var(--site-radius)",
+                        }}
+                      >
+                        Agotado por hoy
+                      </span>
+                    ) : null}
                   </div>
-                  {product.description !== null ? (
-                    <p className="text-muted-foreground max-w-prose text-sm">
-                      {product.description}
-                    </p>
-                  ) : null}
-                  {!product.isAvailable ? (
-                    // Sold out today, still on the menu. Hiding it would tell a
-                    // customer the business does not serve this at all.
-                    <span className="text-muted-foreground text-xs">Agotado por hoy</span>
-                  ) : null}
                 </li>
               );
             })}
@@ -299,13 +431,24 @@ export function SectionRenderer({
     case "faq": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["faq"]["_output"];
       return (
-        <section className="flex flex-col gap-4 py-8">
+        <section className="flex flex-col gap-5 py-10">
           <Heading>{c.heading}</Heading>
-          <dl className="flex flex-col gap-4">
+          <dl className="flex flex-col gap-3">
             {c.items.map((item, index) => (
-              <div key={index} className="flex flex-col gap-1">
-                <dt className="font-medium">{item.question}</dt>
-                <dd className="text-muted-foreground max-w-prose">{item.answer}</dd>
+              <div
+                key={index}
+                className="flex flex-col gap-2 border p-5"
+                style={{
+                  borderColor: "var(--site-border)",
+                  borderRadius: "var(--site-radius)",
+                }}
+              >
+                <dt className="font-semibold" style={{ color: "var(--site-foreground)" }}>
+                  {item.question}
+                </dt>
+                <dd className="max-w-prose leading-relaxed" style={{ color: "var(--site-muted)" }}>
+                  {item.answer}
+                </dd>
               </div>
             ))}
           </dl>

@@ -27,6 +27,7 @@ import {
   IconClock,
   IconUsers,
 } from "@/components/ui/icons";
+import { PRODUCT_NAME } from "@/config/app";
 import { formatDate, formatRelative } from "@/lib/dates";
 import { formatCurrency } from "@/lib/money";
 import { getLeadCounts, listLeads } from "@/modules/marketing/server/queries";
@@ -250,7 +251,7 @@ export default async function SuperAdminDashboardPage() {
               <CardTitle as="h2">Prospectos recientes</CardTitle>
               <p className="text-muted-foreground text-sm">
                 Solicitudes de demo llegadas desde la web de {""}
-                <span className="font-medium">Tu Tiendita</span>.
+                <span className="font-medium">{PRODUCT_NAME}</span>.
               </p>
             </div>
             <Link

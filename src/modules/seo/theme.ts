@@ -71,19 +71,93 @@ function safeColor(value: string, fallback: string): string {
   return HEX.test(value) ? value : fallback;
 }
 
+/** `#rrggbb` to its three channels. Only ever called on a HEX-validated value. */
+function channels(hex: string): [number, number, number] {
+  return [
+    Number.parseInt(hex.slice(1, 3), 16),
+    Number.parseInt(hex.slice(3, 5), 16),
+    Number.parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+/** WCAG relative luminance. 0 is black, 1 is white. */
+function luminance(hex: string): number {
+  const linear = channels(hex).map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4);
+  }) as [number, number, number];
+
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+/**
+ * Black or white, whichever is readable ON `hex`.
+ *
+ * WHY THIS IS COMPUTED AND NOT STORED. A business picks three colours; it does
+ * not pick "the colour of text on top of my button", and asking it to would be
+ * asking it to solve a contrast problem it cannot see. The 0.45 threshold is
+ * slightly above the naive 0.5 because black text wins ties comfortably and
+ * white text on a mid-tone is the failure people actually notice.
+ */
+function readableOn(hex: string): string {
+  return luminance(hex) > 0.45 ? "#111827" : "#ffffff";
+}
+
+/** `rgb(r g b / alpha)` from a hex. For tints that must sit on any background. */
+function withAlpha(hex: string, alpha: number): string {
+  const [r, g, b] = channels(hex);
+  return `rgb(${r} ${g} ${b} / ${alpha})`;
+}
+
 /**
  * The custom properties a tenant page sets on its wrapper element.
  *
  * Prefixed `--site-` so they cannot collide with the design tokens the
  * dashboard uses: a tenant theme must never repaint the platform's own UI.
+ *
+ * FIVE ARE STORED, THE REST ARE DERIVED. A theme row holds three colours, a
+ * font and a radius. A page needs more than that to look finished - body text,
+ * secondary text, hairlines, a panel tint, and a readable label on top of each
+ * brand colour - and every one of those is a function of the five.
+ *
+ * Deriving them rather than storing them is what makes ANY palette safe. When
+ * the renderer hard-codes `text-black/60` it is betting that every business
+ * picks a light background; when it uses `--site-muted` the bet disappears,
+ * because a business that picks a dark background gets light text without
+ * anybody having thought about that case.
  */
 export function themeCssVariables(theme: ThemeValues): CSSProperties {
+  const primary = safeColor(theme.primaryColor, THEME_DEFAULTS.primaryColor);
+  const accent = safeColor(theme.accentColor, THEME_DEFAULTS.accentColor);
+  const background = safeColor(theme.backgroundColor, THEME_DEFAULTS.backgroundColor);
+
+  // Everything readable is measured against the BACKGROUND, so a dark theme
+  // flips the whole page rather than half of it.
+  const foreground = readableOn(background);
+
   const variables: Record<string, string> = {
-    "--site-primary": safeColor(theme.primaryColor, THEME_DEFAULTS.primaryColor),
-    "--site-accent": safeColor(theme.accentColor, THEME_DEFAULTS.accentColor),
-    "--site-background": safeColor(theme.backgroundColor, THEME_DEFAULTS.backgroundColor),
+    "--site-primary": primary,
+    "--site-accent": accent,
+    "--site-background": background,
     "--site-font": FONT_STACKS[theme.fontFamily] ?? FONT_STACKS.system!,
     "--site-radius": RADII[theme.borderRadius] ?? RADII.md!,
+
+    /** Text that sits on `--site-primary` / `--site-accent`. */
+    "--site-on-primary": readableOn(primary),
+    "--site-on-accent": readableOn(accent),
+
+    /** Body copy, secondary copy, and the faintest legible step. */
+    "--site-foreground": foreground,
+    "--site-muted": withAlpha(foreground, 0.65),
+    "--site-subtle": withAlpha(foreground, 0.45),
+
+    /** Hairlines and panels, as a tint of the text colour so they always show. */
+    "--site-border": withAlpha(foreground, 0.12),
+    "--site-surface": withAlpha(foreground, 0.035),
+
+    /** Brand tints, for section bands and badges. */
+    "--site-primary-soft": withAlpha(primary, 0.1),
+    "--site-accent-soft": withAlpha(accent, 0.12),
   };
 
   // The cast is to `CSSProperties`, which has no index signature for custom

@@ -16,6 +16,7 @@ import { PublicLocations } from "@/modules/locations/components/public-locations
 import { listPublicLocations } from "@/modules/locations/server/queries";
 import { JsonLd, localBusinessJsonLd } from "@/modules/seo/structured-data";
 import { themeCssVariables } from "@/modules/seo/theme";
+import { PRODUCT_NAME, VENDOR_NAME, VENDOR_SITE } from "@/config/app";
 
 /**
  * The public website of a tenant.
@@ -146,12 +147,19 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
      * so no stored value can end the attribute or open a rule - see the header
      * of `modules/seo/theme.ts` for why that distinction is a security one and
      * not a stylistic preference.
+     *
+     * Everything below reads those properties. The chrome used to be painted in
+     * the DASHBOARD's tokens - `border-border`, `text-muted-foreground` - which
+     * meant a business could choose any palette it liked and still get a site
+     * that looked like the admin panel. Layout stays Tailwind; colour, radius
+     * and typeface are the tenant's.
      */
     <div
-      className="min-h-dvh"
+      className="flex min-h-dvh flex-col"
       style={{
         ...themeCssVariables(theme),
         background: "var(--site-background)",
+        color: "var(--site-foreground)",
         fontFamily: "var(--site-font)",
       }}
     >
@@ -168,59 +176,114 @@ export default async function SiteLayout({ children }: { children: ReactNode }) 
         })}
       />
 
-      <header className="border-border border-b">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-4">
+      <header
+        className="sticky top-0 z-40 backdrop-blur-md"
+        style={{
+          borderBottom: "1px solid var(--site-border)",
+          background: "color-mix(in srgb, var(--site-background) 88%, transparent)",
+        }}
+      >
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-4">
           <Link
             href="/sitio"
-            className="text-base font-semibold"
+            className="text-lg font-semibold tracking-tight"
             style={{ color: "var(--site-primary)" }}
           >
             {identity.name}
           </Link>
 
-          {navigation.length > 0 ? (
-            <nav aria-label="Principal">
-              <ul className="flex flex-wrap items-center gap-5">
-                {navigation.map((item) => (
-                  <li key={item.id} className="relative">
-                    <Link href={item.href} className="text-sm hover:underline">
-                      {item.label}
-                    </Link>
-                    {item.children.length > 0 ? (
-                      <ul className="mt-1 flex flex-col gap-1">
-                        {item.children.map((child) => (
-                          <li key={child.id}>
-                            <Link
-                              href={child.href}
-                              className="text-muted-foreground text-xs hover:underline"
-                            >
-                              {child.label}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {navigation.length > 0 ? (
+              <nav aria-label="Principal">
+                <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                  {navigation.map((item) => (
+                    <li key={item.id}>
+                      <Link
+                        href={item.href}
+                        className="text-sm font-medium transition-opacity hover:opacity-70"
+                      >
+                        {item.label}
+                      </Link>
+                      {item.children.length > 0 ? (
+                        <ul className="mt-0.5 flex flex-wrap gap-3">
+                          {item.children.map((child) => (
+                            <li key={child.id}>
+                              <Link
+                                href={child.href}
+                                className="text-xs transition-opacity hover:opacity-70"
+                                style={{ color: "var(--site-subtle)" }}
+                              >
+                                {child.label}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ) : null}
+
+            {/*
+              The phone as a button.
+              
+              A shop's website exists so somebody can order from it, and on a
+              phone that still mostly means a call. It appears only when the
+              business filled the number in - an empty button that dials nothing
+              is worse than no button.
+            */}
+            {identity.phone !== null ? (
+              <a
+                href={`tel:${identity.phone.replace(/[^+0-9]/g, "")}`}
+                className="inline-flex h-9 items-center px-4 text-sm font-semibold transition-opacity hover:opacity-90"
+                style={{
+                  background: "var(--site-primary)",
+                  color: "var(--site-on-primary)",
+                  borderRadius: "var(--site-radius)",
+                }}
+              >
+                {identity.phone}
+              </a>
+            ) : null}
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6">{children}</main>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6">{children}</main>
 
-      <footer className="border-border mt-16 border-t">
-        <div className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10">
-          {/* Master section 30: dirección y horarios. Rendered from the Phase
+      <footer className="mt-20" style={{ borderTop: "1px solid var(--site-border)" }}>
+        <div className="mx-auto flex max-w-5xl flex-col gap-10 px-6 py-12">
+          {/* Master section 30: direccion y horarios. Rendered from the Phase
               10 rows, and omitted entirely when a business has not filled any
               of it in - an empty heading is worse than no heading. */}
           <PublicLocations locations={locations} />
 
-          <p className="text-muted-foreground text-xs">
-            {identity.name}
-            {identity.city !== null ? ` · ${identity.city}` : null}
-          </p>
+          <div
+            className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center sm:justify-between"
+            style={{ borderTop: "1px solid var(--site-border)" }}
+          >
+            <p className="text-sm font-medium">
+              {identity.name}
+              {identity.city !== null ? ` · ${identity.city}` : null}
+            </p>
+
+            {/*
+              The platform credit. Small, factual, and linking out rather than
+              to `/` - which on this hostname is the tenant's own site, not
+              ours. It is how a visitor who likes this site finds out who builds
+              them, which is the cheapest marketing channel the product has.
+            */}
+            <a
+              href={VENDOR_SITE}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs transition-opacity hover:opacity-100"
+              style={{ color: "var(--site-subtle)" }}
+            >
+              Hecho con {PRODUCT_NAME} de {VENDOR_NAME}
+            </a>
+          </div>
         </div>
       </footer>
     </div>

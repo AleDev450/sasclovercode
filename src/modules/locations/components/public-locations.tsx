@@ -27,7 +27,15 @@ export function PublicLocations({ locations }: { locations: readonly PublicLocat
 
   return (
     <section aria-labelledby="sedes-heading" className="flex flex-col gap-6">
-      <h2 id="sedes-heading" className="text-sm font-semibold tracking-wide uppercase">
+      {/* Every colour below is a `--site-*` property set by the site layout
+          from `tenant_themes`. This block used to use the DASHBOARD's tokens,
+          so a business's footer stayed CloverCode-grey whatever theme it
+          chose. */}
+      <h2
+        id="sedes-heading"
+        className="text-sm font-semibold tracking-wide uppercase"
+        style={{ color: "var(--site-primary)" }}
+      >
         {locations.length === 1 ? "Donde estamos" : "Nuestras sedes"}
       </h2>
 
@@ -38,14 +46,14 @@ export function PublicLocations({ locations }: { locations: readonly PublicLocat
 
           return (
             <li key={location.id} className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium" style={{ color: "var(--site-primary)" }}>
-                {location.name}
-              </h3>
+              <h3 className="text-sm font-semibold">{location.name}</h3>
 
               <AddressLine location={location} />
 
               {location.reference !== null ? (
-                <p className="text-muted-foreground text-xs">{location.reference}</p>
+                <p className="text-xs" style={{ color: "var(--site-subtle)" }}>
+                  {location.reference}
+                </p>
               ) : null}
 
               {location.phone !== null ? (
@@ -62,13 +70,18 @@ export function PublicLocations({ locations }: { locations: readonly PublicLocat
               {openDays.length === 0 ? (
                 // Never invent hours. "Consultar horario" is honest; a made-up
                 // 9-to-6 sends somebody to a closed door.
-                <p className="text-muted-foreground text-xs">Consultar horario</p>
+                <p className="text-xs" style={{ color: "var(--site-subtle)" }}>
+                  Consultar horario
+                </p>
               ) : (
                 <dl className="mt-1 flex flex-col gap-0.5">
                   {week.map((day) => (
                     <div key={day.dayOfWeek} className="flex justify-between gap-3 text-xs">
-                      <dt className="text-muted-foreground">{day.label}</dt>
-                      <dd className={day.closed ? "text-muted-foreground" : "font-mono"}>
+                      <dt style={{ color: "var(--site-subtle)" }}>{day.label}</dt>
+                      <dd
+                        className={day.closed ? undefined : "font-medium tabular-nums"}
+                        style={day.closed ? { color: "var(--site-subtle)" } : undefined}
+                      >
                         {day.closed ? "Cerrado" : formatShifts(day.shifts)}
                       </dd>
                     </div>

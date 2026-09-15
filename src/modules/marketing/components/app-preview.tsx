@@ -1,4 +1,4 @@
-import { CloverMark } from "@/components/ui";
+import { VendraMark } from "@/components/ui";
 import { IconCart, IconChart, IconStore, IconTruck } from "@/components/ui/icons";
 
 /**
@@ -83,7 +83,9 @@ export function AppPreview() {
         {/* Sidebar. Hidden on a phone, where it would leave no room for content. */}
         <div className="border-border hidden w-40 shrink-0 flex-col gap-1 border-r p-3 sm:flex">
           <div className="mb-3 flex items-center gap-2 px-1">
-            <CloverMark className="size-5" />
+            {/* The PRODUCT mark: this is a mock of a shop owner's panel, and
+                a shop owner's panel wears Vendra, not the company logo. */}
+            <VendraMark className="h-4" />
             <span className="text-xs font-semibold">Mi Bodega</span>
           </div>
           {NAV.map((item) => (

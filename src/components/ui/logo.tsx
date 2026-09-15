@@ -1,34 +1,33 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { PRODUCT_NAME, VENDOR_NAME } from "@/config/app";
+import { PRODUCT_NAME, PRODUCT_SLOGAN, VENDOR_NAME } from "@/config/app";
 
 /**
  * The brand marks.
  *
- * TWO IDENTITIES, AND KEEPING THEM APART MATTERS. `Tu Tiendita` is the product
- * a shop owner buys; `CloverCode` is the company that makes it. A screen inside
+ * TWO IDENTITIES, AND KEEPING THEM APART MATTERS. `Vendra` is the product a
+ * shop owner buys; `Clover Code` is the company that makes it. A screen inside
  * the product wears the product mark, and the company mark appears where
  * authorship is the point - the landing footer, the platform console header.
  * Mixing them is how a customer ends up thinking they bought "a CloverCode".
  *
- * The clover glyph is shared by both, because it is the company mark the
- * product inherits, and it is the one piece of the identity that is genuinely
- * the same object.
+ * They have SEPARATE GLYPHS: a shopping cart for Vendra, a clover for Clover
+ * Code. Both are drawn in the same teal and both carry the same corner bracket,
+ * so the pair reads as a family without either standing in for the other.
  *
- * ASSETS. `public/brand/` holds four files derived from the original logo
- * artwork: the clover on its own in teal and in white, and the CloverCode
- * wordmark with dark ink and with white ink. Which one to use is decided by
- * the SURFACE it sits on, never by the theme alone - a white logo on the teal
- * hero is correct in light mode too.
+ * ASSETS. `public/brand/` holds two sets of four. Per identity: the glyph alone
+ * in teal and in white, and the full wordmark with dark ink and with white ink.
+ * Which one to use is decided by the SURFACE it sits on, never by the theme
+ * alone - a white logo on the teal hero is correct in light mode too.
  */
 
-/** Intrinsic size of `clover-mark.png`, so `next/image` never guesses. */
-const MARK_ASPECT = { width: 161, height: 156 } as const;
+/** Intrinsic sizes, so `next/image` never guesses and never reflows. */
+const VENDRA_MARK_ASPECT = { width: 419, height: 329 } as const;
+const VENDRA_WORDMARK_ASPECT = { width: 1444, height: 331 } as const;
+const CLOVER_MARK_ASPECT = { width: 161, height: 156 } as const;
+const CLOVER_WORDMARK_ASPECT = { width: 639, height: 274 } as const;
 
-/** Intrinsic size of the wordmark files. */
-const WORDMARK_ASPECT = { width: 639, height: 274 } as const;
-
-export interface CloverMarkProps {
+export interface MarkProps {
   /** `teal` on light surfaces, `white` on the teal or ink ones. */
   tone?: "teal" | "white";
   /** The drawn box. Pass a Tailwind size, e.g. `size-8`. */
@@ -41,8 +40,14 @@ export interface CloverMarkProps {
   label?: string;
 }
 
-export function CloverMark({ tone = "teal", className, label }: CloverMarkProps) {
-  const src = tone === "white" ? "/brand/clover-mark-white.png" : "/brand/clover-mark.png";
+/**
+ * The Vendra cart.
+ *
+ * Wider than it is tall, unlike the clover - so it takes `h-*` rather than
+ * `size-*` at call sites that care about optical balance.
+ */
+export function VendraMark({ tone = "teal", className, label }: MarkProps) {
+  const src = tone === "white" ? "/brand/vendra-mark-white.png" : "/brand/vendra-mark.png";
 
   return (
     <Image
@@ -51,11 +56,28 @@ export function CloverMark({ tone = "teal", className, label }: CloverMarkProps)
       aria-hidden={label === undefined ? true : undefined}
       // The INTRINSIC dimensions Next.js needs to reserve space. What the
       // browser actually draws comes from `className`.
-      width={MARK_ASPECT.width}
-      height={MARK_ASPECT.height}
+      width={VENDRA_MARK_ASPECT.width}
+      height={VENDRA_MARK_ASPECT.height}
       // `unoptimized` because these are already small, hand-tuned PNGs with
       // alpha; running them through the optimiser costs a function invocation
       // per variant and gains nothing measurable.
+      unoptimized
+      className={cn("w-auto object-contain", className)}
+    />
+  );
+}
+
+/** The Clover Code clover. The COMPANY mark - see the note at the top. */
+export function CloverMark({ tone = "teal", className, label }: MarkProps) {
+  const src = tone === "white" ? "/brand/clover-mark-white.png" : "/brand/clover-mark.png";
+
+  return (
+    <Image
+      src={src}
+      alt={label ?? ""}
+      aria-hidden={label === undefined ? true : undefined}
+      width={CLOVER_MARK_ASPECT.width}
+      height={CLOVER_MARK_ASPECT.height}
       unoptimized
       className={cn("object-contain", className)}
     />
@@ -68,30 +90,34 @@ export interface ProductLogoProps {
   size?: "sm" | "md" | "lg";
   className?: string;
   /**
-   * Adds the `por CloverCode` credit under the name. The landing header and
-   * the sign-in screen use it; a dashboard sidebar does not need it on every
-   * page view.
+   * Adds `Vende. Gestiona. Crece.` under the name, as the artwork has it. For
+   * a first impression - the landing header, the sign-in screen - not for a
+   * dashboard sidebar that shows it on every page view.
    */
+  withSlogan?: boolean;
+  /** Adds the `por Clover Code` credit instead. Mutually exclusive in practice. */
   withVendor?: boolean;
 }
 
 const PRODUCT_SIZES = {
-  sm: { mark: "size-6", name: "text-sm", vendor: "text-[0.625rem]" },
-  md: { mark: "size-8", name: "text-lg", vendor: "text-[0.6875rem]" },
-  lg: { mark: "size-11", name: "text-2xl", vendor: "text-xs" },
+  sm: { mark: "h-5", name: "text-sm", sub: "text-[0.5625rem]" },
+  md: { mark: "h-7", name: "text-lg", sub: "text-[0.625rem]" },
+  lg: { mark: "h-10", name: "text-2xl", sub: "text-xs" },
 } as const;
 
 /**
- * The product lockup: clover glyph + `Tu Tiendita`.
+ * The product lockup: the cart + `Vendra`.
  *
  * The name is TEXT, not an image. It scales with the user font size, it is
- * selectable, it is in the accessibility tree without an `alt`, and it costs
- * no request - all of which an image of a word does not do.
+ * selectable, it is in the accessibility tree without an `alt`, and it costs no
+ * request - none of which an image of a word does. `VendraWordmark` below is
+ * the artwork, for the few places that want the real logotype.
  */
 export function ProductLogo({
   tone = "default",
   size = "md",
   className,
+  withSlogan = false,
   withVendor = false,
 }: ProductLogoProps) {
   const s = PRODUCT_SIZES[size];
@@ -99,7 +125,7 @@ export function ProductLogo({
 
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <CloverMark tone={inverted ? "white" : "teal"} className={s.mark} />
+      <VendraMark tone={inverted ? "white" : "teal"} className={s.mark} />
       <span className="flex flex-col leading-none">
         <span
           className={cn(
@@ -110,11 +136,21 @@ export function ProductLogo({
         >
           {PRODUCT_NAME}
         </span>
-        {withVendor ? (
+        {withSlogan ? (
+          <span
+            className={cn(
+              "mt-1 font-medium",
+              s.sub,
+              inverted ? "text-white/70" : "text-muted-foreground",
+            )}
+          >
+            {PRODUCT_SLOGAN}
+          </span>
+        ) : withVendor ? (
           <span
             className={cn(
               "mt-1 font-medium tracking-wide uppercase",
-              s.vendor,
+              s.sub,
               inverted ? "text-white/60" : "text-muted-foreground",
             )}
           >
@@ -126,7 +162,7 @@ export function ProductLogo({
   );
 }
 
-export interface CloverWordmarkProps {
+export interface WordmarkProps {
   /** `default` for light surfaces, `inverted` for dark ones. */
   tone?: "default" | "inverted";
   /** The drawn width, e.g. `w-36`. The height follows the aspect ratio. */
@@ -134,13 +170,32 @@ export interface CloverWordmarkProps {
 }
 
 /**
- * The full CloverCode wordmark, as artwork.
+ * The full Vendra logotype, as artwork - cart, name and slogan together.
  *
- * This one IS an image, because it is a drawn logotype with a bespoke glyph -
- * reproducing it with a web font would produce something that is nearly the
- * logo, which is worse than an image.
+ * An image rather than text, because it is a drawn logotype with bespoke
+ * letterforms; reproducing it with a web font would produce something that is
+ * NEARLY the logo, which is worse than an image. Use `ProductLogo` anywhere the
+ * mark has to sit inline with interface type.
  */
-export function CloverWordmark({ tone = "default", className }: CloverWordmarkProps) {
+export function VendraWordmark({ tone = "default", className }: WordmarkProps) {
+  const src =
+    tone === "inverted" ? "/brand/vendra-wordmark-light.png" : "/brand/vendra-wordmark-dark.png";
+
+  return (
+    <Image
+      src={src}
+      alt={`${PRODUCT_NAME} — ${PRODUCT_SLOGAN}`}
+      width={VENDRA_WORDMARK_ASPECT.width}
+      height={VENDRA_WORDMARK_ASPECT.height}
+      unoptimized
+      priority
+      className={cn("h-auto object-contain", className)}
+    />
+  );
+}
+
+/** The full Clover Code wordmark, as artwork. The COMPANY logotype. */
+export function CloverWordmark({ tone = "default", className }: WordmarkProps) {
   const src =
     tone === "inverted"
       ? "/brand/clovercode-wordmark-light.png"
@@ -150,8 +205,8 @@ export function CloverWordmark({ tone = "default", className }: CloverWordmarkPr
     <Image
       src={src}
       alt={VENDOR_NAME}
-      width={WORDMARK_ASPECT.width}
-      height={WORDMARK_ASPECT.height}
+      width={CLOVER_WORDMARK_ASPECT.width}
+      height={CLOVER_WORDMARK_ASPECT.height}
       unoptimized
       className={cn("h-auto object-contain", className)}
     />

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ProductLogo, buttonVariants } from "@/components/ui";
+import { PRODUCT_NAME } from "@/config/app";
 import { IconClose, IconMenu } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ export function SiteHeader() {
       )}
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" className="rounded-lg" aria-label="Tu Tiendita, inicio">
+        <Link href="/" className="rounded-lg" aria-label={`${PRODUCT_NAME}, inicio`}>
           <ProductLogo size="md" />
         </Link>
 

@@ -55,7 +55,46 @@ export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean
     // Tailwind emits a stylesheet, not inline styles - but Next.js injects
     // inline `<style>` during development, so the nonce alone would break the
     // dev server without this branch.
+    //
+    // This governs STYLESHEETS and `<style>` ELEMENTS. Style ATTRIBUTES are
+    // governed by `style-src-attr` below, which deliberately says something
+    // different.
     `style-src 'self' 'nonce-${nonce}'${isDevelopment ? " 'unsafe-inline'" : ""}`,
+
+    /*
+     * Style ATTRIBUTES, and why this one says `'unsafe-inline'`.
+     *
+     * `style-src-attr` falls back to `style-src` when it is absent, so until
+     * now the policy forbade every `style={...}` in the product - and the
+     * product has several that are not decoration:
+     *
+     *   - the tenant theme, which reaches a public site as `--site-*` custom
+     *     properties on one wrapper element (`modules/seo/theme.ts`). This is
+     *     the whole of Phase 08's theming, and with the attribute dropped a
+     *     business's colours simply never applied in production.
+     *   - the bar widths in the sales reports, which are a number per row.
+     *   - the colour swatches in the theme editor.
+     *
+     * A NONCE CANNOT FIX THIS. Nonces apply to elements, not to attributes;
+     * there is no such thing as a nonced `style=""`. The only alternatives were
+     * a generated `<style>` block - which `theme.ts` argues against at length,
+     * because a stylesheet built by concatenation is one an author can inject
+     * into - or dropping the feature.
+     *
+     * WHAT IS ACTUALLY GIVEN UP. An attacker who can already inject markup
+     * could add a `style` attribute: an exfiltrating `background: url(...)`, or
+     * a full-viewport overlay for clickjacking. Both require the injection to
+     * happen first, and `script-src` - which keeps its nonce and gives up
+     * nothing - is the directive that stops that. Note also what is NOT given
+     * up: `style-src` above still refuses an inline `<style>` element without
+     * the nonce, so the larger primitive stays closed.
+     *
+     * Every value that reaches a style attribute here is either a literal in
+     * the source or a value React serialises through its style-object escaping,
+     * and the tenant colours are additionally re-validated against
+     * `^#[0-9a-f]{6}$` at render time.
+     */
+    "style-src-attr 'unsafe-inline'",
 
     // `blob:` and `data:` because a tenant's logo can be previewed before it is
     // uploaded, and Supabase Storage serves the stored one over https.

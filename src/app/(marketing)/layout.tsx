@@ -91,7 +91,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6">
           <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
             <div className="flex flex-col gap-4">
-              <ProductLogo size="md" />
+              <ProductLogo size="md" withSlogan />
               <p className="text-muted-foreground max-w-xs text-sm">{PRODUCT_TAGLINE}</p>
             </div>
 

@@ -6,11 +6,16 @@
  * CLOVERCODE_MASTER.md section 34: the product must feel like a professional
  * SaaS - clean, consistent, with clear hierarchy and uniform spacing.
  *
- * THE PALETTE IS THE BRAND. Every colour below is derived from the CloverCode
- * logo: the clover teal #09b3ba (oklch 0.697 0.118 200) and the near-black
- * #030405 it sits on. Hue 200 is therefore fixed across the whole scale, and
+ * THE PALETTE IS THE BRAND. Every colour below is derived from the VENDRA
+ * logo: the cart teal #00afbd (oklch 0.688 0.117 205) and the near-black
+ * #060d14 it sits on. Hue 205 is therefore fixed across the whole scale, and
  * the neutrals carry a trace of the same hue so greys never read as muddy
  * beside it.
+ *
+ * It was hue 200 until the product was named. That was CloverCode's clover
+ * teal, and CloverCode is the company, not the product - these tokens paint
+ * VENDRA, so they follow Vendra. The five degrees are imperceptible side by
+ * side, which is the point: the two marks still sit together without clashing.
  *
  * WHY --brand AND --primary ARE DIFFERENT VALUES. The logo teal has a 2.6:1
  * contrast against white - fine for a mark, a border or a 48px headline, and
@@ -38,22 +43,22 @@
 
   /* ---------------------------------------------------------------------
    * Brand scale. Straight from the logo, lightest to darkest.
-   * --brand-500 IS #09b3ba; everything else is that hue held constant with
-   * lightness and chroma moved along it.
+   * --brand-500 IS the cart teal #00afbd; everything else is that hue held
+   * constant with lightness and chroma moved along it.
    * ------------------------------------------------------------------ */
-  --brand-50: oklch(0.977 0.013 200);
-  --brand-100: oklch(0.945 0.03 200);
-  --brand-200: oklch(0.914 0.044 200);
-  --brand-300: oklch(0.833 0.083 200);
-  --brand-400: oklch(0.76 0.11 200);
-  --brand-500: oklch(0.697 0.118 200);
-  --brand-600: oklch(0.6 0.105 200);
-  --brand-700: oklch(0.54 0.095 200);
-  --brand-800: oklch(0.432 0.072 200);
-  --brand-900: oklch(0.34 0.055 200);
-  --brand-950: oklch(0.2825 0.045 200);
+  --brand-50: oklch(0.977 0.013 205);
+  --brand-100: oklch(0.945 0.03 205);
+  --brand-200: oklch(0.914 0.044 205);
+  --brand-300: oklch(0.833 0.083 205);
+  --brand-400: oklch(0.76 0.11 205);
+  --brand-500: oklch(0.688 0.117 205);
+  --brand-600: oklch(0.6 0.105 205);
+  --brand-700: oklch(0.54 0.095 205);
+  --brand-800: oklch(0.432 0.072 205);
+  --brand-900: oklch(0.34 0.055 205);
+  --brand-950: oklch(0.2825 0.045 205);
 
-  /* The near-black of the logo sheet. The ink of the product. */
+  /* The near-black of the wordmark. The ink of the product. */
   --ink: oklch(0.145 0.008 240);
 
   --background: oklch(1 0 0);
@@ -75,7 +80,7 @@
   --muted-foreground: oklch(0.505 0.012 240);
 
   /* Accessible brand. Every button, link and focus ring. 4.8:1 on white. */
-  --primary: oklch(0.54 0.095 200);
+  --primary: oklch(0.54 0.095 205);
   --primary-foreground: oklch(0.99 0 0);
 
   /* The literal logo teal. Graphics and display type ONLY - see the note above. */
@@ -85,8 +90,8 @@
   --secondary: oklch(0.968 0.003 230);
   --secondary-foreground: oklch(0.24 0.008 240);
 
-  --accent: oklch(0.962 0.018 200);
-  --accent-foreground: oklch(0.34 0.055 200);
+  --accent: oklch(0.962 0.018 205);
+  --accent-foreground: oklch(0.34 0.055 205);
 
   --destructive: oklch(0.55 0.215 27);
   --destructive-foreground: oklch(0.99 0 0);
@@ -97,12 +102,12 @@
   --warning: oklch(0.6 0.14 62);
   --warning-foreground: oklch(0.99 0 0);
 
-  --info: oklch(0.54 0.095 200);
+  --info: oklch(0.54 0.095 205);
   --info-foreground: oklch(0.99 0 0);
 
   --border: oklch(0.912 0.005 240);
   --input: oklch(0.9 0.006 240);
-  --ring: oklch(0.6 0.105 200);
+  --ring: oklch(0.6 0.105 205);
 
   /*
    * Elevation. Three steps, and no component invents a fourth.
@@ -118,14 +123,14 @@
   --elevation-3:
     0 4px 8px -4px oklch(0.17 0.008 240 / 0.1), 0 24px 48px -12px oklch(0.17 0.008 240 / 0.16);
   /* A brand-tinted glow, for the primary CTA and the active nav item. */
-  --elevation-brand: 0 6px 24px -8px oklch(0.6 0.105 200 / 0.45);
+  --elevation-brand: 0 6px 24px -8px oklch(0.6 0.105 205 / 0.45);
 
   /*
    * Data visualisation. Five hues that stay distinguishable in both themes and
    * in the common forms of colour blindness, starting from the brand.
    * Section 34: charts must not each pick their own colours.
    */
-  --chart-1: oklch(0.6 0.105 200);
+  --chart-1: oklch(0.6 0.105 205);
   --chart-2: oklch(0.62 0.14 258);
   --chart-3: oklch(0.66 0.15 55);
   --chart-4: oklch(0.58 0.15 330);
@@ -133,17 +138,17 @@
 }
 
 .dark {
-  --brand-50: oklch(0.2825 0.045 200);
-  --brand-100: oklch(0.34 0.055 200);
-  --brand-200: oklch(0.432 0.072 200);
-  --brand-300: oklch(0.54 0.095 200);
-  --brand-400: oklch(0.6 0.105 200);
-  --brand-500: oklch(0.697 0.118 200);
-  --brand-600: oklch(0.76 0.11 200);
-  --brand-700: oklch(0.833 0.083 200);
-  --brand-800: oklch(0.914 0.044 200);
-  --brand-900: oklch(0.945 0.03 200);
-  --brand-950: oklch(0.977 0.013 200);
+  --brand-50: oklch(0.2825 0.045 205);
+  --brand-100: oklch(0.34 0.055 205);
+  --brand-200: oklch(0.432 0.072 205);
+  --brand-300: oklch(0.54 0.095 205);
+  --brand-400: oklch(0.6 0.105 205);
+  --brand-500: oklch(0.688 0.117 205);
+  --brand-600: oklch(0.76 0.11 205);
+  --brand-700: oklch(0.833 0.083 205);
+  --brand-800: oklch(0.914 0.044 205);
+  --brand-900: oklch(0.945 0.03 205);
+  --brand-950: oklch(0.977 0.013 205);
 
   --ink: oklch(0.105 0.005 244);
 
@@ -160,17 +165,17 @@
   --muted-foreground: oklch(0.715 0.01 240);
 
   /* Lightened, because the same teal that passes on white fails on near-black. */
-  --primary: oklch(0.78 0.115 200);
+  --primary: oklch(0.78 0.115 205);
   --primary-foreground: oklch(0.16 0.008 240);
 
-  --brand: oklch(0.72 0.12 200);
+  --brand: oklch(0.72 0.12 205);
   --brand-foreground: oklch(0.145 0.008 240);
 
   --secondary: oklch(0.265 0.009 240);
   --secondary-foreground: oklch(0.975 0.003 230);
 
-  --accent: oklch(0.29 0.04 200);
-  --accent-foreground: oklch(0.93 0.04 200);
+  --accent: oklch(0.29 0.04 205);
+  --accent-foreground: oklch(0.93 0.04 205);
 
   --destructive: oklch(0.69 0.19 25);
   --destructive-foreground: oklch(0.16 0.008 240);
@@ -181,21 +186,21 @@
   --warning: oklch(0.79 0.15 75);
   --warning-foreground: oklch(0.16 0.008 240);
 
-  --info: oklch(0.78 0.115 200);
+  --info: oklch(0.78 0.115 205);
   --info-foreground: oklch(0.16 0.008 240);
 
   --border: oklch(0.29 0.009 240);
   --input: oklch(0.32 0.009 240);
-  --ring: oklch(0.78 0.115 200);
+  --ring: oklch(0.78 0.115 205);
 
   /* Dark surfaces get their separation from borders and light, not from grey
      shadows that are invisible against a dark page. */
   --elevation-1: 0 1px 2px oklch(0 0 0 / 0.4);
   --elevation-2: 0 2px 4px -2px oklch(0 0 0 / 0.4), 0 8px 20px -6px oklch(0 0 0 / 0.5);
   --elevation-3: 0 4px 8px -4px oklch(0 0 0 / 0.5), 0 24px 48px -12px oklch(0 0 0 / 0.6);
-  --elevation-brand: 0 6px 24px -8px oklch(0.697 0.118 200 / 0.5);
+  --elevation-brand: 0 6px 24px -8px oklch(0.688 0.117 205 / 0.5);
 
-  --chart-1: oklch(0.78 0.115 200);
+  --chart-1: oklch(0.78 0.115 205);
   --chart-2: oklch(0.72 0.13 258);
   --chart-3: oklch(0.78 0.14 60);
   --chart-4: oklch(0.72 0.14 330);
@@ -358,7 +363,7 @@
   .bg-brand-aura {
     background-image: radial-gradient(
       60% 60% at 50% 0%,
-      oklch(0.697 0.118 200 / 0.18) 0%,
+      oklch(0.688 0.117 205 / 0.18) 0%,
       transparent 70%
     );
   }

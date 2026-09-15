@@ -36,7 +36,7 @@ import { ContactForm } from "@/modules/marketing/components/contact-form";
 import { Pricing } from "@/modules/marketing/components/pricing";
 
 /**
- * The landing page for `Tu Tiendita`.
+ * The landing page for `Vendra`.
  *
  * WHAT IS NOT ON THIS PAGE, and why. There are no customer logos, no
  * testimonials and no "+500 negocios ya confian en nosotros". Every one of

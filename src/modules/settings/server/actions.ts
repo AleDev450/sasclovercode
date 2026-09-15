@@ -24,6 +24,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireActiveTenant } from "@/lib/tenant/active";
 import { toFieldErrors } from "@/lib/validation";
 import { businessSettingsSchema, socialLinkSchema, themeSchema } from "../schemas";
+import { findPreset } from "../theme-presets";
 
 function readText(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -92,6 +93,75 @@ export async function updateBusinessSettingsAction(
   return { status: "success", message: "Configuracion guardada." };
 }
 
+/**
+ * Applies one of the offered themes.
+ *
+ * WHY THIS IS NOT `updateThemeAction` WITH FIVE HIDDEN FIELDS. A form that
+ * posts the colours would let a caller send any five values under the name of a
+ * preset, so the "preset" would be a label on arbitrary input rather than a
+ * choice from a list. Sending the ID and resolving it on the server means the
+ * set of reachable outcomes is exactly the set in `theme-presets.ts`.
+ *
+ * It still writes through the same five columns and the same schema as the
+ * custom editor: a preset is a starting point, not a mode, and nothing
+ * downstream can tell which path wrote the row.
+ */
+export async function applyThemePresetAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const tenant = await requireSettingsAccess(formData);
+
+  const preset = findPreset(readText(formData, "presetId"));
+  if (preset === undefined) {
+    return { status: "error", message: "Ese tema no existe." };
+  }
+
+  // Through the schema, not straight to the update. The presets are literals in
+  // this repository and should always pass - which is exactly why running them
+  // through the same validation costs nothing and catches the day somebody adds
+  // a ninth preset with a typo in a hex value.
+  const parsed = themeSchema.safeParse({
+    primaryColor: preset.primaryColor,
+    accentColor: preset.accentColor,
+    backgroundColor: preset.backgroundColor,
+    fontFamily: preset.fontFamily,
+    borderRadius: preset.borderRadius,
+  });
+
+  if (!parsed.success) {
+    logger.error("theme.preset_invalid", { presetId: preset.id });
+    return { status: "error", message: "Ese tema no se pudo aplicar." };
+  }
+
+  const input = parsed.data;
+  const client = await createSupabaseServerClient();
+
+  const { error } = await client
+    .from("tenant_themes")
+    .update({
+      primary_color: input.primaryColor,
+      accent_color: input.accentColor,
+      background_color: input.backgroundColor,
+      font_family: input.fontFamily,
+      border_radius: input.borderRadius,
+    })
+    .eq("tenant_id", tenant.id);
+
+  if (error) {
+    logger.error("theme.preset_apply_failed", { tenantId: tenant.id, presetId: preset.id, error });
+    throw new DatabaseError("Theme preset update failed.", { cause: error });
+  }
+
+  logger.info("theme.preset_applied", { tenantId: tenant.id, presetId: preset.id });
+  revalidatePath(`/dashboard/${tenant.slug}/configuracion/tema`);
+  // The public site renders the theme, so its cache is stale the moment this
+  // succeeds.
+  revalidatePath("/sitio", "layout");
+
+  return { status: "success", message: `Tema "${preset.name}" aplicado.` };
+}
+
 export async function updateThemeAction(
   _previous: FormState,
   formData: FormData,
@@ -131,6 +201,7 @@ export async function updateThemeAction(
 
   logger.info("theme.updated", { tenantId: tenant.id });
   revalidatePath(`/dashboard/${tenant.slug}/configuracion/tema`);
+  revalidatePath("/sitio", "layout");
 
   return { status: "success", message: "Tema guardado." };
 }
