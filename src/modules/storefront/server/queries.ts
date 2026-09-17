@@ -489,3 +489,32 @@ export async function getStorefrontSettings(tenantId: string): Promise<Storefron
     bestsellersDays: data.bestsellers_days,
   };
 }
+
+export type HomeStructureStatus = "missing" | "draft" | "legacy" | "ready";
+
+/**
+ * Where the business's home page stands against the restaurant structure, for
+ * the Tienda online screen: no page, a draft, an older page without the slider,
+ * shortcuts and bestsellers, or ready.
+ */
+export async function getHomeStructureStatus(tenantId: string): Promise<HomeStructureStatus> {
+  const client = await createSupabaseServerClient();
+  const { data, error } = await client
+    .from("pages")
+    .select("status, page_sections(type)")
+    .eq("tenant_id", tenantId)
+    .eq("slug", "inicio")
+    .maybeSingle();
+
+  if (error) {
+    logger.error("storefront.home_status_failed", { tenantId, error });
+    return "ready";
+  }
+  if (data === null) return "missing";
+  if (data.status !== "published") return "draft";
+
+  const structure = new Set(["slider", "shortcuts", "bestsellers"]);
+  return (data.page_sections ?? []).some((section) => structure.has(section.type))
+    ? "ready"
+    : "legacy";
+}

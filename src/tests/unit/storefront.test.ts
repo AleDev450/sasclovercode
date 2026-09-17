@@ -18,6 +18,7 @@ import {
   WEB_ORDER_ERRORS,
   webOrderErrorMessage,
 } from "@/modules/storefront/errors";
+import { planHomeUpgrade } from "@/modules/storefront/home-upgrade";
 import { summarizeWeek } from "@/modules/storefront/hours";
 import { checkoutSchema, storefrontSettingsSchema } from "@/modules/storefront/schemas";
 import { orderWhatsappMessage, whatsappDigits, whatsappUrl } from "@/modules/storefront/whatsapp";
@@ -284,5 +285,50 @@ describe("schemas", () => {
       bestsellersDays: "30",
     });
     expect(neither.success).toBe(false);
+  });
+});
+
+describe("upgrading an existing home page", () => {
+  const section = (id: string, type: string, position: number, isVisible = true) => ({
+    id,
+    type,
+    position,
+    isVisible,
+  });
+
+  it("puts the structure on top, moves everything down and hides what it replaces", () => {
+    const plan = planHomeUpgrade([
+      section("hero", "hero", 0),
+      section("banner", "banner", 1),
+      section("carta", "products", 2),
+      section("nosotros", "text", 3),
+      section("oculta", "products", 4, false),
+    ]);
+
+    expect(plan.alreadyApplied).toBe(false);
+    expect(plan.insert).toEqual([
+      { type: "slider", position: 0 },
+      { type: "shortcuts", position: 1 },
+      { type: "bestsellers", position: 2 },
+    ]);
+    expect(plan.move).toEqual([
+      { id: "hero", position: 3 },
+      { id: "banner", position: 4 },
+      { id: "carta", position: 5 },
+      { id: "nosotros", position: 6 },
+      { id: "oculta", position: 7 },
+    ]);
+    // Hidden, never deleted; an already hidden section is left as it was.
+    expect(plan.hide).toEqual(["hero", "carta"]);
+  });
+
+  it("creates the three on an empty page and does nothing to a page that has them", () => {
+    expect(planHomeUpgrade([]).insert).toHaveLength(3);
+    expect(planHomeUpgrade([section("s", "slider", 0), section("t", "text", 1)])).toEqual({
+      alreadyApplied: true,
+      insert: [],
+      move: [],
+      hide: [],
+    });
   });
 });

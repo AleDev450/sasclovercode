@@ -32,6 +32,7 @@ import { toFieldErrors } from "@/lib/validation";
 import { getSiteContext } from "@/modules/cms/server/site-context";
 import { SECTION_TEMPLATES } from "@/modules/cms/section-meta";
 import { isKnownWebOrderError, webOrderErrorMessage } from "../errors";
+import { planHomeUpgrade } from "../home-upgrade";
 import { checkoutSchema, storefrontSettingsSchema } from "../schemas";
 
 function readText(formData: FormData, key: string): string {
@@ -223,10 +224,12 @@ export async function setPaymentMethodWebsiteAction(formData: FormData): Promise
 /**
  * Gives a business the restaurant home page in one click.
  *
- * Creates the `inicio` page, published, with the slider, the shortcuts and the
- * bestsellers - the structure of Sugu Rolls. An existing `inicio` is never
- * overwritten: if it has sections it is left alone, and if it is empty it gets
- * the three. Somebody who built their own home page did it on purpose.
+ * Puts the slider, the shortcuts and the bestsellers - the structure of Sugu
+ * Rolls - at the top of the `inicio` page, creating it if there is none, and
+ * publishes it. An existing home page is never overwritten: its sections move
+ * down, and the hero and product lists the new structure replaces are hidden,
+ * not deleted (`planHomeUpgrade`). A page that already has the structure is
+ * left alone.
  */
 export async function applyStorefrontTemplateAction(
   _previous: FormState,
@@ -239,7 +242,7 @@ export async function applyStorefrontTemplateAction(
 
   const { data: existing, error: lookupError } = await client
     .from("pages")
-    .select("id, page_sections(id)")
+    .select("id, page_sections(id, type, position, is_visible)")
     .eq("tenant_id", tenant.id)
     .eq("slug", "inicio")
     .maybeSingle();
@@ -249,11 +252,19 @@ export async function applyStorefrontTemplateAction(
     throw new DatabaseError("Home page lookup failed.", { cause: lookupError });
   }
 
-  if (existing !== null && (existing.page_sections ?? []).length > 0) {
+  const plan = planHomeUpgrade(
+    (existing?.page_sections ?? []).map((section) => ({
+      id: section.id,
+      type: section.type,
+      position: section.position,
+      isVisible: section.is_visible,
+    })),
+  );
+
+  if (plan.alreadyApplied) {
     return {
       status: "error",
-      message:
-        "Tu portada ya tiene secciones. Editala desde Paginas para no perder lo que hiciste.",
+      message: "Tu portada ya tiene la estructura de restaurante. Editala desde Paginas.",
     };
   }
 
@@ -273,7 +284,33 @@ export async function applyStorefrontTemplateAction(
     pageId = created.id;
   }
 
-  const sections = (["slider", "shortcuts", "bestsellers"] as const).map((type, position) => ({
+  // The existing sections step down first, so the new ones land on top. Nothing
+  // is deleted; the replaced ones are only hidden (see `home-upgrade.ts`).
+  for (const move of plan.move) {
+    const { error } = await client
+      .from("page_sections")
+      .update({ position: move.position })
+      .eq("id", move.id)
+      .eq("tenant_id", tenant.id);
+    if (error) {
+      logger.error("storefront.template_move_failed", { tenantId: tenant.id, error });
+      throw new DatabaseError("Home page reorder failed.", { cause: error });
+    }
+  }
+
+  if (plan.hide.length > 0) {
+    const { error } = await client
+      .from("page_sections")
+      .update({ is_visible: false })
+      .in("id", [...plan.hide])
+      .eq("tenant_id", tenant.id);
+    if (error) {
+      logger.error("storefront.template_hide_failed", { tenantId: tenant.id, error });
+      throw new DatabaseError("Home page hide failed.", { cause: error });
+    }
+  }
+
+  const sections = plan.insert.map(({ type, position }) => ({
     page_id: pageId,
     tenant_id: tenant.id,
     type,
@@ -301,5 +338,11 @@ export async function applyStorefrontTemplateAction(
   logger.info("storefront.template_applied", { tenantId: tenant.id });
   revalidatePath(`/dashboard/${tenant.slug}/contenido`);
   revalidatePath("/sitio", "layout");
-  return { status: "success", message: "Portada creada. Sube las fotos del slider desde Paginas." };
+  return {
+    status: "success",
+    message:
+      plan.hide.length > 0
+        ? "Portada de restaurante lista. Tu portada anterior quedo oculta (no se borro): puedes mostrarla desde Paginas."
+        : "Portada creada. Sube las fotos del slider desde Paginas.",
+  };
 }

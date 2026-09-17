@@ -7,7 +7,6 @@ import { hasFeature } from "@/lib/features/check";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { requireActiveTenant } from "@/lib/tenant/active";
-import { listPageSlugs } from "@/modules/cms/server/admin-queries";
 import { listLocations } from "@/modules/locations/server/queries";
 import { PROVIDER_LABELS } from "@/modules/online-payments/credentials";
 import { getGatewaySummary } from "@/modules/online-payments/server/queries";
@@ -16,6 +15,7 @@ import {
   StorefrontSettingsForm,
 } from "@/modules/storefront/components/storefront-settings-form";
 import {
+  getHomeStructureStatus,
   getPublicStorefront,
   getStorefrontSettings,
   listPublicPaymentMethods,
@@ -42,12 +42,12 @@ export default async function StorefrontPage({
   if (!(await hasFeature(tenant.id, MODULES.WEBSITE))) notFound();
   if (!(await hasPermission(tenant.id, PERMISSIONS.SETTINGS_MANAGE))) notFound();
 
-  const [settings, live, locations, pages, methods, hasDelivery, hasOrders, gateway, hasOnline] =
+  const [settings, live, locations, home, methods, hasDelivery, hasOrders, gateway, hasOnline] =
     await Promise.all([
       getStorefrontSettings(tenant.id),
       getPublicStorefront(tenant.id),
       listLocations(tenant.id),
-      listPageSlugs(tenant.id),
+      getHomeStructureStatus(tenant.id),
       listPublicPaymentMethods(tenant.id),
       hasFeature(tenant.id, MODULES.DELIVERY),
       hasFeature(tenant.id, MODULES.ORDERS),
@@ -55,7 +55,6 @@ export default async function StorefrontPage({
       hasFeature(tenant.id, MODULES.ONLINE_PAYMENTS),
     ]);
 
-  const home = pages.find((page) => page.slug === "inicio");
   const base = `/dashboard/${tenant.slug}`;
 
   const shortcuts = [
@@ -172,14 +171,16 @@ export default async function StorefrontPage({
         </CardContent>
       </Card>
 
-      {home === undefined || home.status !== "published" ? (
+      {home !== "ready" ? (
         <Card>
           <CardHeader>
             <CardTitle as="h2">Tu portada</CardTitle>
             <CardDescription>
-              {home === undefined
+              {home === "missing"
                 ? "Tu web todavia no tiene portada. Crea la de restaurante: slider de fotos, accesos a la carta y al delivery, y tus platos mas pedidos."
-                : "Tu portada esta en borrador, asi que los clientes no la ven."}
+                : home === "draft"
+                  ? "Tu portada esta en borrador, asi que los clientes no la ven."
+                  : "Tu portada es anterior a la estructura de restaurante. Agrega arriba el slider, los accesos y los mas pedidos: tu portada actual se oculta, no se borra."}
             </CardDescription>
           </CardHeader>
           <CardContent>
