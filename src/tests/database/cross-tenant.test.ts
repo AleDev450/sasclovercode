@@ -528,23 +528,71 @@ describe("SECURITY DEFINER functions (TEST-2527, TEST-2528)", () => {
   it("gates every tenant-taking SECURITY DEFINER function, or names why not", async () => {
     // A SECURITY DEFINER function bypasses RLS, so its gate is the ONLY defence.
     // Any function that accepts a tenant id must consult `has_permission`,
-    // `is_tenant_member` or `is_platform_admin` - unless it is one of these
-    // five, each of which was reviewed in Phase 25 and each of which has a
-    // reason. A SIXTH appearing on its own fails this test, which is the point:
-    // the exception has to be argued, not inherited.
+    // `is_tenant_member` or `is_platform_admin` - unless it is one of these,
+    // each of which was reviewed (Phase 25, then Phase 29) and each of which has
+    // a reason. One more appearing on its own fails this test, which is the
+    // point: the exception has to be argued, not inherited.
+    //
+    // Sorted as PostgreSQL sorts them, because the assertion compares in order.
     const REVIEWED_UNGATED = [
+      // Phase 31. Returns the gateway SECRET, and is therefore executable by
+      // service_role alone - no role a request can hold may call it.
+      "get_payment_gateway_credentials",
       // Serves the public website's footer: trade name, address, RUC. Exposes
       // the public-facing columns of `tenant_settings` and nothing else, which
       // is precisely why that table has no public policy of its own.
       "get_public_business_identity",
+      // Phase 30. A policy page of an active business: public prose by definition.
+      "get_public_legal_document",
+      // Phase 30. Razon social and RUC, which the Libro de Reclamaciones must
+      // print and SUNAT already publishes; still never contact_email.
+      "get_public_legal_identity",
+      // Phase 31. Provider, mode and PUBLIC key of an enabled gateway: what the
+      // browser needs to open the provider's form. No secret.
+      "get_public_payment_gateway",
+      // Phase 29. How a business sells from its website - the columns of
+      // `tenant_storefronts` a visitor must see, gated on `is_tenant_public`.
+      "get_public_storefront",
+      // Phase 29. One web order by tenant AND a 244-bit secret token. Returns no
+      // address, phone or customer id (ADR-033).
+      "get_public_web_order",
       // Resolves a tenant's canonical hostname. A domain is public by nature -
       // it is in DNS.
       "get_tenant_primary_domain",
+      // Phase 31. Order id and balance for a 244-bit tracking token, the same
+      // gate as get_public_web_order.
+      "get_web_order_for_payment",
       // A predicate over `tenants.status`. Returns a boolean, no data.
       "is_tenant_public",
+      // Phase 29. Product ids and unit counts aggregated over a whole business:
+      // names no customer and no order.
+      "list_public_bestsellers",
+      // Phase 29. Zone names and fees, the delivery price list of a shop.
+      "list_public_delivery_zones",
+      // Phase 29. Methods the owner explicitly marked `show_on_website`.
+      "list_public_payment_methods",
+      // Phase 29. The footer's social icons; the URLs are public profiles.
+      "list_public_social_links",
       // Returns the CALLER's own permissions. Asking about yourself needs no
       // permission, and gating it would be circular.
       "my_permissions",
+      // Phase 31. A boolean: module, enabled gateway, public tenant.
+      "online_payments_available",
+      // Phase 29. The anonymous checkout. Its gate is the whole function body:
+      // tenant public, module, open, and every id checked against the tenant.
+      "place_web_order",
+      // Phase 31. Records a provider-confirmed payment. service_role only; the
+      // server calls it after verifying the payment with the provider itself.
+      "record_online_payment",
+      // Phase 29. A boolean over the storefront mode and the branch's hours.
+      "storefront_is_open",
+      // Phase 29. Returns a branch id; not executable by anon or authenticated,
+      // called only from the functions above.
+      "storefront_location",
+      // Phase 30. Filing in the Libro de Reclamaciones, which the norm opens to
+      // anyone. Writes one sheet for a public tenant and returns only its number
+      // and deadline.
+      "submit_complaint",
       // A helper that reads `tenant_settings.timezone`. Called only from inside
       // the Phase 23 report functions, which carry the `reports.view` gate.
       "tenant_timezone",

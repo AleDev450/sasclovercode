@@ -41,6 +41,19 @@ export interface OrderLine {
   readonly totalCents: number;
   readonly notes: string | null;
   readonly position: number;
+  /** "Salsa: Acevichada · Extras: Palta", copied at insert (Phase 29). */
+  readonly options: string | null;
+}
+
+/** How an order placed on the website was placed (Phase 29). Null for every other source. */
+export interface WebOrderContact {
+  readonly contactName: string;
+  readonly contactPhone: string;
+  readonly fulfillment: "delivery" | "pickup";
+  readonly paymentMethodName: string | null;
+  /** Phase 31. */
+  readonly payOnline: boolean;
+  readonly onlinePaymentStatus: "none" | "pending" | "approved" | "rejected";
 }
 
 export interface OrderHistoryEntry {
@@ -84,6 +97,7 @@ export interface OrderDetail extends OrderSummary {
   /** `totalCents - paidCents`. Never negative: the database enforces the cap. */
   readonly balanceCents: number;
   readonly payments: readonly OrderPayment[];
+  readonly web: WebOrderContact | null;
 }
 
 export interface OrderPage {
@@ -91,6 +105,15 @@ export interface OrderPage {
   readonly total: number;
   readonly page: number;
   readonly pageCount: number;
+}
+
+interface WebOrderEmbed {
+  contact_name: string;
+  contact_phone: string;
+  fulfillment: "delivery" | "pickup";
+  pay_online: boolean;
+  online_payment_status: "none" | "pending" | "approved" | "rejected";
+  payment_methods: { name: string } | null;
 }
 
 const ORDER_COLUMNS =
@@ -180,7 +203,9 @@ export async function getOrderDetail(
        cancel_reason, completed_at, paid_cents,
        locations(name), customers(name),
        order_items(id, name_snapshot, variant_snapshot, unit_price_cents, quantity,
-                   discount_cents, tax_cents, total_cents, notes, position),
+                   discount_cents, tax_cents, total_cents, notes, position, options_snapshot),
+       web_orders(contact_name, contact_phone, fulfillment, pay_online, online_payment_status,
+                  payment_methods(name)),
        order_status_history(id, from_status, to_status, reason, created_at),
        payments(id, amount_cents, reference, voided_at, void_reason, created_at,
                 payment_methods(name))`,
@@ -226,7 +251,9 @@ export async function getOrderDetail(
       total_cents: number;
       notes: string | null;
       position: number;
+      options_snapshot: string | null;
     }[];
+    web_orders: WebOrderEmbed | readonly WebOrderEmbed[] | null;
     order_status_history: readonly {
       id: string;
       from_status: OrderStatus | null;
@@ -236,8 +263,24 @@ export async function getOrderDetail(
     }[];
   };
 
+  // One-to-one (the FK is the primary key), which PostgREST returns as an
+  // object - but an array is tolerated, so a change in how the relationship is
+  // detected cannot silently drop the contact from the screen.
+  const web = Array.isArray(row.web_orders) ? (row.web_orders[0] ?? null) : row.web_orders;
+
   return {
     ...toSummary(row),
+    web:
+      web === null || web === undefined
+        ? null
+        : {
+            contactName: web.contact_name,
+            contactPhone: web.contact_phone,
+            fulfillment: web.fulfillment,
+            paymentMethodName: web.payment_methods?.name ?? null,
+            payOnline: web.pay_online,
+            onlinePaymentStatus: web.online_payment_status,
+          },
     locationId: row.location_id,
     customerId: row.customer_id,
     notes: row.notes,
@@ -277,6 +320,7 @@ export async function getOrderDetail(
         totalCents: line.total_cents,
         notes: line.notes,
         position: line.position,
+        options: line.options_snapshot,
       }))
       .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
     history: (row.order_status_history ?? [])

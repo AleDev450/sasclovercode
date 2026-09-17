@@ -81,6 +81,10 @@ export const PERMISSIONS = {
   LOYALTY_MANAGE: "loyalty.manage",
 
   AUDIT_VIEW: "audit.view",
+
+  /** Phase 30: the Libro de Reclamaciones. */
+  COMPLAINTS_VIEW: "complaints.view",
+  COMPLAINTS_MANAGE: "complaints.manage",
 } as const;
 
 /**

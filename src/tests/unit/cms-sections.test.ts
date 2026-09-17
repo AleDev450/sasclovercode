@@ -13,9 +13,22 @@ const TENANT = "11111111-1111-4111-8111-111111111111";
 const IMAGE = `tenants/${TENANT}/branding/logo.png`;
 
 describe("section catalogue", () => {
-  it("declares the eight types master section 33 names", () => {
+  it("declares the eight types master section 33 names, and Phase 29's three", () => {
     expect([...SECTION_TYPES].sort()).toEqual(
-      ["banner", "cta", "faq", "gallery", "hero", "image", "products", "text"].sort(),
+      [
+        "banner",
+        "cta",
+        "faq",
+        "gallery",
+        "hero",
+        "image",
+        "products",
+        "text",
+        // Phase 29: the restaurant home page.
+        "slider",
+        "shortcuts",
+        "bestsellers",
+      ].sort(),
     );
   });
 

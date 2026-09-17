@@ -17,7 +17,7 @@ import {
  * asserted here is the shape the application depends on.
  */
 describe("module catalogue (TEST-2101)", () => {
-  it("declares exactly the ten modules master section 33 enumerates", () => {
+  it("declares the ten modules master section 33 enumerates, and Phase 31's", () => {
     expect(ALL_MODULES).toEqual([
       "website",
       "catalog",
@@ -29,6 +29,7 @@ describe("module catalogue (TEST-2101)", () => {
       "loyalty",
       "multi_location",
       "reports",
+      "online_payments",
     ]);
   });
 

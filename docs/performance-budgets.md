@@ -35,10 +35,21 @@ en el árbol —`npm run test` corre sin build— y mide en CI, que construye an
 ## Client components
 
 ```text
-Medido    52 de 140 componentes (37%)
-Objetivo  <= 60 componentes, y siempre menos del 50% del total
+Medido    52 de 140 componentes (37%) en la Fase 26
+          60 de 181 al empezar la Fase 29
+          72 de 209 (34%) al cerrar la Fase 30
+          74 de 212 (35%) al cerrar la Fase 31 (botón de pago, formulario de pasarela)
+Objetivo  <= 76 componentes, y siempre menos del 50% del total
 Test      TEST-2603
 ```
+
+**Por qué subió en las Fases 29 y 30.** La tienda pública es la primera parte del
+producto que un cliente final usa con las manos: carrito que sobrevive a recargas,
+selector de extras, checkout, slider táctil, formulario del Libro de
+Reclamaciones y el aviso sonoro de pedidos en el panel. Son doce componentes y
+cada uno necesita estado del navegador; todo lo demás de esas páginas (carta,
+zonas, textos legales, seguimiento) sigue siendo de servidor. La proporción bajó
+del 37% al 34%.
 
 §18 nombra dos veces lo mismo: "client components innecesarios" y "JS
 innecesario". Ningún `"use client"` concreto está mal; lo que se vigila es la

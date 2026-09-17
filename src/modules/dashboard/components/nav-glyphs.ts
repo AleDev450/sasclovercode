@@ -74,4 +74,6 @@ export const NAV_GLYPHS: Record<string, ComponentType<IconProps>> = {
   "billing-config": IconFileText,
   zones: IconMapPin,
   plan: IconSparkle,
+  storefront: IconCart,
+  complaints: IconFileText,
 };

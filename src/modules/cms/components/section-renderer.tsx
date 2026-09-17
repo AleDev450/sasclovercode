@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { IconArrowRight } from "@/components/ui/icons";
 import { formatCurrency } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { HeroSlider, type SlideView } from "@/modules/storefront/components/hero-slider";
 import { SECTION_SCHEMAS, type SectionType } from "../sections";
 
 /**
@@ -59,6 +61,17 @@ export interface CatalogForSections {
   }[];
   /** From `tenant_settings` via the public identity function (Phase 06/11). */
   readonly currency: string;
+  /**
+   * Best-selling product ids, first first (Phase 29). Empty while a business has
+   * no sales, in which case `bestsellers` falls back to the featured products.
+   */
+  readonly bestsellerIds?: readonly string[];
+}
+
+/** What the `slider` section's brand cover needs when there are no photos. */
+export interface SiteForSections {
+  readonly name: string;
+  readonly tagline: string | null;
 }
 
 /**
@@ -174,16 +187,24 @@ const primaryButtonStyle: React.CSSProperties = {
   boxShadow: "var(--site-shadow)",
 };
 
+/** A stored `/sitio/...` link, moved onto the base path of this render. */
+function localiseHref(href: string, basePath: string): string {
+  return href === "/sitio" || href.startsWith("/sitio/") ? `${basePath}${href.slice(6)}` : href;
+}
+
 export function SectionRenderer({
   section,
   assetUrls,
   catalog,
+  site,
   basePath = "/sitio",
 }: {
   section: RenderableSection;
   assetUrls: AssetUrls;
   /** Forwarded to every internal link. `/sitio` for a visitor. */
   basePath?: string;
+  /** The business, for the `slider` section's cover when it has no photos. */
+  site?: SiteForSections;
   /**
    * The tenant's published catalogue, read once by the page and passed down.
    *
@@ -682,6 +703,323 @@ export function SectionRenderer({
               </div>
             ))}
           </dl>
+        </section>
+      );
+    }
+
+    case "slider": {
+      const c = parsed.data as (typeof SECTION_SCHEMAS)["slider"]["_output"];
+
+      // A slide whose photograph failed to sign is skipped, like every image
+      // on the site: a broken image in the one block that opens the page is
+      // worse than one fewer slide.
+      const slides: SlideView[] = c.slides.flatMap((slide) => {
+        const desktopUrl = assetUrls.get(slide.imagePath);
+        if (desktopUrl === undefined) return [];
+        return [
+          {
+            desktopUrl,
+            mobileUrl:
+              slide.mobileImagePath === undefined
+                ? null
+                : (assetUrls.get(slide.mobileImagePath) ?? null),
+            heading: slide.heading,
+            subheading: slide.subheading,
+            ctaLabel: slide.ctaLabel,
+            href: slide.ctaHref === undefined ? null : localiseHref(slide.ctaHref, basePath),
+            overlay: slide.overlay,
+          },
+        ];
+      });
+
+      if (slides.length > 0) {
+        return (
+          <HeroSlider
+            slides={slides}
+            intervalSeconds={c.intervalSeconds}
+            label={site?.name ?? "Portada"}
+          />
+        );
+      }
+
+      /*
+       * THE BRAND COVER (FR2910).
+       *
+       * No photos yet. The page still opens on the restaurant: its name in the
+       * display face, its tagline, and the two things a visitor came to do.
+       * Sugu Rolls kept its hand-drawn hero for exactly this case.
+       */
+      return (
+        <section className="relative -mx-6 px-6 sm:-mx-10 sm:px-10" style={sectionSpacing}>
+          <div
+            aria-hidden
+            className="absolute inset-0 -z-10"
+            style={{ background: "var(--site-hero-wash)" }}
+          />
+          <div className="flex flex-col items-center gap-6 py-10 text-center">
+            <Eyebrow>Bienvenidos</Eyebrow>
+            <h1
+              className="max-w-4xl text-[clamp(2.75rem,7vw,5.5rem)] text-balance"
+              style={{
+                color: "var(--site-foreground)",
+                fontFamily: "var(--site-display-font)",
+                fontWeight: "var(--site-display-weight)",
+                letterSpacing: "var(--site-display-tracking)",
+                lineHeight: "var(--site-display-leading)",
+              }}
+            >
+              {site?.name ?? "Bienvenidos"}
+            </h1>
+            {site?.tagline ? (
+              <p
+                className="max-w-prose text-lg leading-relaxed"
+                style={{ color: "var(--site-muted)" }}
+              >
+                {site.tagline}
+              </p>
+            ) : null}
+            <div className="mt-2 flex flex-wrap justify-center gap-3">
+              <Link href={`${basePath}/carta`} className={buttonClass} style={primaryButtonStyle}>
+                Ver la carta
+              </Link>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    case "shortcuts": {
+      const c = parsed.data as (typeof SECTION_SCHEMAS)["shortcuts"]["_output"];
+
+      return (
+        <section style={sectionSpacing}>
+          <ul
+            className={cn(
+              "grid gap-6",
+              c.cards.length === 2 && "md:grid-cols-2",
+              c.cards.length === 3 && "md:grid-cols-3",
+              c.cards.length === 4 && "sm:grid-cols-2 lg:grid-cols-4",
+            )}
+          >
+            {c.cards.map((card, index) => {
+              const image =
+                card.imagePath === undefined ? undefined : assetUrls.get(card.imagePath);
+              const href = localiseHref(card.href, basePath);
+              const label = card.linkLabel.length > 0 ? card.linkLabel : "Ver más";
+              const external = href.startsWith("https://");
+
+              const inner = (
+                <>
+                  {image !== undefined ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
+                      <img
+                        src={image}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                      />
+                      <div
+                        aria-hidden
+                        className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/5"
+                      />
+                    </>
+                  ) : null}
+                  <div className="relative flex flex-col gap-3 p-8">
+                    <h3
+                      className="text-3xl text-balance"
+                      style={{
+                        fontFamily: "var(--site-display-font)",
+                        fontWeight: "var(--site-display-weight)",
+                        letterSpacing: "var(--site-display-tracking)",
+                        lineHeight: "var(--site-display-leading)",
+                        color: image !== undefined ? "#ffffff" : "var(--site-foreground)",
+                      }}
+                    >
+                      {card.title}
+                    </h3>
+                    {card.body.length > 0 ? (
+                      <p
+                        className="max-w-[34ch] text-sm leading-relaxed"
+                        style={{
+                          color:
+                            image !== undefined ? "rgb(255 255 255 / 0.85)" : "var(--site-muted)",
+                        }}
+                      >
+                        {card.body}
+                      </p>
+                    ) : null}
+                    <span
+                      className="mt-3 inline-flex items-center gap-2 text-xs font-semibold"
+                      style={{
+                        color: image !== undefined ? "#ffffff" : "var(--site-primary)",
+                        letterSpacing: "var(--site-eyebrow-tracking)",
+                        textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+                      }}
+                    >
+                      {label}
+                      <IconArrowRight className="size-4 transition-transform duration-500 group-hover:translate-x-1.5" />
+                    </span>
+                  </div>
+                </>
+              );
+
+              const cardClass =
+                "group relative flex min-h-[22rem] flex-col justify-end overflow-hidden sm:min-h-[26rem]";
+              const cardStyle: React.CSSProperties = {
+                borderRadius: "var(--site-radius)",
+                border: "1px solid var(--site-border)",
+                background: image !== undefined ? "#000000" : "var(--site-primary-soft)",
+                boxShadow: "var(--site-shadow)",
+              };
+
+              return (
+                <li key={index}>
+                  {external ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className={cardClass}
+                      style={cardStyle}
+                    >
+                      {inner}
+                    </a>
+                  ) : (
+                    <Link href={href} className={cardClass} style={cardStyle}>
+                      {inner}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      );
+    }
+
+    case "bestsellers": {
+      const c = parsed.data as (typeof SECTION_SCHEMAS)["bestsellers"]["_output"];
+      const all = (catalog?.products ?? []).filter((product) => product.isAvailable);
+      const byId = new Map(all.map((product) => [product.id, product]));
+
+      // What sold, in the order it sold; topped up with featured products, then
+      // the menu's own order, so a new business still has a full row.
+      const ranked = (catalog?.bestsellerIds ?? []).flatMap((id) => {
+        const product = byId.get(id);
+        return product === undefined ? [] : [product];
+      });
+      const rest = [...all]
+        .filter((product) => !ranked.includes(product))
+        .sort(
+          (a, b) =>
+            Number(b.isFeatured) - Number(a.isFeatured) ||
+            a.position - b.position ||
+            a.name.localeCompare(b.name),
+        );
+      const shown = [...ranked, ...rest].slice(0, c.limit);
+
+      if (shown.length === 0) return null;
+
+      return (
+        <section className="flex flex-col gap-10" style={sectionSpacing}>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div className="flex flex-col gap-3">
+              {c.eyebrow.length > 0 ? <Eyebrow>{c.eyebrow}</Eyebrow> : null}
+              <Heading>{c.heading}</Heading>
+            </div>
+            {c.linkLabel.length > 0 ? (
+              <Link
+                href={`${basePath}/carta`}
+                className="group inline-flex shrink-0 items-center gap-2 text-xs font-semibold"
+                style={{
+                  color: "var(--site-primary)",
+                  letterSpacing: "var(--site-eyebrow-tracking)",
+                  textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+                }}
+              >
+                {c.linkLabel}
+                <IconArrowRight className="size-4 transition-transform duration-500 group-hover:translate-x-1.5" />
+              </Link>
+            ) : null}
+          </div>
+
+          <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+            {shown.map((product) => {
+              const imageUrl =
+                product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
+
+              /*
+               * A SHOWCASE, NOT A SHOP (Sugu Rolls' decision, kept). No price
+               * and no add button: a product with presentations has no single
+               * price to print, and this block's job is to make somebody hungry
+               * and send them to the menu, where the choice is made.
+               */
+              return (
+                <li key={product.id}>
+                  <Link
+                    href={`${basePath}/carta#producto-${product.id}`}
+                    className="group flex flex-col gap-4"
+                  >
+                    <div
+                      className="relative overflow-hidden"
+                      style={{
+                        borderRadius: "var(--site-radius)",
+                        boxShadow: "var(--site-shadow)",
+                        border: "1px solid var(--site-border)",
+                      }}
+                    >
+                      {imageUrl !== undefined ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={imageUrl}
+                          alt={product.name}
+                          className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          style={{ aspectRatio: "var(--site-media-ratio)" }}
+                        />
+                      ) : (
+                        <div
+                          aria-hidden
+                          className="w-full"
+                          style={{
+                            aspectRatio: "var(--site-media-ratio)",
+                            background: "var(--site-accent-soft)",
+                          }}
+                        />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <h3
+                        className="text-lg leading-snug"
+                        style={{
+                          color: "var(--site-foreground)",
+                          fontFamily: "var(--site-display-font)",
+                          fontWeight: "var(--site-display-weight)",
+                          letterSpacing: "var(--site-display-tracking)",
+                        }}
+                      >
+                        {product.name}
+                      </h3>
+                      {product.description !== null ? (
+                        <p
+                          className="line-clamp-2 text-sm leading-relaxed"
+                          style={{ color: "var(--site-muted)" }}
+                        >
+                          {product.description}
+                        </p>
+                      ) : null}
+                      <span
+                        className="mt-1 inline-flex items-center gap-2 text-xs font-semibold"
+                        style={{ color: "var(--site-primary)" }}
+                      >
+                        Verlo en la carta
+                        <IconArrowRight className="size-3.5 transition-transform duration-500 group-hover:translate-x-1" />
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </section>
       );
     }

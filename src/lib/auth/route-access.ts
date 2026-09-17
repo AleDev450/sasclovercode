@@ -28,6 +28,9 @@ const PUBLIC_PREFIXES = [
   "/auth",
   // Liveness probe. Returns no tenant or user data.
   "/api/health",
+  // Phase 31. Payment providers notify here, server to server. Authorised by
+  // verifying the payment WITH the provider, not by a session they cannot have.
+  "/api/pagos",
   // The tenant public website. Anonymous by definition: this is the site a
   // customer visits, and requiring a session would defeat its purpose.
   "/sitio",
@@ -65,7 +68,7 @@ const PUBLIC_EXACT_PATHS = new Set<string>(["/"]);
  * Splitting the question in two keeps both properties: the menu still never
  * touches Supabase Auth, and it now ships with its policy.
  */
-const SESSION_FREE_PREFIXES = ["/sitio"] as const;
+const SESSION_FREE_PREFIXES = ["/sitio", "/api/pagos"] as const;
 
 function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

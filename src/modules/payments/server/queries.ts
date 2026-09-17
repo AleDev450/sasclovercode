@@ -22,6 +22,8 @@ export interface PaymentMethodSummary {
   readonly name: string;
   readonly reference: string | null;
   readonly isActive: boolean;
+  /** Offered on the website checkout (Phase 29). */
+  readonly showOnWebsite: boolean;
 }
 
 export async function listPaymentMethods(
@@ -31,7 +33,7 @@ export async function listPaymentMethods(
   const client = await createSupabaseServerClient();
   let query = client
     .from("payment_methods")
-    .select("id, type, name, reference, is_active")
+    .select("id, type, name, reference, is_active, show_on_website")
     .eq("tenant_id", tenantId)
     .limit(LIST_CAP);
 
@@ -50,6 +52,7 @@ export async function listPaymentMethods(
     name: row.name,
     reference: row.reference,
     isActive: row.is_active,
+    showOnWebsite: row.show_on_website,
   }));
 }
 

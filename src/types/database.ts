@@ -32,7 +32,18 @@ export type MembershipStatus = "active" | "invited" | "suspended";
 export type PlatformAdminStatus = "active" | "revoked";
 export type PageStatus = "draft" | "published";
 export type SectionTypeName =
-  "hero" | "text" | "image" | "banner" | "cta" | "gallery" | "products" | "faq";
+  | "hero"
+  | "text"
+  | "image"
+  | "banner"
+  | "cta"
+  | "gallery"
+  | "products"
+  | "faq"
+  // Phase 29: the restaurant home page.
+  | "slider"
+  | "shortcuts"
+  | "bestsellers";
 export type NavLinkType = "page" | "external";
 export type SocialPlatform = "facebook" | "instagram" | "tiktok" | "x" | "youtube" | "linkedin";
 export type ProductStatus = "draft" | "active" | "archived";
@@ -71,7 +82,8 @@ export type ModuleCode =
   | "delivery"
   | "loyalty"
   | "multi_location"
-  | "reports";
+  | "reports"
+  | "online_payments";
 export type PlanInterval = "monthly" | "yearly";
 export type SubscriptionStatus = "trialing" | "active" | "past_due" | "suspended" | "cancelled";
 
@@ -98,6 +110,23 @@ export type OrderPromotionSource = "promotion" | "coupon" | "loyalty";
 /** Master section 33 (Phase 19). Transitions are declared in delivery_transitions. */
 export type DeliveryStatus =
   "pending" | "assigned" | "in_transit" | "delivered" | "failed" | "cancelled";
+
+/** Phase 29. `auto` follows the ordering branch's hours; the other two win over them. */
+export type StorefrontMode = "auto" | "open" | "closed";
+/** Not an enum in SQL - a CHECKed text column on web_orders. */
+export type WebOrderFulfillment = "delivery" | "pickup";
+
+/** Phase 30. */
+export type LegalDocumentKind = "terms" | "privacy" | "cookies";
+/** Peruvian consumer law's own categories, kept in Spanish like the billing types. */
+export type ComplaintType = "reclamo" | "queja";
+export type ComplaintStatus = "pending" | "answered";
+
+/** Phase 31. */
+export type PaymentGatewayProvider = "culqi" | "izipay" | "mercadopago";
+export type PaymentGatewayMode = "test" | "live";
+/** Not an enum in SQL - a CHECKed text column on web_orders. */
+export type OnlinePaymentStatus = "none" | "pending" | "approved" | "rejected";
 
 export type Database = {
   public: {
@@ -839,6 +868,10 @@ export type Database = {
           position: number;
           /** Snapshotted from the product's category at insert (Phase 16, ADR-020). */
           station: KitchenStation;
+          /** Chosen product_options (Phase 29). Pointers; the price is already in unit_price_cents. */
+          option_ids: string[];
+          /** "Salsa: Acevichada · Extras: Palta", copied at insert (Phase 29). */
+          options_snapshot: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -861,6 +894,9 @@ export type Database = {
           position?: number;
           /** Never sent by a client: the trigger copies it from the category. */
           station?: KitchenStation;
+          option_ids?: string[];
+          /** Never sent by a client: the trigger builds it from option_ids. */
+          options_snapshot?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["order_items"]["Row"]>;
         Relationships: [
@@ -2072,6 +2108,8 @@ export type Database = {
           reference: string | null;
           is_active: boolean;
           position: number;
+          /** Offered on the public website checkout (Phase 29). */
+          show_on_website: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -2083,6 +2121,7 @@ export type Database = {
           reference?: string | null;
           is_active?: boolean;
           position?: number;
+          show_on_website?: boolean;
         };
         Update: Partial<Database["public"]["Tables"]["payment_methods"]["Row"]>;
         Relationships: [
@@ -2275,6 +2314,170 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["tenant_social_links"]["Row"]>;
         Relationships: [];
+      };
+      /** Phase 29. One row per tenant, created by provisioning. */
+      tenant_storefronts: {
+        Row: {
+          tenant_id: string;
+          ordering_enabled: boolean;
+          mode: StorefrontMode;
+          closed_message: string | null;
+          accepts_delivery: boolean;
+          accepts_pickup: boolean;
+          min_order_cents: number;
+          order_location_id: string | null;
+          whatsapp_button: boolean;
+          whatsapp_message: string | null;
+          tagline: string | null;
+          public_email: string | null;
+          bestsellers_days: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          ordering_enabled?: boolean;
+          mode?: StorefrontMode;
+          closed_message?: string | null;
+          accepts_delivery?: boolean;
+          accepts_pickup?: boolean;
+          min_order_cents?: number;
+          order_location_id?: string | null;
+          whatsapp_button?: boolean;
+          whatsapp_message?: string | null;
+          tagline?: string | null;
+          public_email?: string | null;
+          bestsellers_days?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["tenant_storefronts"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "tenant_storefronts_order_location_id_fkey";
+            columns: ["order_location_id"];
+            referencedRelation: "locations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      /** Phase 31. Written only by set_payment_gateway / clear_payment_gateway. */
+      tenant_payment_gateways: {
+        Row: {
+          tenant_id: string;
+          provider: PaymentGatewayProvider;
+          mode: PaymentGatewayMode;
+          public_key: string | null;
+          credentials_secret_id: string | null;
+          credentials_updated_at: string | null;
+          payment_method_id: string;
+          is_enabled: boolean;
+          configured_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, never>;
+        Update: Record<string, never>;
+        Relationships: [];
+      };
+      /** Phase 30. No row for a kind = the platform template. */
+      tenant_legal_documents: {
+        Row: {
+          tenant_id: string;
+          kind: LegalDocumentKind;
+          body: string;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          tenant_id: string;
+          kind: LegalDocumentKind;
+          body: string;
+          updated_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["tenant_legal_documents"]["Row"]>;
+        Relationships: [];
+      };
+      /** Phase 30. Filed only through `submit_complaint`; only the answer is writable. */
+      complaints: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          number: number;
+          provider_name: string;
+          provider_tax_id: string | null;
+          provider_address: string | null;
+          location_id: string | null;
+          consumer_name: string;
+          consumer_address: string;
+          document_type: string;
+          document_number: string;
+          consumer_email: string;
+          consumer_phone: string;
+          is_minor: boolean;
+          guardian_name: string | null;
+          item_type: string;
+          amount_cents: number | null;
+          item_description: string;
+          order_reference: string | null;
+          incident_date: string | null;
+          type: ComplaintType;
+          detail: string;
+          consumer_request: string;
+          response_channel: string;
+          status: ComplaintStatus;
+          response: string | null;
+          responded_at: string | null;
+          responded_by: string | null;
+          due_on: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Record<string, never>;
+        /** Only `response` has any effect; the trigger pins everything else. */
+        Update: { response?: string | null };
+        Relationships: [];
+      };
+      /** Phase 29. Written only by `place_web_order` (ADR-033). */
+      web_orders: {
+        Row: {
+          order_id: string;
+          tenant_id: string;
+          access_token_hash: string;
+          contact_name: string;
+          contact_phone: string;
+          fulfillment: WebOrderFulfillment;
+          payment_method_id: string | null;
+          /** Phase 31. */
+          pay_online: boolean;
+          online_payment_status: OnlinePaymentStatus;
+          provider_reference: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          order_id: string;
+          tenant_id?: string;
+          access_token_hash: string;
+          contact_name: string;
+          contact_phone: string;
+          fulfillment: WebOrderFulfillment;
+          payment_method_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["web_orders"]["Row"]>;
+        Relationships: [
+          {
+            foreignKeyName: "web_orders_order_id_fkey";
+            columns: ["order_id"];
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "web_orders_payment_method_id_fkey";
+            columns: ["payment_method_id"];
+            referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       roles: {
         Row: {
@@ -2667,6 +2870,175 @@ export type Database = {
         Args: { p_tenant_id: string };
         Returns: undefined;
       };
+      /* --------------------------------------------------- Phase 29 */
+      storefront_is_open: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      get_public_storefront: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          ordering_enabled: boolean;
+          can_order: boolean;
+          is_open: boolean;
+          mode: StorefrontMode;
+          closed_message: string | null;
+          accepts_delivery: boolean;
+          accepts_pickup: boolean;
+          min_order_cents: number;
+          whatsapp: string | null;
+          whatsapp_button: boolean;
+          whatsapp_message: string | null;
+          tagline: string | null;
+          public_email: string | null;
+          location_id: string | null;
+        }[];
+      };
+      list_public_social_links: {
+        Args: { p_tenant_id: string };
+        Returns: { platform: SocialPlatform; url: string }[];
+      };
+      list_public_delivery_zones: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          zone_id: string;
+          name: string;
+          district: string | null;
+          notes: string | null;
+          fee_cents: number;
+          min_order_free_cents: number | null;
+          estimated_minutes: number | null;
+        }[];
+      };
+      list_public_bestsellers: {
+        Args: { p_tenant_id: string; p_limit?: number };
+        Returns: { product_id: string; units: number }[];
+      };
+      list_public_payment_methods: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          id: string;
+          type: PaymentMethodType;
+          name: string;
+          reference: string | null;
+        }[];
+      };
+      place_web_order: {
+        Args: { p_tenant_id: string; p_order: Json };
+        Returns: {
+          order_id: string;
+          order_number: number;
+          access_token: string;
+          total_cents: number;
+        }[];
+      };
+      /* --------------------------------------------------- Phase 30 */
+      get_public_legal_document: {
+        Args: { p_tenant_id: string; p_kind: LegalDocumentKind };
+        Returns: { body: string; updated_at: string }[];
+      };
+      get_public_legal_identity: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          legal_name: string | null;
+          trade_name: string;
+          tax_id: string | null;
+          address_line: string | null;
+          district: string | null;
+          city: string | null;
+          phone: string | null;
+          public_email: string | null;
+        }[];
+      };
+      submit_complaint: {
+        Args: { p_tenant_id: string; p_data: Json };
+        Returns: { complaint_number: number; filed_at: string; due_on: string }[];
+      };
+      get_public_web_order: {
+        Args: { p_tenant_id: string; p_token: string };
+        Returns: {
+          order_number: number;
+          status: OrderStatus;
+          placed_at: string;
+          fulfillment: WebOrderFulfillment;
+          contact_name: string;
+          subtotal_cents: number;
+          discount_cents: number;
+          shipping_cents: number;
+          total_cents: number;
+          paid_cents: number;
+          payment_method: string | null;
+          payment_type: PaymentMethodType | null;
+          payment_reference: string | null;
+          delivery_status: DeliveryStatus | null;
+          zone_name: string | null;
+          items: Json;
+          pay_online: boolean;
+          online_payment_status: OnlinePaymentStatus;
+        }[];
+      };
+      /* --------------------------------------------------- Phase 31 */
+      online_payments_available: {
+        Args: { p_tenant_id: string };
+        Returns: boolean;
+      };
+      get_public_payment_gateway: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          provider: PaymentGatewayProvider;
+          mode: PaymentGatewayMode;
+          public_key: string | null;
+        }[];
+      };
+      set_payment_gateway: {
+        Args: {
+          p_tenant_id: string;
+          p_provider: PaymentGatewayProvider;
+          p_mode: PaymentGatewayMode;
+          p_public_key: string | null;
+          p_credentials: string | null;
+          p_enabled: boolean;
+        };
+        Returns: undefined;
+      };
+      clear_payment_gateway: {
+        Args: { p_tenant_id: string };
+        Returns: undefined;
+      };
+      /** service_role only. */
+      get_payment_gateway_credentials: {
+        Args: { p_tenant_id: string };
+        Returns: {
+          provider: PaymentGatewayProvider;
+          mode: PaymentGatewayMode;
+          public_key: string | null;
+          credentials: string | null;
+          payment_method_id: string;
+          is_enabled: boolean;
+        }[];
+      };
+      /** service_role only. */
+      record_online_payment: {
+        Args: {
+          p_tenant_id: string;
+          p_order_id: string;
+          p_provider_reference: string;
+          p_amount_cents: number;
+          p_approved: boolean;
+        };
+        Returns: string;
+      };
+      get_web_order_for_payment: {
+        Args: { p_tenant_id: string; p_token: string };
+        Returns: {
+          order_id: string;
+          order_number: number;
+          balance_cents: number;
+          contact_name: string;
+          online_payment_status: OnlinePaymentStatus;
+          status: OrderStatus;
+        }[];
+      };
     };
     Enums: {
       tenant_status: TenantStatus;
@@ -2698,6 +3070,12 @@ export type Database = {
       page_status: PageStatus;
       section_type: SectionTypeName;
       nav_link_type: NavLinkType;
+      storefront_mode: StorefrontMode;
+      legal_document_kind: LegalDocumentKind;
+      complaint_type: ComplaintType;
+      complaint_status: ComplaintStatus;
+      payment_gateway_provider: PaymentGatewayProvider;
+      payment_gateway_mode: PaymentGatewayMode;
     };
     CompositeTypes: Record<string, never>;
   };

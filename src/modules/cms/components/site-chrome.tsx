@@ -1,6 +1,4 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { PublicLocations } from "@/modules/locations/components/public-locations";
 import { listPublicLocations } from "@/modules/locations/server/queries";
 import { canonicalUrl, resolveSeo } from "@/modules/seo/metadata";
 import {
@@ -12,39 +10,47 @@ import {
 import { JsonLd, localBusinessJsonLd } from "@/modules/seo/structured-data";
 import { SITE_FONT_CLASSNAME } from "@/modules/seo/fonts";
 import { themeCssVariables } from "@/modules/seo/theme";
+import { CartDrawer } from "@/modules/storefront/components/cart-drawer";
+import { CartProvider } from "@/modules/storefront/components/cart-provider";
+import { SiteFooter, type FooterLink } from "@/modules/storefront/components/site-footer";
+import { SiteHeader, type HeaderNavItem } from "@/modules/storefront/components/site-header";
+import { WhatsAppButton } from "@/modules/storefront/components/whatsapp-button";
+import { summarizeWeek } from "@/modules/storefront/hours";
+import {
+  getPublicStorefront,
+  listPublicDeliveryZones,
+  listPublicSocialLinks,
+} from "@/modules/storefront/server/queries";
+import { whatsappUrl } from "@/modules/storefront/whatsapp";
 import { cn } from "@/lib/utils";
 import { signAssetPaths } from "@/lib/storage/sign";
-import { PRODUCT_NAME, VENDOR_NAME, VENDOR_SITE } from "@/config/app";
 import { getPublicNavigation } from "../server/public-queries";
 import type { SiteContext } from "../server/site-context";
 
 /**
- * The frame around a tenant's website: header, navigation, footer, theme.
+ * The frame around a tenant's website: header, navigation, footer, theme - and,
+ * since Phase 29, the cart.
  *
  * WHY IT IS A COMPONENT AND NOT JUST THE LAYOUT. It was the layout, and the
  * layout resolves its tenant from the HOSTNAME - which is the correct and only
  * way a visitor's request can be answered. It stops being enough the moment
  * somebody inside the dashboard wants to look at what they just edited, because
  * the dashboard lives on one hostname (master section 28) and that hostname
- * belongs to no tenant.
+ * belongs to no tenant. Taking the tenant as an argument lets the same markup
+ * serve both.
  *
- * Taking the tenant as an argument rather than reading it lets the same markup
- * serve both: `(site)` passes what the hostname resolved, and the preview route
- * passes a tenant the caller is a MEMBER of. Neither can see anything the other
- * could not - the preview still goes through the same policies, with the
- * caller's own identity.
+ * THE STRUCTURE IS A RESTAURANT'S (Phase 29). The owner asked for every theme
+ * to have the structure of their Sugu Rolls site: Inicio and Nuestra carta
+ * always, Zonas de delivery when they deliver, the pages they add to the menu in
+ * between, "Pedir ahora" in the header, WhatsApp floating, and a footer with the
+ * policies, the hours and the Libro de Reclamaciones. The three themes change
+ * how that looks, never what is there.
  *
  * THE THEME TRAVELS AS CSS CUSTOM PROPERTIES on one element's `style`
  * attribute, never as a generated stylesheet. React escapes a style object, so
  * no stored value can end the attribute or open a rule - see the header of
- * `modules/seo/theme.ts` for why that is a security distinction and not a
- * stylistic one.
- *
- * The same element carries `SITE_FONT_CLASSNAME`, which declares the
- * `--font-*` variables the theme's stacks resolve against. Both have to be on
- * the SAME element and the font class has to be a class: `next/font` emits the
- * declarations into the stylesheet, and `style-src` in the CSP has no
- * `'unsafe-inline'` in production, so the font could not arrive any other way.
+ * `modules/seo/theme.ts`. The same element carries `SITE_FONT_CLASSNAME`, which
+ * declares the `--font-*` variables the theme's stacks resolve against.
  */
 export async function SiteChrome({
   site,
@@ -57,22 +63,25 @@ export async function SiteChrome({
   /** Rendered above everything. The preview route uses it to say so. */
   banner?: ReactNode;
   /**
-   * Where this site's own links point.
-   *
-   * `/sitio` on a real visit. The preview passes `/vista/{slug}`, so following
-   * the navbar keeps you inside the preview instead of landing on a path that
-   * belongs to no tenant on the dashboard's hostname.
+   * Where this site's own links point: `/sitio` on a real visit, `/vista/{slug}`
+   * in the dashboard preview.
    */
   basePath?: string;
 }) {
-  const [navigation, theme, identity, seo, domain, locations] = await Promise.all([
-    getPublicNavigation(site.tenant.id),
-    getPublicTheme(site.tenant.id),
-    getPublicIdentity(site.tenant.id, site.tenant.name),
-    getSiteSeo(site.tenant.id),
-    getPrimaryDomain(site.tenant.id),
-    listPublicLocations(site.tenant.id),
-  ]);
+  const tenantId = site.tenant.id;
+
+  const [navigation, theme, identity, seo, domain, locations, storefront, social, zones] =
+    await Promise.all([
+      getPublicNavigation(tenantId),
+      getPublicTheme(tenantId),
+      getPublicIdentity(tenantId, site.tenant.name),
+      getSiteSeo(tenantId),
+      getPrimaryDomain(tenantId),
+      listPublicLocations(tenantId),
+      getPublicStorefront(tenantId),
+      listPublicSocialLinks(tenantId),
+      listPublicDeliveryZones(tenantId),
+    ]);
 
   const resolved = resolveSeo({ site: seo, business: identity, tenantIsServing: true });
   const base = domain ?? site.tenant.domain;
@@ -81,23 +90,73 @@ export async function SiteChrome({
   const localise = (href: string): string =>
     href === "/sitio" || href.startsWith("/sitio/") ? `${basePath}${href.slice(6)}` : href;
 
-  /*
-   * The logo, at last.
-   *
-   * `tenant_themes.logo_path` has existed since Phase 06 and nothing has ever
-   * rendered it, because nothing could upload one either - so every tenant site
-   * printed its name as text whatever artwork the business had. Falling back to
-   * the name when there is no logo is still right; what was wrong was that
-   * there was no other case.
-   */
   const logoUrl =
     theme.logoPath === null
       ? null
       : ((await signAssetPaths([theme.logoPath])).get(theme.logoPath) ?? null);
 
+  const hasDelivery = storefront.acceptsDelivery && zones.length > 0;
+
+  /*
+   * The menu: the fixed restaurant entries around whatever pages the owner put
+   * in their own navigation. A stored entry pointing at the home page or at the
+   * menu is dropped rather than drawn twice.
+   */
+  const fixedHrefs = new Set([
+    "/sitio",
+    "/sitio/inicio",
+    "/sitio/carta",
+    "/sitio/zonas-de-delivery",
+  ]);
+  const custom: HeaderNavItem[] = navigation
+    .filter((item) => !fixedHrefs.has(item.href))
+    .map((item) => ({
+      label: item.label,
+      href: localise(item.href),
+      children: item.children.map((child) => ({ label: child.label, href: localise(child.href) })),
+    }));
+
+  const nav: HeaderNavItem[] = [
+    { label: "Inicio", href: basePath, children: [] },
+    { label: "Nuestra carta", href: `${basePath}/carta`, children: [] },
+    ...custom,
+    ...(hasDelivery
+      ? [{ label: "Zonas de delivery", href: `${basePath}/zonas-de-delivery`, children: [] }]
+      : []),
+  ];
+
+  const quickLinks: FooterLink[] = nav.map((item) => ({ label: item.label, href: item.href }));
+
+  const helpLinks: FooterLink[] = [
+    ...(hasDelivery ? [{ label: "Zonas de delivery", href: `${basePath}/zonas-de-delivery` }] : []),
+    { label: "Términos y condiciones", href: `${basePath}/terminos` },
+    { label: "Política de privacidad", href: `${basePath}/privacidad` },
+    { label: "Política de cookies", href: `${basePath}/cookies` },
+    { label: "Libro de Reclamaciones", href: `${basePath}/libro-de-reclamaciones` },
+  ];
+
+  // The hours shown are the ordering branch's: they are the hours the website
+  // is open, which is what a visitor reading this footer is asking.
+  const orderingBranch =
+    locations.find((location) => location.id === storefront.locationId) ?? locations[0];
+  const hours = summarizeWeek(orderingBranch?.shifts ?? []);
+
+  const addressParts = [identity.addressLine, identity.district, identity.city].filter(
+    (part): part is string => part !== null && part.length > 0,
+  );
+
+  const greeting =
+    storefront.whatsappMessage ?? `¡Hola ${identity.name}! Quisiera hacer un pedido.`;
+  const whatsappHref = whatsappUrl(storefront.whatsapp, greeting);
+
+  const closedMessage = !storefront.orderingEnabled
+    ? "Por ahora no tomamos pedidos por la web. Escríbenos por WhatsApp."
+    : (storefront.closedMessage ??
+      "Estamos cerrados en este momento. Puedes ver la carta y volver en nuestro horario de atención.");
+
   return (
     <div
-      className={cn("flex min-h-dvh flex-col", SITE_FONT_CLASSNAME)}
+      className={cn("flex min-h-dvh flex-col overflow-x-clip", SITE_FONT_CLASSNAME)}
       style={{
         ...themeCssVariables(theme),
         background: "var(--site-background)",
@@ -119,169 +178,51 @@ export async function SiteChrome({
         })}
       />
 
-      {banner}
+      <CartProvider tenantId={tenantId}>
+        {banner}
 
-      <header
-        className="sticky top-0 z-40 backdrop-blur-md"
-        style={{
-          borderBottom: "1px solid var(--site-border)",
-          background: "color-mix(in srgb, var(--site-background) 88%, transparent)",
-        }}
-      >
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-6 py-4">
-          <Link href={basePath} className="flex items-center gap-3">
-            {logoUrl !== null ? (
-              /* eslint-disable-next-line @next/next/no-img-element -- a signed
-                 Storage URL, whose host is not known at build time. */
-              <img
-                src={logoUrl}
-                alt={identity.name}
-                className="h-9 w-auto max-w-[180px] object-contain"
-              />
-            ) : (
-              /*
-                The wordmark in the DISPLAY face, not the body one.
+        <SiteHeader
+          basePath={basePath}
+          name={identity.name}
+          logoUrl={logoUrl}
+          nav={nav}
+          isOpen={storefront.isOpen}
+          showStatus={storefront.orderingEnabled}
+        />
 
-                A business without a logo is represented by its name set in
-                type, which makes this the most-seen piece of typography on the
-                site - and setting it in the same sans as the paragraphs is why
-                every site in the product used to look like a form with a title.
-              */
-              <span
-                className="truncate text-xl"
-                style={{
-                  color: "var(--site-primary)",
-                  fontFamily: "var(--site-display-font)",
-                  fontWeight: "var(--site-display-weight)",
-                  letterSpacing: "var(--site-display-tracking)",
-                }}
-              >
-                {identity.name}
-              </span>
-            )}
-          </Link>
+        {/*
+          Wide enough for three dishes across on a large screen. Full-bleed
+          blocks (the slider) break out of it on purpose; `overflow-x-clip` on
+          the root is what keeps that from adding a horizontal scrollbar.
+        */}
+        <main className="mx-auto w-full max-w-6xl flex-1 px-6 sm:px-10">{children}</main>
 
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-            {navigation.length > 0 ? (
-              <nav aria-label="Principal">
-                <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                  {navigation.map((item) => (
-                    <li key={item.id}>
-                      <Link
-                        href={localise(item.href)}
-                        className="text-xs font-medium transition-opacity hover:opacity-70"
-                        style={{
-                          letterSpacing: "var(--site-eyebrow-tracking)",
-                          textTransform: "var(--site-eyebrow-transform)" as "uppercase",
-                        }}
-                      >
-                        {item.label}
-                      </Link>
-                      {item.children.length > 0 ? (
-                        <ul className="mt-0.5 flex flex-wrap gap-3">
-                          {item.children.map((child) => (
-                            <li key={child.id}>
-                              <Link
-                                href={localise(child.href)}
-                                className="text-xs transition-opacity hover:opacity-70"
-                                style={{ color: "var(--site-subtle)" }}
-                              >
-                                {child.label}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </nav>
-            ) : null}
+        <SiteFooter
+          basePath={basePath}
+          name={identity.name}
+          logoUrl={logoUrl}
+          tagline={storefront.tagline}
+          social={social}
+          quickLinks={quickLinks}
+          helpLinks={helpLinks}
+          address={addressParts.length > 0 ? addressParts.join(", ") : null}
+          phone={identity.phone}
+          whatsappHref={whatsappHref}
+          email={storefront.publicEmail}
+          hours={hours}
+        />
 
-            {/*
-              The phone as a button.
+        <CartDrawer
+          basePath={basePath}
+          currency={identity.currency}
+          canOrder={storefront.canOrder}
+          closedMessage={closedMessage}
+        />
 
-              A shop's website exists so somebody can order from it, and on a
-              phone that still mostly means a call. It appears only when the
-              business filled the number in - an empty button that dials nothing
-              is worse than no button.
-            */}
-            {identity.phone !== null ? (
-              <a
-                href={`tel:${identity.phone.replace(/[^+0-9]/g, "")}`}
-                className="inline-flex h-10 items-center px-5 text-xs font-semibold transition-opacity hover:opacity-90"
-                style={{
-                  background: "var(--site-primary)",
-                  color: "var(--site-on-primary)",
-                  // The CHIP radius: a phone number is a control, and a card
-                  // radius on a 40px-tall button is what turns `lg` into a pill.
-                  borderRadius: "var(--site-radius-chip)",
-                  letterSpacing: "var(--site-eyebrow-tracking)",
-                  boxShadow: "var(--site-shadow)",
-                }}
-              >
-                {identity.phone}
-              </a>
-            ) : null}
-          </div>
-        </div>
-      </header>
-
-      {/*
-        Wider than it was, because the grid inside it is now three dishes across
-        on a large screen and `max-w-5xl` made those columns narrower than a
-        phone. The gutter grows with the viewport rather than staying at 24px,
-        which is most of what separates a page that looks designed from one that
-        looks centred.
-      */}
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 sm:px-10">{children}</main>
-
-      <footer
-        style={{
-          borderTop: "1px solid var(--site-border)",
-          marginTop: "var(--site-section-space)",
-        }}
-      >
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-14 sm:px-10">
-          {/* Master section 30: direccion y horarios. Rendered from the Phase
-              10 rows, and omitted entirely when a business has not filled any
-              of it in - an empty heading is worse than no heading. */}
-          <PublicLocations locations={locations} />
-
-          <div
-            className="flex flex-col gap-2 pt-6 sm:flex-row sm:items-center sm:justify-between"
-            style={{ borderTop: "1px solid var(--site-border)" }}
-          >
-            <p
-              className="text-base"
-              style={{
-                fontFamily: "var(--site-display-font)",
-                fontWeight: "var(--site-display-weight)",
-                letterSpacing: "var(--site-display-tracking)",
-              }}
-            >
-              {identity.name}
-              {identity.city !== null ? ` · ${identity.city}` : null}
-            </p>
-
-            {/*
-              The platform credit. Small, factual, and linking out rather than
-              to `/` - which on this hostname is the tenant's own site, not
-              ours. It is how a visitor who likes this site finds out who builds
-              them, which is the cheapest marketing channel the product has.
-            */}
-            <a
-              href={VENDOR_SITE}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs transition-opacity hover:opacity-100"
-              style={{ color: "var(--site-subtle)" }}
-            >
-              Hecho con {PRODUCT_NAME} de {VENDOR_NAME}
-            </a>
-          </div>
-        </div>
-      </footer>
+        {storefront.whatsappButton && whatsappHref !== null ? (
+          <WhatsAppButton href={whatsappHref} businessName={identity.name} />
+        ) : null}
+      </CartProvider>
     </div>
   );
 }

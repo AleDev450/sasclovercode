@@ -62,6 +62,21 @@ export const SECTION_META: Record<SectionType, SectionMeta> = {
     description: "Pregunta y respuesta. Ahorra llamadas repetidas.",
     icon: "faq",
   },
+  slider: {
+    label: "Slider de portada",
+    description: "Fotos a todo lo ancho que pasan solas. Una para computadora y otra para celular.",
+    icon: "slider",
+  },
+  shortcuts: {
+    label: "Accesos",
+    description: "Tarjetas grandes con foto que llevan a la carta, al delivery o a otra pagina.",
+    icon: "shortcuts",
+  },
+  bestsellers: {
+    label: "Los mas pedidos",
+    description: "Tus platos mas vendidos, calculados solos con tus pedidos reales.",
+    icon: "bestsellers",
+  },
 };
 
 /**
@@ -97,6 +112,30 @@ export const SECTION_TEMPLATES: Record<SectionType, Record<string, unknown>> = {
   faq: {
     heading: "Preguntas frecuentes",
     items: [{ question: "Hacen delivery?", answer: "Si, en todo el distrito." }],
+  },
+  // Empty on purpose: valid, and renders the brand cover until photos exist.
+  slider: { slides: [], intervalSeconds: 6 },
+  shortcuts: {
+    cards: [
+      {
+        title: "Nuestra carta",
+        body: "Todos nuestros platos, preparados al momento.",
+        href: "/sitio/carta",
+        linkLabel: "Ver la carta",
+      },
+      {
+        title: "Zonas de delivery",
+        body: "Mira si llegamos a tu distrito y cuanto cuesta el envio.",
+        href: "/sitio/zonas-de-delivery",
+        linkLabel: "Ver zonas",
+      },
+    ],
+  },
+  bestsellers: {
+    eyebrow: "Los mas pedidos",
+    heading: "Nuestros favoritos",
+    limit: 4,
+    linkLabel: "Ver la carta completa",
   },
 };
 

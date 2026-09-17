@@ -38,6 +38,7 @@ import {
 } from "@/components/ui";
 import type { IconProps } from "@/components/ui/icons";
 import {
+  IconArrowUpRight,
   IconCard,
   IconChevronDown,
   IconChevronUp,
@@ -47,10 +48,12 @@ import {
   IconImage,
   IconLayout,
   IconMegaphone,
+  IconPlay,
   IconPlus,
   IconQuestion,
   IconSparkle,
   IconTrash,
+  IconTrendUp,
   IconType,
 } from "@/components/ui/icons";
 import { IDLE_FORM_STATE } from "@/lib/forms/state";
@@ -75,6 +78,9 @@ const SECTION_ICONS: Record<string, ComponentType<IconProps>> = {
   gallery: IconGrid,
   products: IconCard,
   faq: IconQuestion,
+  slider: IconPlay,
+  shortcuts: IconArrowUpRight,
+  bestsellers: IconTrendUp,
 };
 
 function SectionGlyph({ type, className }: { type: SectionType; className?: string }) {
@@ -648,6 +654,284 @@ function SectionFields({
               </Button>
             </div>
           </div>
+        </div>
+      );
+    }
+
+    case "slider": {
+      type Slide = {
+        imagePath?: string;
+        mobileImagePath?: string;
+        heading?: string;
+        subheading?: string;
+        ctaLabel?: string;
+        ctaHref?: string;
+        overlay?: number;
+      };
+      const slides = list<Slide>("slides");
+      const intervalId = "interval";
+      const interval = typeof content.intervalSeconds === "number" ? content.intervalSeconds : 6;
+
+      const patchSlide = (index: number, patch: Partial<Slide>) =>
+        set({
+          slides: slides.map((slide, position) =>
+            position === index ? { ...slide, ...patch } : slide,
+          ),
+        });
+
+      /** An emptied optional link is removed, not stored as "" - which the schema refuses. */
+      const optional = (value: string): string | undefined =>
+        value.trim() === "" ? undefined : value;
+
+      return (
+        <div className="flex flex-col gap-4">
+          <p className="text-muted-foreground text-xs">
+            Sin fotos, la portada muestra el nombre y el eslogan de tu negocio con los botones de la
+            carta. Sube una foto de 1920 x 1080 para computadora y, si puedes, otra vertical de 1080
+            x 1920 para celular: asi no se recorta lo importante.
+          </p>
+
+          {errors.slides !== undefined ? (
+            <p className="text-destructive text-xs">{errors.slides[0]}</p>
+          ) : null}
+
+          {slides.map((slide, index) => (
+            <div key={index} className="border-border flex flex-col gap-4 rounded-lg border p-4">
+              <RowHeader
+                title={`Diapositiva ${index + 1}`}
+                canRemove
+                onRemove={() => set({ slides: slides.filter((_, position) => position !== index) })}
+              />
+
+              <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+                <div className="flex flex-col gap-1.5">
+                  <AssetPicker
+                    tenantSlug={tenantSlug}
+                    folder="banners"
+                    label={`Foto para computadora ${index + 1}`}
+                    aspect="wide"
+                    hint="Obligatoria. 1920 x 1080."
+                    value={slide.imagePath || null}
+                    onChange={(path) => patchSlide(index, { imagePath: path ?? "" })}
+                  />
+                  {errors[`slides.${index}.imagePath`] !== undefined ? (
+                    <p className="text-destructive text-xs">Sube la foto para computadora.</p>
+                  ) : null}
+                </div>
+                <AssetPicker
+                  tenantSlug={tenantSlug}
+                  folder="banners"
+                  label={`Foto para celular ${index + 1}`}
+                  aspect="square"
+                  hint="Opcional. Vertical, 1080 x 1920."
+                  value={slide.mobileImagePath || null}
+                  onChange={(path) => patchSlide(index, { mobileImagePath: path ?? undefined })}
+                />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <TextField
+                  label="Titular"
+                  value={slide.heading ?? ""}
+                  maxLength={120}
+                  hint="Opcional. Sin texto, la foto se ve tal cual."
+                  errors={errors[`slides.${index}.heading`]}
+                  onChange={(value) => patchSlide(index, { heading: value })}
+                />
+                <TextField
+                  label="Subtitulo"
+                  value={slide.subheading ?? ""}
+                  maxLength={300}
+                  errors={errors[`slides.${index}.subheading`]}
+                  onChange={(value) => patchSlide(index, { subheading: value })}
+                />
+                <TextField
+                  label="Texto del boton"
+                  value={slide.ctaLabel ?? ""}
+                  maxLength={40}
+                  placeholder="Pedir ahora"
+                  errors={errors[`slides.${index}.ctaLabel`]}
+                  onChange={(value) => patchSlide(index, { ctaLabel: value })}
+                />
+                <TextField
+                  label="Enlace"
+                  value={slide.ctaHref ?? ""}
+                  placeholder="/sitio/carta"
+                  hint="Toda la foto lleva a este enlace."
+                  errors={errors[`slides.${index}.ctaHref`]}
+                  onChange={(value) => patchSlide(index, { ctaHref: optional(value) })}
+                />
+                <TextField
+                  label="Oscurecer bajo el texto (0 a 90)"
+                  type="number"
+                  value={String(slide.overlay ?? 35)}
+                  errors={errors[`slides.${index}.overlay`]}
+                  onChange={(value) => patchSlide(index, { overlay: Number(value) })}
+                />
+              </div>
+            </div>
+          ))}
+
+          <div className="flex flex-wrap items-end gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={slides.length >= 8}
+              onClick={() => set({ slides: [...slides, { imagePath: "", overlay: 35 }] })}
+            >
+              <IconPlus />
+              Anadir diapositiva
+            </Button>
+
+            <div className="flex w-40 flex-col gap-1.5">
+              <Label htmlFor={intervalId}>Segundos por foto</Label>
+              <Input
+                id={intervalId}
+                type="number"
+                min={3}
+                max={15}
+                value={interval}
+                invalid={errors.intervalSeconds !== undefined}
+                onChange={(event) => set({ intervalSeconds: Number(event.target.value) })}
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    case "shortcuts": {
+      type ShortcutCard = {
+        title?: string;
+        body?: string;
+        imagePath?: string;
+        href?: string;
+        linkLabel?: string;
+      };
+      const cards = list<ShortcutCard>("cards");
+      const shown = cards.length > 0 ? cards : [{ title: "", href: "/sitio/carta" }];
+
+      const patchCard = (index: number, patch: Partial<ShortcutCard>) =>
+        set({
+          cards: shown.map((card, position) => (position === index ? { ...card, ...patch } : card)),
+        });
+
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {shown.map((card, index) => (
+              <div key={index} className="border-border flex flex-col gap-3 rounded-lg border p-3">
+                <RowHeader
+                  title={`Tarjeta ${index + 1}`}
+                  canRemove={shown.length > 1}
+                  onRemove={() => set({ cards: shown.filter((_, position) => position !== index) })}
+                />
+                <AssetPicker
+                  tenantSlug={tenantSlug}
+                  folder="banners"
+                  label={`Foto de la tarjeta ${index + 1}`}
+                  aspect="wide"
+                  hint="Opcional. Sin foto se usa el color de tu marca."
+                  value={card.imagePath || null}
+                  onChange={(path) => patchCard(index, { imagePath: path ?? undefined })}
+                />
+                <TextField
+                  label="Titulo"
+                  value={card.title ?? ""}
+                  maxLength={60}
+                  errors={errors[`cards.${index}.title`]}
+                  onChange={(value) => patchCard(index, { title: value })}
+                />
+                <LongTextField
+                  label="Texto"
+                  value={card.body ?? ""}
+                  rows={2}
+                  errors={errors[`cards.${index}.body`]}
+                  onChange={(value) => patchCard(index, { body: value })}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <TextField
+                    label="Enlace"
+                    value={card.href ?? ""}
+                    placeholder="/sitio/carta"
+                    errors={errors[`cards.${index}.href`]}
+                    onChange={(value) => patchCard(index, { href: value })}
+                  />
+                  <TextField
+                    label="Texto del enlace"
+                    value={card.linkLabel ?? ""}
+                    maxLength={40}
+                    placeholder="Ver mas"
+                    errors={errors[`cards.${index}.linkLabel`]}
+                    onChange={(value) => patchCard(index, { linkLabel: value })}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={shown.length >= 4}
+              onClick={() => set({ cards: [...shown, { title: "", href: "/sitio/carta" }] })}
+            >
+              <IconPlus />
+              Anadir tarjeta
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    case "bestsellers": {
+      const limitId = "bestsellers-limit";
+      const limit = typeof content.limit === "number" ? content.limit : 4;
+
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <TextField
+              label="Texto pequeno"
+              value={str("eyebrow")}
+              maxLength={60}
+              errors={errors.eyebrow}
+              onChange={(value) => set({ eyebrow: value })}
+            />
+            <TextField
+              label="Titulo"
+              value={str("heading")}
+              maxLength={120}
+              errors={errors.heading}
+              onChange={(value) => set({ heading: value })}
+            />
+            <TextField
+              label="Texto del enlace a la carta"
+              value={str("linkLabel")}
+              maxLength={40}
+              errors={errors.linkLabel}
+              onChange={(value) => set({ linkLabel: value })}
+            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor={limitId}>Cuantos mostrar</Label>
+              <Input
+                id={limitId}
+                type="number"
+                min={2}
+                max={12}
+                value={limit}
+                invalid={errors.limit !== undefined}
+                onChange={(event) => set({ limit: Number(event.target.value) })}
+              />
+            </div>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Se calcula solo con lo que mas vendiste en los ultimos dias (lo configuras en Tienda
+            online). Mientras no tengas ventas, se muestran tus productos destacados.
+          </p>
         </div>
       );
     }

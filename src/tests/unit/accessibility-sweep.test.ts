@@ -182,6 +182,14 @@ describe("labels (TEST-2813, TEST-2815)", () => {
 const REVIEWED_UNFOCUSABLE: Readonly<Record<string, string>> = {
   "/src/modules/marketing/components/contact-form.tsx":
     "honeypot field: unreachable by design, paired with aria-hidden",
+  // Phase 29. The dimmed backdrop behind a modal closes it on a click. It is a
+  // mouse shortcut for the labelled close button that receives focus when the
+  // modal opens, and for Escape; a second "Cerrar" stop in the tab order would
+  // only make a keyboard user tab past it.
+  "/src/modules/storefront/components/cart-drawer.tsx":
+    "click-to-close backdrop; the focused close button and Escape are the keyboard path",
+  "/src/modules/storefront/components/product-dialog.tsx":
+    "click-to-close backdrop; the focused close button and Escape are the keyboard path",
 };
 
 describe("keyboard reachability (TEST-2814)", () => {

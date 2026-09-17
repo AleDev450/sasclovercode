@@ -108,6 +108,26 @@ const REVIEWED_UNGATED_ACTIONS: Readonly<Record<string, string>> = {
   // `marketing.contact` rate limit, a honeypot field, and `submit_lead()` being
   // the only writer of a table with no insert policy at all.
   "marketing/server/actions.ts:submitContactAction": "runs before an account exists",
+
+  // Phase 29. The checkout of a restaurant's own website: a stranger ordering
+  // lunch, with no account by the owner's explicit choice. Its tenant comes
+  // from the HOSTNAME, never the payload; what guards it is the
+  // `storefront.order` rate limit and `place_web_order()` being the only writer
+  // of an order that `anon` has no policy to insert (ADR-033).
+  "storefront/server/actions.ts:placeWebOrderAction": "a website visitor has no account",
+
+  // Phase 30. Filing in the Libro de Reclamaciones, which the norm opens to
+  // anyone. Tenant from the hostname, the storefront.complaint rate limit, and
+  // submit_complaint() as the only writer of a table with no insert policy.
+  "legal/server/actions.ts:submitComplaintAction": "the law opens the book to anyone",
+
+  // Phase 31. A customer paying their web order. Authorised by the 244-bit
+  // tracking token, not a role; rate limited by storefront.payment; and unable
+  // to mark anything paid - only the provider answer, read by the server,
+  // reaches record_online_payment(), which no request role may execute.
+  "online-payments/server/actions.ts:startOnlinePaymentAction": "authorised by the tracking token",
+  "online-payments/server/actions.ts:chargeCulqiAction":
+    "authorised by the tracking token; the charge outcome comes from Culqi",
 };
 
 /**
@@ -123,7 +143,17 @@ const REVIEWED_UNGATED_ACTIONS: Readonly<Record<string, string>> = {
  * happens inside the operator console and calls `requirePlatformAdmin()` like
  * everything else there.
  */
-const PRE_SESSION_MODULES = ["auth/", "marketing/"] as const;
+const PRE_SESSION_MODULES = [
+  "auth/",
+  "marketing/",
+  // NOT the whole `storefront/` module: its other actions are the owner's
+  // dashboard and carry a permission. Only the one public action, by name, so a
+  // second anonymous action there still has to be argued in here.
+  "storefront/server/actions.ts:placeWebOrderAction",
+  "legal/server/actions.ts:submitComplaintAction",
+  "online-payments/server/actions.ts:startOnlinePaymentAction",
+  "online-payments/server/actions.ts:chargeCulqiAction",
+] as const;
 
 interface ExportedFunction {
   readonly name: string;
@@ -352,9 +382,16 @@ describe("the service role key never appears (TEST-2512)", () => {
 });
 
 describe("the secret key is confined", () => {
-  const ALLOWED = [join("src", "config", "env.ts"), join("src", "lib", "supabase", "admin.ts")];
+  const ALLOWED = [
+    join("src", "config", "env.ts"),
+    join("src", "lib", "supabase", "admin.ts"),
+    // Phase 31 (ADR-034): the database client for the two service_role-only
+    // functions, reading a gateway secret and recording a provider-confirmed
+    // payment. Its only importer is pinned in src/tests/unit/online-payments.test.ts.
+    join("src", "lib", "supabase", "service.ts"),
+  ];
 
-  it("is named only by the env schema and the admin module", async () => {
+  it("is named only by the env schema and the two service-key modules", async () => {
     const offenders: string[] = [];
 
     for (const file of await walk(join(process.cwd(), "src"), [".ts", ".tsx"])) {

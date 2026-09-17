@@ -128,6 +128,64 @@ const faqSchema = z.object({
     .max(30),
 });
 
+/**
+ * The home carousel (Phase 29).
+ *
+ * Two photographs per slide, the decision Sugu Rolls reached the hard way: a
+ * 1920x1080 photograph cropped to a phone loses its centre and usually the one
+ * thing the photo was about. The phone image is optional and falls back to the
+ * desktop one.
+ *
+ * ZERO SLIDES IS VALID (FR2910). A business that has not uploaded anything yet
+ * gets its brand cover - name, tagline, "Ver la carta" - rather than a page that
+ * opens on nothing, and the owner can add the section before they have photos.
+ */
+const slideSchema = z.object({
+  imagePath: assetPath,
+  mobileImagePath: assetPath.optional(),
+  heading: text(120).optional().default(""),
+  subheading: text(300).optional().default(""),
+  ctaLabel: text(40).optional().default(""),
+  ctaHref: link.optional(),
+  /** How dark the veil under the words is, 0-90. Only drawn when there are words. */
+  overlay: z.coerce.number().int().min(0).max(90).default(35),
+});
+
+const sliderSchema = z.object({
+  slides: z.array(slideSchema).max(8).default([]),
+  intervalSeconds: z.coerce.number().int().min(3).max(15).default(6),
+});
+
+/** The "doors" under the cover: the menu, the delivery zones, any page. */
+const shortcutsSchema = z.object({
+  cards: z
+    .array(
+      z.object({
+        title: requiredText(60),
+        body: text(200).optional().default(""),
+        imagePath: assetPath.optional(),
+        href: link,
+        linkLabel: text(40).optional().default(""),
+      }),
+    )
+    .min(1)
+    .max(4),
+});
+
+/**
+ * "Los mas pedidos" (Phase 29).
+ *
+ * Like `products`, it stores presentation only. WHICH products is decided at
+ * render time by what actually sold (`list_public_bestsellers`), falling back to
+ * the featured ones while a new business has no sales yet.
+ */
+const bestsellersSchema = z.object({
+  eyebrow: text(60).optional().default("Los mas pedidos"),
+  heading: text(120).optional().default("Nuestros favoritos"),
+  limit: z.coerce.number().int().min(2).max(12).default(4),
+  linkLabel: text(40).optional().default("Ver la carta completa"),
+});
+
 export const SECTION_SCHEMAS = {
   hero: heroSchema,
   text: textSchema,
@@ -137,6 +195,9 @@ export const SECTION_SCHEMAS = {
   gallery: gallerySchema,
   products: productsSchema,
   faq: faqSchema,
+  slider: sliderSchema,
+  shortcuts: shortcutsSchema,
+  bestsellers: bestsellersSchema,
 } as const;
 
 export type SectionType = keyof typeof SECTION_SCHEMAS;
@@ -157,6 +218,9 @@ export const SECTION_LABELS: Record<SectionType, string> = {
   gallery: "Galeria",
   products: "Productos",
   faq: "Preguntas frecuentes",
+  slider: "Slider de portada",
+  shortcuts: "Accesos",
+  bestsellers: "Los mas pedidos",
 };
 
 export function isSectionType(value: string): value is SectionType {

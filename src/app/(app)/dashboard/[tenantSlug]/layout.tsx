@@ -9,7 +9,10 @@ import { SignOutButton } from "@/modules/auth";
 import { DashboardNav } from "@/modules/dashboard/components/dashboard-nav";
 import { TenantSwitcher } from "@/modules/dashboard/components/tenant-switcher";
 import { getMyModules } from "@/lib/features/check";
+import { MODULES } from "@/lib/features";
+import { PERMISSIONS } from "@/lib/permissions";
 import { visibleNavGroups } from "@/modules/dashboard/navigation";
+import { NewOrderAlert } from "@/modules/storefront/components/new-order-alert";
 
 /**
  * The tenant-scoped shell.
@@ -81,6 +84,11 @@ export default async function TenantLayout({
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
+
+      {/* Phase 29: a web order announces itself on every screen of the panel. */}
+      {permissions.has(PERMISSIONS.ORDERS_VIEW) && modules.has(MODULES.ORDERS) ? (
+        <NewOrderAlert tenantId={tenant.id} tenantSlug={tenant.slug} />
+      ) : null}
     </div>
   );
 }

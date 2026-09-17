@@ -46,6 +46,26 @@ export const RATE_LIMITS = {
    * what makes the inbox useless.
    */
   MARKETING_CONTACT: { bucket: "marketing.contact", limit: 5, windowSeconds: 900 },
+  /**
+   * A web order on a restaurant's own site (Phase 29).
+   *
+   * Every one of these reaches a kitchen. Six in ten minutes covers a family
+   * that got the first order wrong twice; it does not cover somebody filling a
+   * restaurant's order board with fake lunches.
+   */
+  STOREFRONT_ORDER: { bucket: "storefront.order", limit: 6, windowSeconds: 600 },
+  /**
+   * A sheet in the Libro de Reclamaciones (Phase 30). Open to anyone by law, and
+   * each one starts a legal deadline for the business: generous for a person,
+   * useless for somebody trying to bury a restaurant in fake complaints.
+   */
+  COMPLAINT_SUBMIT: { bucket: "storefront.complaint", limit: 5, windowSeconds: 1800 },
+  /**
+   * Starting or completing an online payment (Phase 31). Each start is a call to
+   * a provider's API on the tenant's account; a customer retrying a declined
+   * card a few times fits comfortably, a card-testing script does not.
+   */
+  STOREFRONT_PAYMENT: { bucket: "storefront.payment", limit: 10, windowSeconds: 900 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /*

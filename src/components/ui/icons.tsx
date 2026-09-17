@@ -477,3 +477,44 @@ export const IconLinkedin = (p: IconProps) => (
     <path d="M7.5 10.4v6.2M7.5 7.6h.01M11.4 16.6v-6.2M11.4 13.1c0-1.5.9-2.4 2.2-2.4s2.2.9 2.2 2.4v3.5" />
   </Icon>
 );
+
+export const IconTiktok = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M14.2 3.4v11.4a3.4 3.4 0 1 1-3.4-3.4" />
+    <path d="M14.2 3.4a4.6 4.6 0 0 0 4.6 4.6" />
+  </Icon>
+);
+
+export const IconX = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M4 4l16 16M20 4l-6.6 6.6M10.6 13.4 4 20" />
+  </Icon>
+);
+
+/* -------------------------------------------------------------- storefront */
+
+export const IconMinus = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M5 12h14" />
+  </Icon>
+);
+
+export const IconChevronLeft = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m14.8 5.8-6.2 6.2 6.2 6.2" />
+  </Icon>
+);
+
+export const IconChevronRight = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="m9.2 5.8 6.2 6.2-6.2 6.2" />
+  </Icon>
+);
+
+/** The Libro de Reclamaciones: an open book, which is what the norm calls it. */
+export const IconBook = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 6.4C10.4 5 8.2 4.4 4 4.6v13.8c4.2-.2 6.4.4 8 1.8 1.6-1.4 3.8-2 8-1.8V4.6c-4.2-.2-6.4.4-8 1.8Z" />
+    <path d="M12 6.4v13.8" />
+  </Icon>
+);

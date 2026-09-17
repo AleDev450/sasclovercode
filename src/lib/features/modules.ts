@@ -25,6 +25,8 @@ export const MODULES = {
   LOYALTY: "loyalty",
   MULTI_LOCATION: "multi_location",
   REPORTS: "reports",
+  /** Phase 31. A gateway the platform configures; not in Starter. */
+  ONLINE_PAYMENTS: "online_payments",
 } as const satisfies Record<string, ModuleCode>;
 
 export type Module = (typeof MODULES)[keyof typeof MODULES];
@@ -48,6 +50,7 @@ export const MODULE_LABELS: Readonly<Record<Module, string>> = {
   loyalty: "Fidelizacion",
   multi_location: "Multi-sede",
   reports: "Reportes",
+  online_payments: "Pagos online",
 };
 
 /** The plan codes shipped in the catalogue migration. */

@@ -42,7 +42,42 @@ export function generateNonce(): string {
  *                      `'unsafe-eval'` is required there and NOT in production,
  *                      and TEST-2505 pins that it never leaks into production.
  */
-export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean): string {
+/**
+ * The payment providers' own hosts (Phase 31, ADR-034).
+ *
+ * Culqi and Izipay collect card data inside THEIR iframes, loaded by THEIR
+ * scripts, so the card never touches a restaurant's page - which is the whole
+ * point of using them, and why `frame-src 'none'` cannot hold on the one page
+ * that shows their form. The script itself needs no host here: our nonced
+ * bundle injects it, and `'strict-dynamic'` trusts what a trusted script loads.
+ *
+ * Listed by exact host, not `https:`, and granted ONLY to the order tracking
+ * page (see `isPaymentPath`). Every other page keeps `frame-src 'none'`.
+ */
+export const PAYMENT_FORM_HOSTS = {
+  frames: [
+    "https://checkout.culqi.com",
+    "https://3ds.culqi.com",
+    "https://static.micuentaweb.pe",
+    "https://secure.micuentaweb.pe",
+  ],
+  styles: ["https://static.micuentaweb.pe"],
+  fonts: ["https://static.micuentaweb.pe"],
+} as const;
+
+/** The pages that may render a provider's payment form: order tracking only. */
+export function isPaymentPath(pathname: string): boolean {
+  return /^\/(sitio|vista\/[^/]+)\/pedido\/[^/]+\/?$/.test(pathname);
+}
+
+export function buildContentSecurityPolicy(
+  nonce: string,
+  isDevelopment: boolean,
+  options: { paymentForms?: boolean } = {},
+): string {
+  const payment = options.paymentForms === true;
+  const extra = (hosts: readonly string[]) => (payment ? ` ${hosts.join(" ")}` : "");
+
   const directives = [
     "default-src 'self'",
 
@@ -59,7 +94,7 @@ export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean
     // This governs STYLESHEETS and `<style>` ELEMENTS. Style ATTRIBUTES are
     // governed by `style-src-attr` below, which deliberately says something
     // different.
-    `style-src 'self' 'nonce-${nonce}'${isDevelopment ? " 'unsafe-inline'" : ""}`,
+    `style-src 'self' 'nonce-${nonce}'${extra(PAYMENT_FORM_HOSTS.styles)}${isDevelopment ? " 'unsafe-inline'" : ""}`,
 
     /*
      * Style ATTRIBUTES, and why this one says `'unsafe-inline'`.
@@ -99,7 +134,7 @@ export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean
     // `blob:` and `data:` because a tenant's logo can be previewed before it is
     // uploaded, and Supabase Storage serves the stored one over https.
     "img-src 'self' blob: data: https:",
-    "font-src 'self' data:",
+    `font-src 'self' data:${extra(PAYMENT_FORM_HOSTS.fonts)}`,
 
     // Supabase: PostgREST, Auth, Storage and the Realtime socket the KDS opens
     // (Phase 16). `https:` and `wss:` rather than a specific host because the
@@ -119,7 +154,7 @@ export function buildContentSecurityPolicy(nonce: string, isDevelopment: boolean
     // Clickjacking. `X-Frame-Options: DENY` (Phase 00) says the same thing to
     // older browsers; this is the modern spelling and both are kept.
     "frame-ancestors 'none'",
-    "frame-src 'none'",
+    payment ? `frame-src ${PAYMENT_FORM_HOSTS.frames.join(" ")}` : "frame-src 'none'",
 
     "upgrade-insecure-requests",
   ];

@@ -6,40 +6,42 @@ architectural decision was made (`CLOVERCODE_MASTER.md` section 59).
 Each ADR contains: Context, Decision, Alternatives considered, Consequences,
 Status.
 
-| ADR | Title                                                                                                                             | Status   | Phase |
-| --- | --------------------------------------------------------------------------------------------------------------------------------- | -------- | ----- |
-| 001 | [Single-database multi-tenancy](./001-single-database-multitenancy.md)                                                            | ACCEPTED | 00    |
-| 002 | [Toolchain version pinning](./002-toolchain-version-pinning.md)                                                                   | ACCEPTED | 00    |
-| 003 | [Error handling and structured logging](./003-error-handling-and-logging.md)                                                      | ACCEPTED | 00    |
-| 004 | [Lazy environment validation](./004-environment-validation.md)                                                                    | ACCEPTED | 00    |
-| 005 | [Testing strategy](./005-testing-strategy.md)                                                                                     | ACCEPTED | 00    |
-| 006 | [Tenant resolution](./006-tenant-resolution.md)                                                                                   | ACCEPTED | 01    |
-| 007 | [SQL testing without Docker](./007-sql-testing-without-docker.md)                                                                 | ACCEPTED | 01    |
-| 008 | [SSR sessions and route protection](./008-session-and-route-protection.md)                                                        | ACCEPTED | 02    |
-| 009 | [Profiles and membership](./009-profiles-and-membership.md)                                                                       | ACCEPTED | 02    |
-| 010 | [RBAC authorization](./010-rbac-authorization.md)                                                                                 | ACCEPTED | 03    |
-| 011 | [Platform identity](./011-platform-identity.md)                                                                                   | ACCEPTED | 04    |
-| 012 | [Structured data and public reads](./012-structured-data-and-public-reads.md)                                                     | ACCEPTED | 08    |
-| 013 | [Domain verification and provider](./013-domain-verification-and-provider.md)                                                     | ACCEPTED | 09    |
-| 014 | [Locations as operational anchor](./014-locations-as-operational-anchor.md)                                                       | ACCEPTED | 10    |
-| 015 | [Money as integers in the minor unit](./015-money-as-minor-units.md)                                                              | ACCEPTED | 11    |
-| 016 | [Personal data minimization](./016-personal-data-minimization.md)                                                                 | ACCEPTED | 12    |
-| 017 | [Order snapshots and state machine](./017-order-snapshot-and-state-machine.md)                                                    | ACCEPTED | 13    |
-| 018 | [Payment voiding and the cash ledger](./018-payment-void-and-cash-ledger.md)                                                      | ACCEPTED | 14    |
-| 019 | [POS actions as RPC, ephemeral cart](./019-pos-actions-as-rpc-and-ephemeral-cart.md)                                              | ACCEPTED | 15    |
-| 020 | [KDS station snapshot and Realtime as refetch](./020-kds-station-snapshot-and-realtime-as-refetch.md)                             | ACCEPTED | 16    |
-| 021 | [Billing provider abstraction and Vault credentials](./021-billing-provider-abstraction-and-vault-credentials.md)                 | ACCEPTED | 17    |
-| 022 | [Derived stock and completion-triggered consumption](./022-derived-stock-and-completion-triggered-consumption.md)                 | ACCEPTED | 18    |
-| 023 | [Delivery zone/rate split and decoupled lifecycle](./023-delivery-zone-rate-split-and-decoupled-lifecycle.md)                     | ACCEPTED | 19    |
-| 024 | [Discount as a ledger entry; derived point balance](./024-discount-as-ledger-entry-and-derived-point-balance.md)                  | ACCEPTED | 20    |
-| 025 | [Central module resolution and non-destructive provisioning](./025-central-module-resolution-and-non-destructive-provisioning.md) | ACCEPTED | 21    |
-| 026 | [SaaS charge as a single row; idempotent billing cycle](./026-saas-charge-as-single-row-and-idempotent-billing-cycle.md)          | ACCEPTED | 22    |
-| 027 | [Aggregate functions; no materialised views yet](./027-aggregate-functions-and-no-materialised-views-yet.md)                      | ACCEPTED | 23    |
-| 028 | [Audit by trigger, with forwarded request context](./028-audit-by-trigger-with-forwarded-request-context.md)                      | ACCEPTED | 24    |
-| 029 | [Nonce CSP, database rate limits, and the isolation sweep](./029-nonce-csp-database-rate-limits-and-isolation-sweep.md)           | ACCEPTED | 25    |
-| 030 | [Measured query plans and bounded reads](./030-measured-plans-and-bounded-reads.md)                                               | ACCEPTED | 26    |
-| 031 | [A restore is not an insert](./031-restore-with-triggers-disabled.md)                                                             | ACCEPTED | 27    |
-| 032 | [E2E split and a checklist that cannot lie](./032-e2e-split-and-a-checklist-that-cannot-lie.md)                                   | ACCEPTED | 28    |
+| ADR | Title                                                                                                                                    | Status   | Phase |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | ----- |
+| 001 | [Single-database multi-tenancy](./001-single-database-multitenancy.md)                                                                   | ACCEPTED | 00    |
+| 002 | [Toolchain version pinning](./002-toolchain-version-pinning.md)                                                                          | ACCEPTED | 00    |
+| 003 | [Error handling and structured logging](./003-error-handling-and-logging.md)                                                             | ACCEPTED | 00    |
+| 004 | [Lazy environment validation](./004-environment-validation.md)                                                                           | ACCEPTED | 00    |
+| 005 | [Testing strategy](./005-testing-strategy.md)                                                                                            | ACCEPTED | 00    |
+| 006 | [Tenant resolution](./006-tenant-resolution.md)                                                                                          | ACCEPTED | 01    |
+| 007 | [SQL testing without Docker](./007-sql-testing-without-docker.md)                                                                        | ACCEPTED | 01    |
+| 008 | [SSR sessions and route protection](./008-session-and-route-protection.md)                                                               | ACCEPTED | 02    |
+| 009 | [Profiles and membership](./009-profiles-and-membership.md)                                                                              | ACCEPTED | 02    |
+| 010 | [RBAC authorization](./010-rbac-authorization.md)                                                                                        | ACCEPTED | 03    |
+| 011 | [Platform identity](./011-platform-identity.md)                                                                                          | ACCEPTED | 04    |
+| 012 | [Structured data and public reads](./012-structured-data-and-public-reads.md)                                                            | ACCEPTED | 08    |
+| 013 | [Domain verification and provider](./013-domain-verification-and-provider.md)                                                            | ACCEPTED | 09    |
+| 014 | [Locations as operational anchor](./014-locations-as-operational-anchor.md)                                                              | ACCEPTED | 10    |
+| 015 | [Money as integers in the minor unit](./015-money-as-minor-units.md)                                                                     | ACCEPTED | 11    |
+| 016 | [Personal data minimization](./016-personal-data-minimization.md)                                                                        | ACCEPTED | 12    |
+| 017 | [Order snapshots and state machine](./017-order-snapshot-and-state-machine.md)                                                           | ACCEPTED | 13    |
+| 018 | [Payment voiding and the cash ledger](./018-payment-void-and-cash-ledger.md)                                                             | ACCEPTED | 14    |
+| 019 | [POS actions as RPC, ephemeral cart](./019-pos-actions-as-rpc-and-ephemeral-cart.md)                                                     | ACCEPTED | 15    |
+| 020 | [KDS station snapshot and Realtime as refetch](./020-kds-station-snapshot-and-realtime-as-refetch.md)                                    | ACCEPTED | 16    |
+| 021 | [Billing provider abstraction and Vault credentials](./021-billing-provider-abstraction-and-vault-credentials.md)                        | ACCEPTED | 17    |
+| 022 | [Derived stock and completion-triggered consumption](./022-derived-stock-and-completion-triggered-consumption.md)                        | ACCEPTED | 18    |
+| 023 | [Delivery zone/rate split and decoupled lifecycle](./023-delivery-zone-rate-split-and-decoupled-lifecycle.md)                            | ACCEPTED | 19    |
+| 024 | [Discount as a ledger entry; derived point balance](./024-discount-as-ledger-entry-and-derived-point-balance.md)                         | ACCEPTED | 20    |
+| 025 | [Central module resolution and non-destructive provisioning](./025-central-module-resolution-and-non-destructive-provisioning.md)        | ACCEPTED | 21    |
+| 026 | [SaaS charge as a single row; idempotent billing cycle](./026-saas-charge-as-single-row-and-idempotent-billing-cycle.md)                 | ACCEPTED | 22    |
+| 027 | [Aggregate functions; no materialised views yet](./027-aggregate-functions-and-no-materialised-views-yet.md)                             | ACCEPTED | 23    |
+| 028 | [Audit by trigger, with forwarded request context](./028-audit-by-trigger-with-forwarded-request-context.md)                             | ACCEPTED | 24    |
+| 029 | [Nonce CSP, database rate limits, and the isolation sweep](./029-nonce-csp-database-rate-limits-and-isolation-sweep.md)                  | ACCEPTED | 25    |
+| 030 | [Measured query plans and bounded reads](./030-measured-plans-and-bounded-reads.md)                                                      | ACCEPTED | 26    |
+| 031 | [A restore is not an insert](./031-restore-with-triggers-disabled.md)                                                                    | ACCEPTED | 27    |
+| 032 | [E2E split and a checklist that cannot lie](./032-e2e-split-and-a-checklist-that-cannot-lie.md)                                          | ACCEPTED | 28    |
+| 033 | [Anonymous web order by function, and a tracking token](./033-anonymous-web-order-by-function-and-tracking-token.md)                     | ACCEPTED | 29    |
+| 034 | [Platform-chosen payment gateway; provider-confirmed payments](./034-platform-chosen-payment-gateway-and-provider-confirmed-payments.md) | ACCEPTED | 31    |
 
 ## Planned
 

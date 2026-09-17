@@ -1,10 +1,7 @@
 import { EmptyState } from "@/components/ui";
-import { signAssetPaths } from "@/lib/storage/sign";
-import { listPublicProducts } from "@/modules/catalog/server/queries";
-import { getPublicIdentity } from "@/modules/seo/server/queries";
 import { getPreviewPage } from "../server/admin-queries";
-import { collectAssetPaths } from "../sections";
-import { SectionRenderer, type CatalogForSections } from "./section-renderer";
+import { loadSectionData } from "../server/section-data";
+import { SectionRenderer } from "./section-renderer";
 
 /**
  * One page of a tenant site, rendered for somebody who works there.
@@ -40,30 +37,15 @@ export async function PreviewPageView({
         title={slug === "inicio" ? "Este sitio aun no tiene portada" : "Esa pagina no existe"}
         description={
           slug === "inicio"
-            ? `Crea una pagina con el enlace "inicio" y sera la portada de ${tenantName}.`
+            ? `Crea una pagina con el enlace "inicio" y sera la portada de ${tenantName}. Desde Tienda online puedes crearla con un clic.`
             : "Revisa el enlace, o creala desde Paginas."
         }
       />
     );
   }
 
-  const wantsCatalog = page.sections.some((section) => section.type === "products");
-
-  const [catalog, identity] = wantsCatalog
-    ? await Promise.all([listPublicProducts(tenantId), getPublicIdentity(tenantId, tenantName)])
-    : [[], null];
-
-  const productImagePaths = catalog
-    .map((product) => product.imagePath)
-    .filter((path): path is string => path !== null);
-
-  const assetUrls = await signAssetPaths([
-    ...collectAssetPaths(page.sections),
-    ...productImagePaths,
-  ]);
-
-  const catalogForSections: CatalogForSections | undefined =
-    identity === null ? undefined : { products: catalog, currency: identity.currency };
+  // The same data the public view reads, through the same helper.
+  const { assetUrls, catalog, site } = await loadSectionData(tenantId, tenantName, page.sections);
 
   if (page.sections.length === 0) {
     return (
@@ -84,7 +66,8 @@ export async function PreviewPageView({
             key={section.id}
             section={section}
             assetUrls={assetUrls}
-            catalog={catalogForSections}
+            catalog={catalog}
+            site={site}
             basePath={basePath}
           />
         ) : (
@@ -101,7 +84,8 @@ export async function PreviewPageView({
             <SectionRenderer
               section={section}
               assetUrls={assetUrls}
-              catalog={catalogForSections}
+              catalog={catalog}
+              site={site}
               basePath={basePath}
             />
           </div>

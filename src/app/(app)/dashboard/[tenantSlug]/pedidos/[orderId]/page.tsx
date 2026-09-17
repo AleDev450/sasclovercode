@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+import { IconWhatsApp } from "@/components/ui/icons";
 import { formatCurrency } from "@/lib/money";
+import { whatsappUrl } from "@/modules/storefront/whatsapp";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { MODULES } from "@/lib/features";
@@ -152,6 +154,15 @@ export default async function OrderDetailPage({
 
   const money = (cents: number): string => formatCurrency(cents, settings.currency);
 
+  // Phase 29: a one-tap chat with whoever ordered from the website.
+  const customerWhatsapp =
+    order.web === null
+      ? null
+      : whatsappUrl(
+          order.web.contactPhone,
+          `Hola ${order.web.contactName}, te escribimos de ${tenant.name} por tu pedido #${order.number}.`,
+        );
+
   // The discount side. `promotions` and the account are only needed to APPLY
   // something, which takes `.manage` and a draft order - so a viewer pays for
   // the list of postings and nothing else.
@@ -224,6 +235,55 @@ export default async function OrderDetailPage({
           ) : null}
         </div>
 
+        {/*
+          Phase 29. Who ordered from the website and how to reach them. First on
+          the page, because a web order is a stranger the business has to
+          confirm with before cooking: the phone and a one-tap WhatsApp are the
+          whole point of this card.
+        */}
+        {order.web !== null ? (
+          <Card>
+            <CardHeader>
+              <CardTitle as="h2">Pedido desde la web</CardTitle>
+              <CardDescription>
+                {order.web.fulfillment === "delivery" ? "Delivery" : "Recojo en tienda"}
+                {order.web.payOnline
+                  ? ` · Pago online: ${
+                      {
+                        none: "",
+                        pending: "pendiente",
+                        approved: "aprobado",
+                        rejected: "rechazado",
+                      }[order.web.onlinePaymentStatus]
+                    }`
+                  : order.web.paymentMethodName !== null
+                    ? ` · Pagara con ${order.web.paymentMethodName}`
+                    : ""}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+              <span className="font-medium">{order.web.contactName}</span>
+              <a href={`tel:${order.web.contactPhone}`} className="tabular-nums hover:underline">
+                {order.web.contactPhone}
+              </a>
+              {customerWhatsapp !== null ? (
+                <a
+                  href={customerWhatsapp}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-primary text-primary-foreground inline-flex h-9 items-center gap-2 rounded-md px-3 text-xs font-medium"
+                >
+                  <IconWhatsApp className="size-4" />
+                  Escribir por WhatsApp
+                </a>
+              ) : null}
+              {order.notes !== null ? (
+                <p className="text-muted-foreground w-full">Nota del cliente: {order.notes}</p>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <Card className="overflow-x-auto">
           <CardHeader>
             <CardTitle as="h2">Detalle</CardTitle>
@@ -260,6 +320,9 @@ export default async function OrderDetailPage({
                       {line.name}
                       {line.variantName !== null ? (
                         <span className="text-muted-foreground"> · {line.variantName}</span>
+                      ) : null}
+                      {line.options !== null ? (
+                        <span className="text-muted-foreground block text-xs">{line.options}</span>
                       ) : null}
                     </td>
                     <td className="py-2 text-right tabular-nums">{line.quantity}</td>

@@ -118,12 +118,15 @@ describe("client component budget (TEST-2603)", () => {
 
     const ratio = clientFiles.length / files.length;
 
-    // 60 against 52 measured: room for the phases still to come, tight enough
-    // that turning a page tree into client components trips it.
+    // 76 against 72 measured at the end of Phase 30 (it was 60 against 52 in
+    // Phase 26). The storefront added the first screens a restaurant's own
+    // customers touch - cart, extras, checkout, slider, complaints form - and
+    // each needs browser state; see docs/performance-budgets.md. Still tight
+    // enough that turning a page tree into client components trips it.
     expect(
       clientFiles.length,
       `client components: ${clientFiles.length} of ${files.length} (${Math.round(ratio * 100)}%)`,
-    ).toBeLessThanOrEqual(60);
+    ).toBeLessThanOrEqual(76);
   });
 
   it("keeps server components the default", async () => {

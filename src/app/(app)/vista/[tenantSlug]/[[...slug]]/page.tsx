@@ -13,6 +13,8 @@ import { PreviewPageView } from "@/modules/cms/components/preview-page-view";
 import { SiteChrome } from "@/modules/cms/components/site-chrome";
 import { listPageSlugs } from "@/modules/cms/server/admin-queries";
 import { getPreviewSiteContext } from "@/modules/cms/server/site-context";
+import { ComplaintBookView, LegalDocumentView } from "@/modules/legal/components/views";
+import { CheckoutView, DeliveryZonesView, MenuView } from "@/modules/storefront/components/views";
 
 /**
  * "Ver mi web", from inside the product.
@@ -155,14 +157,35 @@ export default async function SitePreviewPage({
     );
   }
 
+  /*
+   * The fixed storefront pages (Phase 29) are not CMS pages, so the preview
+   * renders their views directly - the same components `/sitio/carta` and its
+   * siblings render. The checkout is shown with `preview` set: identical to what
+   * a customer sees, and unable to place an order from the dashboard's hostname.
+   */
+  const view = { tenantId: tenant.id, tenantName: tenant.name, basePath };
+  const content =
+    pageSlug === "carta" ? (
+      <MenuView {...view} />
+    ) : pageSlug === "zonas-de-delivery" ? (
+      <DeliveryZonesView {...view} />
+    ) : pageSlug === "pedir" ? (
+      <CheckoutView {...view} preview />
+    ) : pageSlug === "terminos" ? (
+      <LegalDocumentView {...view} kind="terms" />
+    ) : pageSlug === "privacidad" ? (
+      <LegalDocumentView {...view} kind="privacy" />
+    ) : pageSlug === "cookies" ? (
+      <LegalDocumentView {...view} kind="cookies" />
+    ) : pageSlug === "libro-de-reclamaciones" ? (
+      <ComplaintBookView {...view} preview />
+    ) : (
+      <PreviewPageView {...view} slug={pageSlug} />
+    );
+
   return (
     <SiteChrome site={site} basePath={basePath} banner={banner}>
-      <PreviewPageView
-        tenantId={tenant.id}
-        tenantName={tenant.name}
-        slug={pageSlug}
-        basePath={basePath}
-      />
+      {content}
     </SiteChrome>
   );
 }

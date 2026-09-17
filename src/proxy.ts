@@ -35,7 +35,12 @@ import {
   signInPathWithReturnTo,
 } from "@/lib/auth/redirect";
 import { logger } from "@/lib/logger";
-import { buildContentSecurityPolicy, generateNonce, NONCE_HEADER } from "@/lib/security/csp";
+import {
+  buildContentSecurityPolicy,
+  generateNonce,
+  isPaymentPath,
+  NONCE_HEADER,
+} from "@/lib/security/csp";
 import { createSupabaseProxyClient } from "@/lib/supabase/proxy";
 
 /**
@@ -57,7 +62,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // CSP header during rendering and attaches it to every script it emits, so
   // nothing below has to thread it through by hand.
   const nonce = generateNonce();
-  const policy = buildContentSecurityPolicy(nonce, process.env.NODE_ENV === "development");
+  // Phase 31: only the order tracking page may frame a payment provider.
+  const policy = buildContentSecurityPolicy(nonce, process.env.NODE_ENV === "development", {
+    paymentForms: isPaymentPath(pathname),
+  });
 
   // Forwarded on the REQUEST too, so a Server Component that ever needs to mark
   // a script of its own can read it (`headers().get("x-nonce")`).

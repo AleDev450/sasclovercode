@@ -177,6 +177,19 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: "customers",
     permission: PERMISSIONS.CUSTOMERS_VIEW,
   },
+  /*
+   * Phase 30. Under Clientes because every sheet is a customer, and with no
+   * module: keeping the Libro de Reclamaciones is an obligation of every
+   * business that sells to consumers, not a feature somebody buys.
+   */
+  {
+    key: "complaints",
+    label: "Libro de reclamaciones",
+    segment: "/reclamos",
+    group: "clientes",
+    icon: "complaints",
+    permission: PERMISSIONS.COMPLAINTS_VIEW,
+  },
   {
     key: "loyalty",
     label: "Fidelizacion",
@@ -188,6 +201,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
   },
 
   /* ---------------------------------------------------------------- web */
+  /*
+   * Phase 29. First in the group because it is the switch that decides whether
+   * the website sells at all: web orders on or off, open or closed, delivery or
+   * pickup, WhatsApp. `settings.manage`, like the theme below it.
+   */
+  {
+    key: "storefront",
+    label: "Tienda online",
+    segment: "/tienda",
+    group: "web",
+    icon: "storefront",
+    permission: PERMISSIONS.SETTINGS_MANAGE,
+    module: MODULES.WEBSITE,
+  },
   {
     key: "content",
     label: "Paginas",

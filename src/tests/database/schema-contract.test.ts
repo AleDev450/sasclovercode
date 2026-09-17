@@ -170,6 +170,8 @@ export type _OrderItemKeys = Expect<
     | "notes"
     | "position"
     | "station"
+    | "option_ids"
+    | "options_snapshot"
     | "created_at"
     | "updated_at"
   >
@@ -199,6 +201,49 @@ export type _PaymentMethodKeys = Expect<
     | "reference"
     | "is_active"
     | "position"
+    | "show_on_website"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+type TenantStorefrontRow = Database["public"]["Tables"]["tenant_storefronts"]["Row"];
+type WebOrderRow = Database["public"]["Tables"]["web_orders"]["Row"];
+
+export type _TenantStorefrontKeys = Expect<
+  Equal<
+    keyof TenantStorefrontRow,
+    | "tenant_id"
+    | "ordering_enabled"
+    | "mode"
+    | "closed_message"
+    | "accepts_delivery"
+    | "accepts_pickup"
+    | "min_order_cents"
+    | "order_location_id"
+    | "whatsapp_button"
+    | "whatsapp_message"
+    | "tagline"
+    | "public_email"
+    | "bestsellers_days"
+    | "created_at"
+    | "updated_at"
+  >
+>;
+
+export type _WebOrderKeys = Expect<
+  Equal<
+    keyof WebOrderRow,
+    | "order_id"
+    | "tenant_id"
+    | "access_token_hash"
+    | "contact_name"
+    | "contact_phone"
+    | "fulfillment"
+    | "payment_method_id"
+    | "pay_online"
+    | "online_payment_status"
+    | "provider_reference"
     | "created_at"
     | "updated_at"
   >
@@ -568,6 +613,8 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     notes: { dataType: "text", nullable: true },
     position: { dataType: "smallint", nullable: false },
     station: { dataType: "USER-DEFINED", nullable: false },
+    option_ids: { dataType: "ARRAY", nullable: false },
+    options_snapshot: { dataType: "text", nullable: true },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },
@@ -593,6 +640,7 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     reference: { dataType: "text", nullable: true },
     is_active: { dataType: "boolean", nullable: false },
     position: { dataType: "smallint", nullable: false },
+    show_on_website: { dataType: "boolean", nullable: false },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },
@@ -1086,6 +1134,94 @@ const EXPECTED_COLUMNS: Record<string, Record<string, ColumnSpec>> = {
     status: { dataType: "USER-DEFINED", nullable: false },
     internal_note: { dataType: "text", nullable: true },
     contacted_at: { dataType: "timestamp with time zone", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  // Phase 29.
+  tenant_storefronts: {
+    tenant_id: { dataType: "uuid", nullable: false },
+    ordering_enabled: { dataType: "boolean", nullable: false },
+    mode: { dataType: "USER-DEFINED", nullable: false },
+    closed_message: { dataType: "text", nullable: true },
+    accepts_delivery: { dataType: "boolean", nullable: false },
+    accepts_pickup: { dataType: "boolean", nullable: false },
+    min_order_cents: { dataType: "bigint", nullable: false },
+    order_location_id: { dataType: "uuid", nullable: true },
+    whatsapp_button: { dataType: "boolean", nullable: false },
+    whatsapp_message: { dataType: "text", nullable: true },
+    tagline: { dataType: "text", nullable: true },
+    public_email: { dataType: "text", nullable: true },
+    bestsellers_days: { dataType: "smallint", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  // Phase 30.
+  tenant_legal_documents: {
+    tenant_id: { dataType: "uuid", nullable: false },
+    kind: { dataType: "USER-DEFINED", nullable: false },
+    body: { dataType: "text", nullable: false },
+    updated_by: { dataType: "uuid", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  complaints: {
+    id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    number: { dataType: "integer", nullable: false },
+    provider_name: { dataType: "text", nullable: false },
+    provider_tax_id: { dataType: "text", nullable: true },
+    provider_address: { dataType: "text", nullable: true },
+    location_id: { dataType: "uuid", nullable: true },
+    consumer_name: { dataType: "text", nullable: false },
+    consumer_address: { dataType: "text", nullable: false },
+    document_type: { dataType: "text", nullable: false },
+    document_number: { dataType: "text", nullable: false },
+    consumer_email: { dataType: "text", nullable: false },
+    consumer_phone: { dataType: "text", nullable: false },
+    is_minor: { dataType: "boolean", nullable: false },
+    guardian_name: { dataType: "text", nullable: true },
+    item_type: { dataType: "text", nullable: false },
+    amount_cents: { dataType: "bigint", nullable: true },
+    item_description: { dataType: "text", nullable: false },
+    order_reference: { dataType: "text", nullable: true },
+    incident_date: { dataType: "date", nullable: true },
+    type: { dataType: "USER-DEFINED", nullable: false },
+    detail: { dataType: "text", nullable: false },
+    consumer_request: { dataType: "text", nullable: false },
+    response_channel: { dataType: "text", nullable: false },
+    status: { dataType: "USER-DEFINED", nullable: false },
+    response: { dataType: "text", nullable: true },
+    responded_at: { dataType: "timestamp with time zone", nullable: true },
+    responded_by: { dataType: "uuid", nullable: true },
+    due_on: { dataType: "date", nullable: false },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  web_orders: {
+    order_id: { dataType: "uuid", nullable: false },
+    tenant_id: { dataType: "uuid", nullable: false },
+    access_token_hash: { dataType: "text", nullable: false },
+    contact_name: { dataType: "text", nullable: false },
+    contact_phone: { dataType: "text", nullable: false },
+    fulfillment: { dataType: "text", nullable: false },
+    payment_method_id: { dataType: "uuid", nullable: true },
+    pay_online: { dataType: "boolean", nullable: false },
+    online_payment_status: { dataType: "text", nullable: false },
+    provider_reference: { dataType: "text", nullable: true },
+    created_at: { dataType: "timestamp with time zone", nullable: false },
+    updated_at: { dataType: "timestamp with time zone", nullable: false },
+  },
+  // Phase 31.
+  tenant_payment_gateways: {
+    tenant_id: { dataType: "uuid", nullable: false },
+    provider: { dataType: "USER-DEFINED", nullable: false },
+    mode: { dataType: "USER-DEFINED", nullable: false },
+    public_key: { dataType: "text", nullable: true },
+    credentials_secret_id: { dataType: "uuid", nullable: true },
+    credentials_updated_at: { dataType: "timestamp with time zone", nullable: true },
+    payment_method_id: { dataType: "uuid", nullable: false },
+    is_enabled: { dataType: "boolean", nullable: false },
+    configured_by: { dataType: "uuid", nullable: true },
     created_at: { dataType: "timestamp with time zone", nullable: false },
     updated_at: { dataType: "timestamp with time zone", nullable: false },
   },

@@ -17,6 +17,11 @@ import { getPlatformTenant, getPlatformTenantTheme } from "@/modules/platform/se
 import { TenantPlanCard } from "@/modules/platform/components/tenant-plan";
 import { TenantThemeCard } from "@/modules/platform/components/tenant-theme";
 import { TenantBillingCard } from "@/modules/platform/components/saas-billing";
+import { TenantGatewayCard } from "@/modules/online-payments/components/tenant-gateway-card";
+import {
+  getGatewaySummary,
+  hasOnlinePaymentsModule,
+} from "@/modules/online-payments/server/queries";
 import {
   listSubscriptionEvents,
   listTenantCharges,
@@ -86,17 +91,29 @@ export default async function PlatformTenantDetailPage({
   const tenant = await getPlatformTenant(id);
   // The platform SELECT policy on `tenant_domains` lets an operator read any
   // tenant's rows, so the same query the business uses serves this screen too.
-  const [domains, subscription, plans, modules, overrides, charges, events, theme] =
-    await Promise.all([
-      listTenantDomains(tenant.id),
-      getTenantSubscription(tenant.id),
-      listPlans(),
-      listModules(),
-      listTenantModuleOverrides(tenant.id),
-      listTenantCharges(tenant.id),
-      listSubscriptionEvents(tenant.id),
-      getPlatformTenantTheme(tenant.id),
-    ]);
+  const [
+    domains,
+    subscription,
+    plans,
+    modules,
+    overrides,
+    charges,
+    events,
+    theme,
+    gateway,
+    onlinePayments,
+  ] = await Promise.all([
+    listTenantDomains(tenant.id),
+    getTenantSubscription(tenant.id),
+    listPlans(),
+    listModules(),
+    listTenantModuleOverrides(tenant.id),
+    listTenantCharges(tenant.id),
+    listSubscriptionEvents(tenant.id),
+    getPlatformTenantTheme(tenant.id),
+    getGatewaySummary(tenant.id),
+    hasOnlinePaymentsModule(tenant.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -189,6 +206,14 @@ export default async function PlatformTenantDetailPage({
         like, what it has been charged.
       */}
       <TenantThemeCard tenantId={tenant.id} tenantName={tenant.name} theme={theme} />
+
+      {/* Phase 31: the gateway is chosen and configured by the platform. */}
+      <TenantGatewayCard
+        tenantId={tenant.id}
+        domain={tenant.primaryDomain}
+        hasModule={onlinePayments}
+        gateway={gateway}
+      />
 
       <TenantBillingCard
         tenantId={tenant.id}

@@ -1,5 +1,14 @@
 import { notFound } from "next/navigation";
-import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui";
+import { setPaymentMethodWebsiteAction } from "@/modules/storefront/server/actions";
 import { PERMISSIONS } from "@/lib/permissions";
 import { hasPermission } from "@/lib/permissions/check";
 import { MODULES } from "@/lib/features";
@@ -67,6 +76,9 @@ export default async function PaymentMethodsPage({
               <th scope="col" className="px-4 py-3 font-medium">
                 Estado
               </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                En la web
+              </th>
               {canManage ? (
                 <th scope="col" className="px-4 py-3 font-medium">
                   Accion
@@ -84,6 +96,34 @@ export default async function PaymentMethodsPage({
                   <Badge variant={method.isActive ? "success" : "neutral"}>
                     {method.isActive ? "Activo" : "Inactivo"}
                   </Badge>
+                </td>
+                <td className="px-4 py-3">
+                  {/*
+                    Phase 29. Whether a customer can pick this method on the
+                    website checkout. A plain form: one click, no state to show.
+                  */}
+                  {canManage ? (
+                    <form action={setPaymentMethodWebsiteAction}>
+                      <input type="hidden" name="tenantSlug" value={tenant.slug} />
+                      <input type="hidden" name="methodId" value={method.id} />
+                      <input
+                        type="hidden"
+                        name="showOnWebsite"
+                        value={method.showOnWebsite ? "false" : "true"}
+                      />
+                      <Button
+                        type="submit"
+                        size="sm"
+                        variant={method.showOnWebsite ? "secondary" : "outline"}
+                      >
+                        {method.showOnWebsite ? "Visible · Ocultar" : "Mostrar en la web"}
+                      </Button>
+                    </form>
+                  ) : (
+                    <Badge variant={method.showOnWebsite ? "success" : "neutral"}>
+                      {method.showOnWebsite ? "Visible" : "Oculto"}
+                    </Badge>
+                  )}
                 </td>
                 {canManage ? (
                   <td className="px-4 py-3">
