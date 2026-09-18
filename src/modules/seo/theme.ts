@@ -55,20 +55,20 @@ export interface ThemeValues {
 }
 
 /**
- * Same defaults as the `tenant_themes` column defaults, which are the "Atelier"
- * theme (migration 20260915120000).
+ * Same defaults as the `tenant_themes` column defaults, which are the "Carbon"
+ * theme (migration 20260919120000).
  *
  * They have to match. This is the fallback the renderer uses when the theme row
  * cannot be read, so a drift shows up as a business whose site changes colour
  * for the duration of a database hiccup.
  */
 export const THEME_DEFAULTS: ThemeValues = {
-  primaryColor: "#e8d3a9",
-  accentColor: "#d9a441",
-  backgroundColor: "#121214",
-  fontFamily: "jost",
-  borderRadius: "none",
-  style: "atelier",
+  primaryColor: "#e36626",
+  accentColor: "#f2b23e",
+  backgroundColor: "#120b07",
+  fontFamily: "inter",
+  borderRadius: "lg",
+  style: "carbon",
 };
 
 const HEX = /^#[0-9a-f]{6}$/;
@@ -171,6 +171,83 @@ export interface SiteStyle {
   readonly heroRatio: string;
   /** Extra tracking on body copy. Wide type needs air; a serif does not. */
   readonly bodyTracking: string;
+
+  /* ------------------------------------------------------------------------
+   * The four below arrived with `carbon`, and every style declares them.
+   *
+   * WHY THEY ARE TOKENS AND NOT CSS IN THE RENDERER. The three original styles
+   * differed in colour, face and rhythm, and the renderer drew the SAME block
+   * for all of them: `text-3xl sm:text-4xl` headings, a flat fill behind every
+   * button, one corner radius everywhere. Measured against a site built by
+   * hand for one restaurant, that is the whole of the gap - not the palette.
+   * Putting the scale, the fill, the light and the curve of the big blocks
+   * here is what lets a style be LOUD without the renderer growing a branch
+   * that asks which style it is in.
+   * --------------------------------------------------------------------- */
+
+  /** The size of a section heading. A clamp, because it is read on a phone too. */
+  readonly displaySize: string;
+  /** The size of a headline that sits on a photograph. Always larger. */
+  readonly heroSize: string;
+  /**
+   * How a call to action is filled, and whether brand light spills from it.
+   *
+   * A gradient and a coloured shadow are the two cheapest things that separate
+   * "a button" from "a button somebody designed", and both are wrong for a
+   * quiet style - which is why they are a choice here and not a default.
+   */
+  readonly buttonFill: "flat" | "gradient";
+  readonly glow: boolean;
+  /**
+   * The shape of a call to action: the tenant's chip radius, or a pill.
+   *
+   * Not derived from `borderRadius`, because a business choosing `lg` is
+   * choosing a curve for its inputs and badges - `RADII.lg` gives a 48px
+   * button an 8px chip radius, and a pill is a different decision that belongs
+   * to the look rather than to the shop.
+   */
+  readonly buttonRadius: "chip" | "pill";
+  /**
+   * Whether a dish, a shortcut or a gallery frame sits in a PANEL or bare on
+   * the page.
+   *
+   * `bare` is the printed-menu treatment the three original styles were built
+   * around: the photograph carries the frame and the type sits on the paper
+   * under it. `panel` puts every block on its own raised surface with a
+   * hairline and interior padding, which is what a dark site does - there is no
+   * paper to sit on, so the card has to make its own.
+   */
+  readonly card: "bare" | "panel";
+  /**
+   * The closing call to action: a tinted panel, or a slab of brand colour.
+   *
+   * It is the loudest block on a restaurant's home page, and the one a quiet
+   * style has to be allowed to keep quiet. `tint` is a ten-per-cent wash of the
+   * brand behind brand-coloured type; `fill` is the gradient itself, edge to
+   * edge, with the label colour measured against it.
+   */
+  readonly band: "tint" | "fill";
+  /**
+   * Whether the header floats OVER the cover photograph instead of sitting on
+   * a bar above it.
+   *
+   * The most recognisable thing about a restaurant site built by hand, and the
+   * one that cannot simply be switched on for everybody: it puts the nav on top
+   * of an arbitrary photograph, which only works when the page's own type is
+   * light and the slide is dark behind it. `carbon` is built that way; a bone
+   * page with near-black nav labels over a bright plate is unreadable, so the
+   * light styles keep their bar.
+   */
+  readonly headerOverlay: boolean;
+  /**
+   * The curve of the LARGE composed blocks: a slide, a full-bleed card, a
+   * panel. Deliberately not the tenant's `border_radius`, which is a decision
+   * about inputs and badges: a 2rem curve on a chip is a lozenge, and a 2px
+   * curve on a 520px card is a rectangle.
+   */
+  readonly panelRadius: string;
+  /** A faint repeating texture for section bands. Most styles want none. */
+  readonly texture: "none" | "dots";
 }
 
 export const SITE_STYLES: Record<string, SiteStyle> = {
@@ -201,6 +278,16 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1fr",
     heroRatio: "16 / 9",
     bodyTracking: "0.015em",
+    displaySize: "clamp(2rem, 3.6vw, 3.25rem)",
+    heroSize: "clamp(2.4rem, 4.6vw, 4rem)",
+    buttonFill: "flat",
+    glow: false,
+    buttonRadius: "chip",
+    card: "bare",
+    band: "tint",
+    headerOverlay: false,
+    panelRadius: "0px",
+    texture: "none",
   },
 
   /**
@@ -225,6 +312,16 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1.05fr 1fr",
     heroRatio: "4 / 3",
     bodyTracking: "0em",
+    displaySize: "clamp(2.1rem, 4vw, 3.5rem)",
+    heroSize: "clamp(2.5rem, 5vw, 4.25rem)",
+    buttonFill: "flat",
+    glow: false,
+    buttonRadius: "chip",
+    card: "bare",
+    band: "tint",
+    headerOverlay: false,
+    panelRadius: "0.75rem",
+    texture: "none",
   },
 
   /**
@@ -250,10 +347,79 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1fr 0.85fr",
     heroRatio: "4 / 5",
     bodyTracking: "0.005em",
+    displaySize: "clamp(2.1rem, 4vw, 3.5rem)",
+    heroSize: "clamp(2.5rem, 5vw, 4.25rem)",
+    buttonFill: "flat",
+    glow: false,
+    buttonRadius: "chip",
+    card: "bare",
+    band: "tint",
+    headerOverlay: false,
+    panelRadius: "1.25rem",
+    texture: "none",
+  },
+
+  /**
+   * TAQUERIA, BARRA, POLLERIA DE NOCHE. A dark room, a fire, a queue outside.
+   *
+   * WHY A FOURTH STYLE EXISTS, when the file above argues for three. Because
+   * the three answered a question about TASTE - serif or grotesk, dark or bone,
+   * square photograph or tall - and none of them answered the question a
+   * restaurant owner actually asks, which is why their site looks cheaper than
+   * the one their competitor paid an agency for. Put side by side with such a
+   * site the difference was never the palette: it was that everything here was
+   * drawn at one size, with one flat fill, one curve, no light and no movement.
+   *
+   * So this style is not another mood. It is the same content at the scale a
+   * restaurant site is actually designed at: headlines that fill the column,
+   * sections that breathe at eleven rem, photography that runs to the edge of
+   * a card and fades into the page, a gradient on the one button that matters
+   * and brand-coloured light under it.
+   *
+   * IT ASSUMES A DARK BACKGROUND and does not require one. Every readable value
+   * in this file is measured against whatever the business stored, so a shop
+   * that sets bone gets the same composition on paper. What it gets wrong then
+   * is only the mood - which is a decision the business is allowed to make.
+   */
+  carbon: {
+    id: "carbon",
+    // The body face too, deliberately: a grotesk at 800 with negative tracking
+    // IS the display face of this look, and a second family would dilute it.
+    displayFont: "inter",
+    displayWeight: "800",
+    displayTracking: "-0.03em",
+    displayLeading: "1.02",
+    // Very wide. The overline is a graphic element here, not a label.
+    eyebrowTracking: "0.42em",
+    eyebrowTransform: "uppercase",
+    sectionSpace: "clamp(5rem, 10vw, 11rem)",
+    elevation: "raised",
+    mediaRatio: "4 / 3",
+    heroAlign: "left",
+    heroColumns: "1fr",
+    heroRatio: "16 / 9",
+    bodyTracking: "0em",
+    displaySize: "clamp(2.4rem, 5.4vw, 4.4rem)",
+    heroSize: "clamp(2.6rem, 6vw, 4.75rem)",
+    buttonFill: "gradient",
+    glow: true,
+    buttonRadius: "pill",
+    card: "panel",
+    band: "fill",
+    headerOverlay: true,
+    panelRadius: "2rem",
+    texture: "dots",
   },
 };
 
-/** The style a row falls back to when its key names nothing. */
+/**
+ * The style a row falls back to when its key names nothing.
+ *
+ * `atelier` still, and not `carbon`: this is the fallback for a row whose key
+ * no longer resolves, and changing it would silently repaint sites that are
+ * live. What a NEW business starts on is `DEFAULT_PRESET_ID` in
+ * `modules/settings/theme-presets.ts`, which is a separate decision.
+ */
 export const DEFAULT_STYLE_ID = "atelier";
 
 /** The stored colour if it is one, otherwise the default. Never arbitrary text. */
@@ -470,6 +636,134 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
 
     "--site-shadow": shadow,
     "--site-shadow-lifted": shadowLifted,
+
+    /* ----------------------------------------------------------- the scale */
+
+    "--site-display-size": style.displaySize,
+    "--site-hero-size": style.heroSize,
+    "--site-panel-radius": style.panelRadius,
+    "--site-button-radius": style.buttonRadius === "pill" ? "9999px" : radiusChip,
+
+    /**
+     * How far the cover has to climb to sit UNDER the header.
+     *
+     * The header stays in the flow - it is `sticky`, and the preview route
+     * renders a banner above it that a fixed header would cover - so the block
+     * that wants to run behind it pulls itself up by exactly the header's
+     * measured height instead. `0px` on the styles that keep a solid bar, which
+     * is what makes this one value the whole of the switch.
+     */
+    "--site-header-pull": style.headerOverlay
+      ? "calc(-1 * var(--site-header-height, 5rem))"
+      : "0px",
+    "--site-header-overlay": style.headerOverlay ? "1" : "0",
+
+    /**
+     * A card, as four values instead of a branch.
+     *
+     * `bare` resolves them to nothing, which is literally what the printed-menu
+     * treatment is: no surface, no hairline, no padding, type directly on the
+     * page. The renderer therefore draws one card and the style decides whether
+     * it is a card at all - which is the only way to add a panelled look
+     * without every block in the file learning the name of a style.
+     */
+    "--site-card-background": style.card === "panel" ? withAlpha(foreground, 0.045) : "transparent",
+    "--site-card-border":
+      style.card === "panel" ? `1px solid ${withAlpha(foreground, 0.1)}` : "none",
+    "--site-card-padding": style.card === "panel" ? "1.75rem" : "0px",
+    "--site-card-radius": style.card === "panel" ? style.panelRadius : radius,
+    /** Air between the photograph and the words. A panel closes it; its padding
+     *  is already doing that job, and a gap on top of it reads as a seam. */
+    "--site-card-gap": style.card === "panel" ? "0px" : "1rem",
+
+    /**
+     * Where the frame lives.
+     *
+     * A block has exactly one, and which element carries it is the whole
+     * difference between the two card treatments: `bare` frames the
+     * PHOTOGRAPH and lets the type sit on the page, `panel` frames the CARD and
+     * runs the photograph to its edges. Two framed elements inside each other
+     * is the "box in a box" that makes a layout look unresolved.
+     */
+    /** The closing call to action, as a fill and the ink that survives on it. */
+    "--site-band-fill":
+      style.band === "fill"
+        ? `linear-gradient(135deg, ${primary} 0%, ${mix(primary, "#000000", 0.42)} 100%)`
+        : withAlpha(primary, 0.1),
+    "--site-band-ink": style.band === "fill" ? readableOn(primary) : primary,
+    "--site-band-body": style.band === "fill" ? withAlpha(readableOn(primary), 0.85) : foreground,
+    "--site-band-border":
+      style.band === "fill" ? "1px solid transparent" : `1px solid ${withAlpha(primary, 0.32)}`,
+    /**
+     * The button INSIDE the band, which has to invert when the band is filled.
+     *
+     * A brand-coloured button on a brand-coloured slab is a rectangle you can
+     * only find by hovering. The pair swaps: the label colour becomes the fill
+     * and the brand becomes the label, which is the same measured pair in the
+     * other order and therefore the same contrast ratio.
+     */
+    "--site-band-button": style.band === "fill" ? readableOn(primary) : primary,
+    "--site-band-button-ink": style.band === "fill" ? primary : readableOn(primary),
+
+    "--site-media-radius": style.card === "panel" ? "0px" : radius,
+    "--site-media-border":
+      style.card === "panel" ? "none" : `1px solid ${withAlpha(foreground, 0.12)}`,
+    "--site-media-shadow": style.card === "panel" ? "none" : shadow,
+
+    /**
+     * The fill of the one button that matters.
+     *
+     * A gradient between the brand colour and a darkened third of itself, which
+     * is the same move every restaurant site makes with its order button and
+     * the reason a flat fill reads as a prototype. `mix` toward black rather
+     * than a second stored colour: a business picks a brand colour, not a pair
+     * of stops, and a hand-picked second stop is how a gradient goes muddy.
+     */
+    "--site-button-fill":
+      style.buttonFill === "gradient"
+        ? `linear-gradient(135deg, ${primary} 0%, ${mix(primary, "#000000", 0.42)} 100%)`
+        : primary,
+
+    /**
+     * Brand-coloured light under a button and under a card that is hovered.
+     *
+     * It is a SHADOW IN THE BRAND COLOUR, not a glow effect: on a dark page a
+     * black shadow is invisible (see `shadowFor`), and the thing that makes a
+     * red button on near-black look lit is red light spilling below it. Off for
+     * the quiet styles, where it would look like a browser default.
+     */
+    "--site-glow": style.glow ? `0 14px 38px -12px ${withAlpha(primary, 0.85)}` : shadow,
+    "--site-glow-strong": style.glow ? `0 22px 54px -10px ${withAlpha(primary, 1)}` : shadowLifted,
+    "--site-glow-card": style.glow ? `0 36px 90px -30px ${withAlpha(primary, 0.6)}` : shadowLifted,
+
+    /**
+     * A texture for a section band, at the opacity of a watermark.
+     *
+     * Built from the foreground so it shows on any background: a dot grid at 4%
+     * of the text colour is visible on near-black and on bone, and a fixed
+     * white one would disappear on paper.
+     */
+    "--site-texture":
+      style.texture === "dots"
+        ? `radial-gradient(circle at 50% 100%, ${withAlpha(foreground, 0.05)} 0 2px, ${withAlpha(
+            background,
+            0,
+          )} 2px)`
+        : "none",
+    "--site-texture-size": style.texture === "dots" ? "26px 26px" : "auto",
+
+    /**
+     * The gradient that lets type sit on a photograph that fills a card.
+     *
+     * Stronger and taller than `--site-scrim`, which fades the FOOT of an
+     * image: this one has to carry a heading, a paragraph and a link over
+     * whatever the photograph happens to be doing, and a scrim tuned for one
+     * line of caption leaves the paragraph unreadable over a bright plate.
+     */
+    "--site-scrim-card": `linear-gradient(to top, ${background} 0%, ${withAlpha(
+      background,
+      0.82,
+    )} 38%, ${withAlpha(background, 0.15)} 100%)`,
 
     /**
      * The fade at the foot of a photograph, so type can sit on it.

@@ -44,12 +44,16 @@ export function ThemeGallery({
       ) : null}
 
       {/*
-        Three columns at desktop width, because there are exactly three themes
-        and a row that wraps to a second line of one card reads as "and some
-        others" - which is the impression the nine-preset gallery gave and the
-        reason it undersold every theme in it.
+        The track follows the number of themes, and that is the point.
+
+        It was fixed at three columns for the three themes that existed, and a
+        row that wraps to a second line of one card reads as "and some others" -
+        the impression the nine-preset gallery gave and the reason it undersold
+        every theme in it. The gallery now offers ONE, and a single card sitting
+        in the left third of an empty row reads as a gallery still loading. At
+        one, the card takes the row.
       */}
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+      <div className={cn("grid gap-6", presets.length > 1 && "md:grid-cols-2 xl:grid-cols-3")}>
         {presets.map((preset) => {
           const active = preset.id === activePresetId;
 

@@ -31,17 +31,26 @@ export const eyebrowStyle: CSSProperties = {
 export const mutedStyle: CSSProperties = { color: "var(--site-muted)" };
 export const subtleStyle: CSSProperties = { color: "var(--site-subtle)" };
 
-/** Geometry of every call to action. Colour arrives in the style objects below. */
+/**
+ * Geometry of every call to action. Colour arrives in the style objects below.
+ *
+ * It is the same button the CMS sections draw (`section-renderer.tsx`), and it
+ * grew for the same reason: this is the control a restaurant's entire site
+ * exists to get pressed, and it was the height and the type size of a form
+ * field. The lift on hover and the press on click are two classes and the whole
+ * of the difference between a control that answers a cursor and one that sits
+ * there.
+ */
 export const buttonClass =
-  "inline-flex h-12 items-center justify-center gap-2 px-6 text-xs font-semibold transition-[opacity,transform] hover:opacity-90 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex h-13 items-center justify-center gap-2.5 px-8 text-[0.85rem] font-semibold transition-[transform,box-shadow,opacity] duration-500 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2";
 
 export const primaryButtonStyle: CSSProperties = {
-  background: "var(--site-primary)",
+  background: "var(--site-button-fill)",
   color: "var(--site-on-primary)",
-  borderRadius: "var(--site-radius-chip)",
+  borderRadius: "var(--site-button-radius)",
   letterSpacing: "var(--site-eyebrow-tracking)",
   textTransform: "var(--site-eyebrow-transform)" as "uppercase",
-  boxShadow: "var(--site-shadow)",
+  boxShadow: "var(--site-glow)",
   outlineColor: "var(--site-primary)",
 };
 
@@ -49,7 +58,7 @@ export const outlineButtonStyle: CSSProperties = {
   background: "transparent",
   color: "var(--site-foreground)",
   border: "1px solid var(--site-border-strong)",
-  borderRadius: "var(--site-radius-chip)",
+  borderRadius: "var(--site-button-radius)",
   letterSpacing: "var(--site-eyebrow-tracking)",
   textTransform: "var(--site-eyebrow-transform)" as "uppercase",
   outlineColor: "var(--site-primary)",

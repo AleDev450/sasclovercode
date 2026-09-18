@@ -7,7 +7,7 @@ import {
   themeCssVariables,
   type ThemeValues,
 } from "@/modules/seo/theme";
-import { THEME_PRESETS } from "@/modules/settings/theme-presets";
+import { LEGACY_PRESETS, THEME_PRESETS } from "@/modules/settings/theme-presets";
 
 /**
  * The theme finally reaching the page (KL-708), and the injection surface that
@@ -100,14 +100,14 @@ describe("themeCssVariables", () => {
 
   it("uses the same defaults the database column defaults use", () => {
     // If these drift, a tenant that never opened the theme editor renders one
-    // way on the site and another way in the preview. They are the "Atelier"
-    // theme, set by migration 20260915120000.
-    expect(THEME_DEFAULTS.primaryColor).toBe("#e8d3a9");
-    expect(THEME_DEFAULTS.accentColor).toBe("#d9a441");
-    expect(THEME_DEFAULTS.backgroundColor).toBe("#121214");
-    expect(THEME_DEFAULTS.fontFamily).toBe("jost");
-    expect(THEME_DEFAULTS.borderRadius).toBe("none");
-    expect(THEME_DEFAULTS.style).toBe("atelier");
+    // way on the site and another way in the preview. They are the "Carbon"
+    // theme, set by migration 20260919120000.
+    expect(THEME_DEFAULTS.primaryColor).toBe("#e36626");
+    expect(THEME_DEFAULTS.accentColor).toBe("#f2b23e");
+    expect(THEME_DEFAULTS.backgroundColor).toBe("#120b07");
+    expect(THEME_DEFAULTS.fontFamily).toBe("inter");
+    expect(THEME_DEFAULTS.borderRadius).toBe("lg");
+    expect(THEME_DEFAULTS.style).toBe("carbon");
   });
 
   /*
@@ -270,16 +270,29 @@ describe("preset contrast (TEST-806)", () => {
   const readFrom = (theme: ThemeValues, name: string): string =>
     (themeCssVariables(theme) as unknown as Record<string, string>)[name]!;
 
+  /**
+   * What the measurements below run over: the gallery AND the palettes it
+   * stopped offering.
+   *
+   * Retiring a preset from the gallery does not retire it from the businesses
+   * already running it, so dropping the legacy three from these assertions
+   * would quietly stop measuring the contrast of most of the live sites. The
+   * count above stays on the gallery alone, which is the decision being made.
+   */
+  const ALL_PALETTES = [...THEME_PRESETS, ...LEGACY_PRESETS];
+
   it("has presets to measure", () => {
-    // Three, and all three restaurants. The number is asserted rather than
-    // floored: the point of the rework was that nine half-designs are worse
-    // than three finished ones, and a fourth should be a decision somebody
-    // makes on purpose rather than one that slips in.
-    expect(THEME_PRESETS).toHaveLength(3);
+    // One now, and the number is still asserted rather than floored, for the
+    // reason it always was: how many finished looks this product offers is a
+    // decision somebody takes on purpose. Nine half-designs became three, and
+    // three became the one that does not lose next to a site built by hand.
+    // The other three live on in `LEGACY_PRESETS` and in `SITE_STYLES`, which
+    // the assertions below still cover through the tenants running them.
+    expect(THEME_PRESETS).toHaveLength(1);
   });
 
   it("gives every preset a style that exists", () => {
-    for (const preset of THEME_PRESETS) {
+    for (const preset of ALL_PALETTES) {
       expect(SITE_STYLES[preset.style], preset.id).toBeDefined();
     }
   });
@@ -287,7 +300,7 @@ describe("preset contrast (TEST-806)", () => {
   it("keeps every button and badge label above 4.5:1", () => {
     const failures: string[] = [];
 
-    for (const preset of THEME_PRESETS) {
+    for (const preset of ALL_PALETTES) {
       const onPrimary = readFrom(preset, "--site-on-primary");
       const onAccent = readFrom(preset, "--site-on-accent");
 
@@ -310,7 +323,7 @@ describe("preset contrast (TEST-806)", () => {
   });
 
   it("keeps body text readable on every background, light or dark", () => {
-    for (const preset of THEME_PRESETS) {
+    for (const preset of ALL_PALETTES) {
       const foreground = readFrom(preset, "--site-foreground");
       expect(ratio(foreground, preset.backgroundColor), preset.id).toBeGreaterThanOrEqual(4.5);
     }
@@ -320,7 +333,7 @@ describe("preset contrast (TEST-806)", () => {
     // Every `--site-*` value beyond the three stored colours is computed from
     // the background. A gallery of light-only presets would let somebody
     // hard-code `text-black/60` again and never see it break.
-    const dark = THEME_PRESETS.filter((preset) => luminance(preset.backgroundColor) < 0.2);
+    const dark = ALL_PALETTES.filter((preset) => luminance(preset.backgroundColor) < 0.2);
     expect(dark.length).toBeGreaterThanOrEqual(1);
 
     for (const preset of dark) {

@@ -40,10 +40,19 @@ export function HeroSlider({
   slides,
   intervalSeconds,
   label,
+  underHeader = false,
 }: {
   slides: readonly SlideView[];
   intervalSeconds: number;
   label: string;
+  /**
+   * True when this is the block that opens the page, which on a style whose
+   * header floats (`--site-header-overlay`) means climbing the height of that
+   * header so the photograph starts at the top of the window rather than under
+   * a bar. `--site-header-pull` is `0px` on every other style, so the same
+   * markup serves both without asking which one it is in.
+   */
+  underHeader?: boolean;
 }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -74,7 +83,10 @@ export function HeroSlider({
       className={`${fullBleedClass} overflow-hidden ${
         hasMobile ? "aspect-[9/14] md:aspect-[16/9]" : "aspect-[4/3] md:aspect-[16/9]"
       } max-h-[88svh] min-h-[22rem] w-screen`}
-      style={{ background: "var(--site-surface-strong)" }}
+      style={{
+        background: "var(--site-surface-strong)",
+        marginTop: underHeader ? "var(--site-header-pull)" : undefined,
+      }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}

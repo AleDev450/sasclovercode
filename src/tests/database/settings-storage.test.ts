@@ -414,14 +414,14 @@ describe("provisioning creates defaults (TEST-619, TEST-620)", () => {
       "select primary_color, font_family, style from public.tenant_themes where tenant_id = $1",
       [id],
     );
-    // The "Atelier" theme, since migration 20260915120000. The column defaults
+    // The "Carbon" theme, since migration 20260919120000. The column defaults
     // have to name a theme the gallery actually offers, or a new business opens
     // the theme screen and finds no card selected - which is what happened
     // before 20260914140000 and would happen again the day the gallery changes
-    // without these moving.
-    expect(theme[0]?.primary_color).toBe("#e8d3a9");
-    expect(theme[0]?.font_family).toBe("jost");
-    expect(theme[0]?.style).toBe("atelier");
+    // without these moving. They moved with it this time.
+    expect(theme[0]?.primary_color).toBe("#e36626");
+    expect(theme[0]?.font_family).toBe("inter");
+    expect(theme[0]?.style).toBe("carbon");
   });
 
   it("gives defaults to a tenant inserted DIRECTLY, not only to a provisioned one", async () => {

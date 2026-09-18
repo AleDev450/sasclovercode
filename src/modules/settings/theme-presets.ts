@@ -51,15 +51,54 @@ export interface ThemePreset extends ThemeValues {
 }
 
 export const THEME_PRESETS: readonly ThemePreset[] = [
-  /*
-   * The flagship, and the default a new business is provisioned on.
+  /**
+   * THE ONLY ONE ON OFFER, and the reason the three below are commented out
+   * rather than deleted.
    *
-   * It is also the only dark theme, and that is worth more than taste. Every
-   * `--site-*` value beyond the three stored colours is DERIVED from them, and
-   * the derivation measures against the background rather than assuming it is
-   * white. A dark theme in daily use is the thing that would break loudly if
-   * somebody replaced a derived token with a hard-coded `text-black/60` again.
+   * The gallery of three was a gallery of MOODS, and the complaint that ended
+   * it was not about mood: a finished site built by hand for one restaurant
+   * sat next to a site this product generated, and the generated one looked
+   * cheaper in every one of them. The gap was never the palette - it was that
+   * all three drew headings at one size, buttons with a flat fill, cards with a
+   * photograph stacked above a paragraph, and nothing that moved.
+   *
+   * `carbon` is that gap closed (`modules/seo/theme.ts`). Offering it beside
+   * three styles it outclasses would be offering a business the chance to pick
+   * the worse one, so for now it is the only card on the screen.
+   *
+   * THE OTHER THREE STILL RENDER. `SITE_STYLES` keeps `atelier`, `brasa` and
+   * `marea`, because businesses are on them today and a preset gallery is a
+   * starting point, not a whitelist: dropping the style would have repainted
+   * live sites, which is not a thing a gallery is allowed to do. What a shop on
+   * `brasa` loses is only the card that would put it back there, and it keeps
+   * the custom editor.
    */
+  {
+    id: "carbon",
+    name: "Carbon",
+    tagline: "Taqueria, barra, parrilla de noche",
+    description:
+      "Fondo carbon, titulares enormes, foto a sangre y luz de marca bajo los botones. Para taquerias, barras, pollerias y cualquier local que se vea mejor de noche.",
+    traits: ["Fondo carbon", "Titulares de 4.75rem", "Foto a sangre", "Boton con degradado"],
+    // Ember and maize on near-black. Both clear 4.5:1 against the page and
+    // against their own labels, which `seo-theme.test.ts` re-measures.
+    primaryColor: "#e36626",
+    accentColor: "#f2b23e",
+    backgroundColor: "#0e0c0b",
+    fontFamily: "inter",
+    borderRadius: "lg",
+    style: "carbon",
+  },
+];
+
+/**
+ * The three the gallery no longer offers.
+ *
+ * Kept as data, not as a comment, so that `SITE_STYLES` and these stay
+ * together if the gallery ever grows back - and so the values a live tenant is
+ * running are written down somewhere other than a migration.
+ */
+export const LEGACY_PRESETS: readonly ThemePreset[] = [
   {
     id: "atelier",
     name: "Atelier",
@@ -107,10 +146,17 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
 ] as const;
 
 /** The preset a newly provisioned business starts from. */
-export const DEFAULT_PRESET_ID = "atelier";
+export const DEFAULT_PRESET_ID = "carbon";
 
+/**
+ * A preset by id, from the gallery or from what the gallery used to hold.
+ *
+ * Both lists on purpose: this is what an ALREADY STORED id resolves through -
+ * a tenant provisioned last month carries `brasa`, and a lookup that only knew
+ * about today's gallery would hand back `undefined` and blank its own screen.
+ */
 export function findPreset(id: string): ThemePreset | undefined {
-  return THEME_PRESETS.find((preset) => preset.id === id);
+  return [...THEME_PRESETS, ...LEGACY_PRESETS].find((preset) => preset.id === id);
 }
 
 /**
@@ -121,7 +167,7 @@ export function findPreset(id: string): ThemePreset | undefined {
  * shows no card as selected, which is honest - their theme is theirs now.
  */
 export function matchPreset(theme: ThemeValues): ThemePreset | undefined {
-  return THEME_PRESETS.find(
+  return [...THEME_PRESETS, ...LEGACY_PRESETS].find(
     (preset) =>
       preset.primaryColor === theme.primaryColor &&
       preset.accentColor === theme.accentColor &&

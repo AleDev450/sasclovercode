@@ -146,7 +146,10 @@ export function MenuBrowser({
           className="flex flex-col gap-8"
         >
           <div className="flex flex-col gap-2">
-            <h2 id={`categoria-${group.id}`} className="text-3xl sm:text-4xl" style={displayStyle}>
+            <h2
+              id={`categoria-${group.id}`}
+              style={{ ...displayStyle, fontSize: "var(--site-display-size)" }}
+            >
               {group.name}
             </h2>
             {group.description !== null ? (

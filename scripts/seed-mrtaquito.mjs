@@ -11,7 +11,7 @@
  * says on seeing one is that the site looks plain.
  *
  * So this one uses PHOTOGRAPHS: real pictures of real tacos, from Wikimedia
- * Commons under CC licences, cropped to the ratios the `brasa` style actually
+ * Commons under CC licences, cropped to the ratios the `carbon` style actually
  * renders at and uploaded into the tenant's own private bucket like any other
  * business's. They are a stand-in for a photographer, not a substitute for one
  * - a real customer replaces them on day one - but they are what makes the
@@ -77,21 +77,25 @@ const BUSINESS = {
   tagline: "Taqueria mexicana, al carbon",
 
   /*
-   * `brasa`, with a taqueria's own three colours.
+   * `carbon`, with the three colours of the logo.
    *
-   * The STYLE is the finished look - Fraunces display, bone page, panoramic
-   * photography, cards that lift - and a business does not choose it by picking
-   * a hue. The three colours are the part it owns: chile rojo, brasa, maiz.
-   * Both colours clear 4.5:1 against the background, which is the floor
-   * `modules/settings/theme-presets.ts` measures its own presets against.
+   * The STYLE is the finished look - Inter at 800 over a carbon page, sections
+   * that breathe at eleven rem, photography to the edge of the card, a gradient
+   * on the button the whole site points at - and a business does not choose it
+   * by picking a hue.
+   *
+   * The three colours ARE the part it owns, and these were sampled out of the
+   * logo the owner uploaded: the orange of its background (#e36626), the gold
+   * of the sombrero trim, and a near-black warmed toward both. All four
+   * readable pairs clear 4.5:1, which `seo-theme.test.ts` re-measures.
    */
   theme: {
-    primary_color: "#8f1d14",
-    accent_color: "#b45309",
-    background_color: "#fdf6ec",
+    primary_color: "#e36626",
+    accent_color: "#f2b23e",
+    background_color: "#120b07",
     font_family: "inter",
-    border_radius: "sm",
-    style: "brasa",
+    border_radius: "lg",
+    style: "carbon",
   },
 
   settings: {
@@ -144,6 +148,11 @@ const BUSINESS = {
       description: "Aguas frescas del dia y chelas bien heladas.",
     },
     { slug: "postres", name: "Postres", description: "Lo dulce, para terminar." },
+    {
+      slug: "promos",
+      name: "Promociones",
+      description: "Combos para compartir. Precio cerrado, sin sorpresas.",
+    },
   ],
 
   /* [categoria, slug, nombre, descripcion, precio en centimos, flags, foto] */
@@ -320,6 +329,66 @@ const BUSINESS = {
       "Cuatro churros recien fritos, azucar con canela y cajeta para mojar.",
       1090,
       { featured: true },
+      "churros",
+    ],
+
+    /*
+     * Los combos, que son productos y no descuentos.
+     *
+     * WHY THEY ARE PRODUCTS. `promotions` in this database is a RULE - a
+     * percentage, a minimum, a date range - which is the right model for "10%
+     * los martes" and the wrong one for "3 al pastor por S/ 20". The second is
+     * a thing somebody adds to a cart, with a price, a photograph and a place
+     * in the menu, and modelling it as a discount would mean it could not be
+     * ordered. It is also what the page it fills is for.
+     *
+     * They reuse the dish photographs on purpose: a combo of three al pastor is
+     * a picture of three al pastor, and a separate photo of the same tacos on a
+     * different plate would be a lie with extra steps.
+     */
+    [
+      "promos",
+      "combo-martes-pastor",
+      "Martes de tacos: 3 al pastor",
+      "Tres tacos al pastor con su pina, cebolla y cilantro. Solo los martes, todo el dia.",
+      2000,
+      { featured: true },
+      "al-pastor",
+    ],
+    [
+      "promos",
+      "combo-pareja",
+      "Combo pareja",
+      "Seis tacos a eleccion, dos aguas frescas del dia y una orden de esquites.",
+      4990,
+      { featured: true },
+      "surtido",
+    ],
+    [
+      "promos",
+      "taquiza-cuatro",
+      "Taquiza para cuatro",
+      "Dieciseis tacos surtidos, guacamole, totopos y cuatro bebidas. Para la mesa entera.",
+      11900,
+      {},
+      "dorados",
+    ],
+    [
+      "promos",
+      "combo-gringa",
+      "Gringa + michelada",
+      "Una gringa al pastor y una michelada bien helada. El plan de siempre.",
+      2790,
+      {},
+      "gringa",
+    ],
+    [
+      "promos",
+      "docena-churros",
+      "Docena de churros",
+      "Doce churros con cajeta para compartir. Se piden con 20 minutos de anticipacion.",
+      2490,
+      {},
       "churros",
     ],
   ],
@@ -632,15 +701,15 @@ const PHOTOS = {
  * What gets made out of each photograph, and at which proportion.
  *
  * The ratios are NOT arbitrary and NOT the photographer's: they are the ones
- * `brasa` renders at (`modules/seo/theme.ts`), so the browser never letterboxes
- * or crops a second time. 3:2 for a dish and for the gallery, 4:3 for a page
+ * `carbon` renders at (`modules/seo/theme.ts`), so the browser never letterboxes
+ * or crops a second time. 4:3 for a dish and for the gallery, 16:9 for a page
  * hero, 16:9 for a slide on a laptop and 9:14 for the same slide on a phone -
  * that last pair being the whole reason a slide stores two files (FR2909).
  */
 const SIZES = {
-  product: { width: 1200, height: 800, folder: "products" },
-  card: { width: 1200, height: 800, folder: "banners" },
-  hero: { width: 1600, height: 1200, folder: "banners" },
+  product: { width: 1200, height: 900, folder: "products" },
+  card: { width: 1200, height: 900, folder: "banners" },
+  hero: { width: 1600, height: 900, folder: "banners" },
   slideDesktop: { width: 1920, height: 1080, folder: "banners" },
   slideMobile: { width: 1080, height: 1680, folder: "banners" },
 };
@@ -1239,6 +1308,58 @@ function aboutSections(images) {
 }
 
 /**
+ * "Promociones": the combos, and the small print under them.
+ *
+ * A CMS page and not a route, unlike Contacto - because what goes in it IS
+ * editable content. Which combos run this month, what the cover says and
+ * whether the conditions mention a holiday are decisions a restaurant changes
+ * every few weeks, and a hard-coded page would send them to a developer to do
+ * it.
+ */
+function promoSections(images) {
+  return [
+    {
+      type: "hero",
+      position: 0,
+      content: {
+        heading: "Promociones",
+        subheading:
+          "Combos armados para compartir, a precio cerrado. Valen para llevar, para comer aqui y para delivery.",
+        ctaLabel: "Pedir ahora",
+        ctaHref: "/sitio/carta",
+        ...(images.shortcuts.has("dorados") ? { imagePath: images.shortcuts.get("dorados") } : {}),
+      },
+    },
+    {
+      type: "products",
+      position: 1,
+      content: { heading: "Lo que esta en promocion", categorySlug: "promos", limit: 8 },
+    },
+    {
+      type: "text",
+      position: 2,
+      content: {
+        heading: "Condiciones",
+        paragraphs: [
+          "Las promociones no se acumulan entre si ni con cupones. El martes de tacos aplica solo para consumo del dia, y la taquiza se pide con dos horas de anticipacion.",
+          "Los precios incluyen IGV. Si pides delivery, el envio se cobra aparte segun tu zona.",
+        ],
+      },
+    },
+    {
+      type: "cta",
+      position: 3,
+      content: {
+        heading: "Arma tu combo",
+        body: "Te lo confirmamos por WhatsApp en menos de cinco minutos.",
+        buttonLabel: "Pedir por WhatsApp",
+        buttonHref: whatsappUrl,
+      },
+    },
+  ];
+}
+
+/**
  * The "carta" page, which nothing renders.
  *
  * `/sitio/carta` is a STATIC segment that wins over `[pageSlug]`, and the
@@ -1324,14 +1445,50 @@ async function seed(db, withImages) {
 
   /* --- settings and theme ------------------------------------------------- */
   await db.update(`tenant_settings?tenant_id=eq.${tenant.id}`, BUSINESS.settings);
-  await db.update(`tenant_themes?tenant_id=eq.${tenant.id}`, {
-    ...BUSINESS.theme,
-    ...(images.logo === undefined ? {} : { logo_path: images.logo }),
-    ...(images.favicon === undefined ? {} : { favicon_path: images.favicon }),
-  });
+
+  /*
+   * A LOGO THE OWNER UPLOADED IS NEVER OVERWRITTEN.
+   *
+   * The drawn one (`logoImage`) exists so a demo has something in its header;
+   * the moment somebody uploads a real mark from Configuracion > Marca, the
+   * drawing has done its job. An earlier run of this script replaced a real
+   * logo with the placeholder on every re-seed, which is the seed deciding
+   * something that belongs to the business.
+   */
+  const current = (await db.select(`tenant_themes?tenant_id=eq.${tenant.id}&select=*`))[0] ?? {};
+  const branding = {
+    ...(images.logo === undefined || current.logo_path ? {} : { logo_path: images.logo }),
+    ...(images.favicon === undefined || current.favicon_path
+      ? {}
+      : { favicon_path: images.favicon }),
+  };
+
+  /*
+   * THE STYLE IS WRITTEN SEPARATELY, and on purpose.
+   *
+   * `tenant_themes_style_allowed` is a CHECK, so a database that has not run
+   * migration 20260919120000 yet rejects `carbon` - and it would reject the
+   * colours with it, leaving the business half-themed and the run aborted
+   * halfway through. Writing the colours first means the only thing a missing
+   * migration costs is the style, and the message says exactly that instead of
+   * printing a constraint name.
+   */
+  const { style, ...palette } = BUSINESS.theme;
+  await db.update(`tenant_themes?tenant_id=eq.${tenant.id}`, { ...palette, ...branding });
+
+  let styleApplied = true;
+  try {
+    await db.update(`tenant_themes?tenant_id=eq.${tenant.id}`, { style });
+  } catch (error) {
+    if (!String(error.message).includes("tenant_themes_style_allowed")) throw error;
+    styleApplied = false;
+  }
+
   log(
     "Tema",
-    `${BUSINESS.theme.style} · ${BUSINESS.theme.primary_color} / ${BUSINESS.theme.accent_color}`,
+    styleApplied
+      ? `${style} · ${palette.primary_color} / ${palette.accent_color}`
+      : `${palette.primary_color} / ${palette.accent_color} — FALTA el estilo "${style}": aplica supabase/migrations/20260919120000_add_carbon_theme_style.sql y vuelve a correr`,
   );
 
   /* --- categories --------------------------------------------------------- */
@@ -1429,10 +1586,11 @@ async function seed(db, withImages) {
     return row;
   }
 
-  const home = await page("inicio", "Inicio", homeSections(images));
-  const menu = await page("carta", "Carta", menuSections());
+  await page("inicio", "Inicio", homeSections(images));
+  await page("carta", "Carta", menuSections());
+  const promos = await page("promociones", "Promociones", promoSections(images));
   const about = await page("nosotros", "Nosotros", aboutSections(images));
-  log("Paginas", "inicio, carta, nosotros (publicadas)");
+  log("Paginas", "inicio, carta, promociones, nosotros (publicadas)");
 
   /* --- navigation --------------------------------------------------------- */
   await db.remove(`navigation_items?tenant_id=eq.${tenant.id}`);
@@ -1443,22 +1601,30 @@ async function seed(db, withImages) {
    * `navigation_items_target_matches_type` CHECK still enforces that exactly
    * one of them is set for the declared type.
    */
+  /*
+   * ONLY THE PAGES THIS BUSINESS ADDED.
+   *
+   * Inicio, Nuestra carta and Contacto are drawn by `SiteChrome` for every
+   * restaurant, and it drops a stored entry pointing at any of them rather than
+   * printing it twice. WhatsApp left the bar as well: it is the floating button
+   * on every screen and the last row of the footer, and a third copy was
+   * spending the most valuable row on the page on the one thing nobody can
+   * miss.
+   */
   await db.insert(
     "navigation_items",
     [
-      { label: "Inicio", link_type: "page", page_id: home.id, external_url: null, position: 10 },
-      { label: "Carta", link_type: "page", page_id: menu.id, external_url: null, position: 20 },
-      { label: "Nosotros", link_type: "page", page_id: about.id, external_url: null, position: 30 },
       {
-        label: "WhatsApp",
-        link_type: "external",
-        page_id: null,
-        external_url: whatsappUrl,
-        position: 40,
+        label: "Promociones",
+        link_type: "page",
+        page_id: promos.id,
+        external_url: null,
+        position: 10,
       },
+      { label: "Nosotros", link_type: "page", page_id: about.id, external_url: null, position: 20 },
     ].map((item) => ({ tenant_id: tenant.id, is_active: true, ...item })),
   );
-  log("Navegacion", "Inicio, Carta, Nosotros, WhatsApp");
+  log("Navegacion", "Promociones, Nosotros (Inicio, Carta y Contacto son fijas)");
 
   /* --- location and hours ------------------------------------------------- */
   /*

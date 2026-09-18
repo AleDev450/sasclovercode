@@ -106,6 +106,7 @@ export async function SiteChrome({
     "/sitio",
     "/sitio/inicio",
     "/sitio/carta",
+    "/sitio/contacto",
     "/sitio/zonas-de-delivery",
   ]);
   const custom: HeaderNavItem[] = navigation
@@ -116,13 +117,21 @@ export async function SiteChrome({
       children: item.children.map((child) => ({ label: child.label, href: localise(child.href) })),
     }));
 
+  /*
+   * Inicio, la carta, lo que el negocio agregó, y Contacto al final.
+   *
+   * ZONAS DE DELIVERY SALIÓ DE AQUÍ. It is a page every restaurant site has and
+   * almost nobody opens from the top bar: what a visitor does with it is check
+   * one district once, usually from the shortcut on the home page or from the
+   * footer - where it still is, under "Ayuda y políticas". A five-item nav that
+   * a person can read in one pass beats a six-item one that pushes the pages
+   * the business actually wants read off the end.
+   */
   const nav: HeaderNavItem[] = [
     { label: "Inicio", href: basePath, children: [] },
     { label: "Nuestra carta", href: `${basePath}/carta`, children: [] },
     ...custom,
-    ...(hasDelivery
-      ? [{ label: "Zonas de delivery", href: `${basePath}/zonas-de-delivery`, children: [] }]
-      : []),
+    { label: "Contacto", href: `${basePath}/contacto`, children: [] },
   ];
 
   const quickLinks: FooterLink[] = nav.map((item) => ({ label: item.label, href: item.href }));

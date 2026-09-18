@@ -18,7 +18,10 @@ export function PageHeading({
       <span className="text-xs font-semibold" style={eyebrowStyle}>
         {eyebrow}
       </span>
-      <h1 className="max-w-3xl text-[clamp(2.25rem,5vw,3.75rem)] text-balance" style={displayStyle}>
+      <h1
+        className="max-w-3xl text-balance"
+        style={{ ...displayStyle, fontSize: "var(--site-hero-size)" }}
+      >
         {title}
       </h1>
       {description !== undefined ? (

@@ -14,7 +14,12 @@ import { SiteChrome } from "@/modules/cms/components/site-chrome";
 import { listPageSlugs } from "@/modules/cms/server/admin-queries";
 import { getPreviewSiteContext } from "@/modules/cms/server/site-context";
 import { ComplaintBookView, LegalDocumentView } from "@/modules/legal/components/views";
-import { CheckoutView, DeliveryZonesView, MenuView } from "@/modules/storefront/components/views";
+import {
+  CheckoutView,
+  ContactView,
+  DeliveryZonesView,
+  MenuView,
+} from "@/modules/storefront/components/views";
 
 /**
  * "Ver mi web", from inside the product.
@@ -169,6 +174,8 @@ export default async function SitePreviewPage({
       <MenuView {...view} />
     ) : pageSlug === "zonas-de-delivery" ? (
       <DeliveryZonesView {...view} />
+    ) : pageSlug === "contacto" ? (
+      <ContactView {...view} />
     ) : pageSlug === "pedir" ? (
       <CheckoutView {...view} preview />
     ) : pageSlug === "terminos" ? (

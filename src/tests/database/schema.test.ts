@@ -175,6 +175,8 @@ describe("migrations (TEST-117, TEST-118)", () => {
       "20260917120000_create_legal_and_complaints.sql",
       // Phase 31
       "20260918120000_create_online_payments.sql",
+      // Phase 29 (continuation) - el estilo carbon
+      "20260919120000_add_carbon_theme_style.sql",
     ]);
     // The timestamp prefix must order the files the same way PostgreSQL will
     // see them. A migration that sorts before one it depends on fails to apply.

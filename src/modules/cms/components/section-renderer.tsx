@@ -110,12 +110,23 @@ function Eyebrow({ children }: { children: string }) {
   );
 }
 
+/**
+ * A section heading.
+ *
+ * The size is a TOKEN and no longer `text-3xl sm:text-4xl`. Those two classes
+ * were the single biggest reason a generated site read as cheaper than one
+ * built by hand: a restaurant's own page opens its sections at four rem and
+ * this opened them at two and a quarter, so every heading arrived as a label
+ * rather than as a statement. `--site-display-size` is a clamp, so the same
+ * token is still legible on a phone.
+ */
 function Heading({ children, className }: { children: string; className?: string }) {
   if (children.length === 0) return null;
   return (
     <h2
-      className={cn("text-3xl text-balance sm:text-4xl", className)}
+      className={cn("text-balance", className)}
       style={{
+        fontSize: "var(--site-display-size)",
         color: "var(--site-foreground)",
         fontFamily: "var(--site-display-font)",
         fontWeight: "var(--site-display-weight)",
@@ -172,19 +183,29 @@ function SafeLink({
   );
 }
 
-/** Shared geometry of every call to action. Colour arrives separately. */
+/**
+ * Shared geometry of every call to action. Colour arrives separately.
+ *
+ * It grew: 48px tall and `text-xs` is the size of a form control, and this is
+ * the button a restaurant's whole site points at. It also LIFTS on hover and
+ * presses on click, which costs two classes and is the difference between a
+ * control that acknowledges a cursor and one that does not.
+ */
 const buttonClass =
-  "inline-flex h-12 items-center justify-center px-8 text-xs font-semibold transition-opacity hover:opacity-90";
+  "inline-flex h-14 items-center justify-center gap-2.5 px-9 text-[0.9rem] font-semibold transition-[transform,box-shadow,opacity] duration-500 hover:-translate-y-1 active:translate-y-0 active:scale-[0.98]";
 
 const primaryButtonStyle: React.CSSProperties = {
-  background: "var(--site-primary)",
+  // A gradient where the style asks for one, the flat brand colour otherwise.
+  background: "var(--site-button-fill)",
   color: "var(--site-on-primary)",
-  // The CHIP radius, not the card one. `--site-radius` is `lg` on Marea, and a
-  // 48px-tall button with a 16px radius is a pill nobody asked for.
-  borderRadius: "var(--site-radius-chip)",
+  // Neither the card radius nor the chip one: a button's shape is part of the
+  // look, and `--site-button-radius` is where that decision lives.
+  borderRadius: "var(--site-button-radius)",
   letterSpacing: "var(--site-eyebrow-tracking)",
   textTransform: "var(--site-eyebrow-transform)" as "uppercase",
-  boxShadow: "var(--site-shadow)",
+  // Brand-coloured light where the style asks for it; the ordinary elevation
+  // otherwise, which on a dark page is already `none`.
+  boxShadow: "var(--site-glow)",
 };
 
 /** A stored `/sitio/...` link, moved onto the base path of this render. */
@@ -198,11 +219,22 @@ export function SectionRenderer({
   catalog,
   site,
   basePath = "/sitio",
+  isFirst = false,
 }: {
   section: RenderableSection;
   assetUrls: AssetUrls;
   /** Forwarded to every internal link. `/sitio` for a visitor. */
   basePath?: string;
+  /**
+   * True for the block that opens the page.
+   *
+   * Only the cover uses it, and only to climb under the header
+   * (`--site-header-pull`). It is a position and not a type, because a business
+   * that puts a second slider halfway down its page means it to sit where it
+   * was put - pulling THAT one up by the height of the header would tear a hole
+   * in the middle of the page.
+   */
+  isFirst?: boolean;
   /** The business, for the `slider` section's cover when it has no photos. */
   site?: SiteForSections;
   /**
@@ -271,8 +303,9 @@ export function SectionRenderer({
               }}
             >
               <h1
-                className="text-[clamp(2.5rem,6vw,4.5rem)] text-balance"
+                className="text-balance"
                 style={{
+                  fontSize: "var(--site-hero-size)",
                   color: "var(--site-foreground)",
                   fontFamily: "var(--site-display-font)",
                   fontWeight: "var(--site-display-weight)",
@@ -388,29 +421,37 @@ export function SectionRenderer({
       const c = parsed.data as (typeof SECTION_SCHEMAS)["banner"]["_output"];
 
       /*
-       * A banner keeps SEMANTIC colour, not theme colour.
+       * A banner keeps SEMANTIC colour - as a RULE, not as a panel.
        *
        * "Cerrado por feriado" has to read as a warning on every site, including
-       * one whose brand colour happens to be amber. The tint is the only thing
-       * on the public site that ignores the tenant palette, and it does so on
-       * purpose.
+       * one whose brand colour happens to be amber, so the hue still ignores the
+       * tenant palette. What changed is where it is spent: it used to paint the
+       * whole strip in a pastel tint with dark type on it (`#fffbeb` under
+       * `#92400e`), which is a light-mode assumption - on a carbon page that is
+       * a slab of daylight halfway down the article, and the one element on the
+       * site that did not survive a dark theme.
+       *
+       * Now the surface and the type are the page's own, which adapt by
+       * construction, and the semantic colour is a three-pixel rule down the
+       * leading edge plus the dot. A coloured edge is how a printed notice has
+       * been marked for a century and it reads at a glance on bone and on
+       * near-black alike.
        */
-      const tone = {
-        info: { border: "#bfdbfe", background: "#eff6ff", color: "#1e40af" },
-        success: { border: "#bbf7d0", background: "#f0fdf4", color: "#166534" },
-        warning: { border: "#fde68a", background: "#fffbeb", color: "#92400e" },
-      }[c.tone];
+      const tone = { info: "#3b82f6", success: "#22c55e", warning: "#f59e0b" }[c.tone];
 
       return (
         <section
-          className="my-6 border px-5 py-4"
+          className="my-6 flex items-center gap-3.5 px-5 py-4"
           style={{
-            borderColor: tone.border,
-            background: tone.background,
-            color: tone.color,
+            background: "var(--site-surface)",
+            border: "1px solid var(--site-border)",
+            borderInlineStartWidth: "3px",
+            borderInlineStartColor: tone,
+            color: "var(--site-foreground)",
             borderRadius: "var(--site-radius)",
           }}
         >
+          <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: tone }} />
           {c.href !== undefined ? (
             <SafeLink
               href={c.href}
@@ -430,17 +471,29 @@ export function SectionRenderer({
       const c = parsed.data as (typeof SECTION_SCHEMAS)["cta"]["_output"];
       return (
         <section
-          className="my-10 flex flex-col items-center gap-6 px-6 py-16 text-center sm:px-12"
+          className="relative my-10 flex flex-col items-center gap-7 overflow-hidden px-6 py-20 text-center sm:px-12 sm:py-24"
           style={{
-            background: "var(--site-primary-soft)",
-            borderRadius: "var(--site-radius)",
-            border: "1px solid var(--site-primary-line)",
+            background: "var(--site-band-fill)",
+            borderRadius: "var(--site-panel-radius)",
+            border: "var(--site-band-border)",
           }}
         >
-          <h2
-            className="max-w-2xl text-3xl text-balance sm:text-4xl"
+          {/* The texture, at the opacity of a watermark. `none` on the styles
+              that do not want one, so the element costs a paint and nothing
+              else rather than needing a condition around it. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
             style={{
-              color: "var(--site-primary)",
+              backgroundImage: "var(--site-texture)",
+              backgroundSize: "var(--site-texture-size)",
+            }}
+          />
+          <h2
+            className="relative max-w-2xl text-balance"
+            style={{
+              fontSize: "var(--site-display-size)",
+              color: "var(--site-band-ink)",
               fontFamily: "var(--site-display-font)",
               fontWeight: "var(--site-display-weight)",
               letterSpacing: "var(--site-display-tracking)",
@@ -450,15 +503,25 @@ export function SectionRenderer({
             {c.heading}
           </h2>
           {c.body.length > 0 ? (
-            <p className="max-w-prose" style={{ color: "var(--site-muted)" }}>
+            <p
+              className="relative max-w-prose text-lg leading-relaxed"
+              style={{ color: "var(--site-band-body)" }}
+            >
               {c.body}
             </p>
           ) : null}
           <SafeLink
             href={c.buttonHref}
             basePath={basePath}
-            className={buttonClass}
-            style={primaryButtonStyle}
+            className={cn(buttonClass, "relative")}
+            style={{
+              ...primaryButtonStyle,
+              background: "var(--site-band-button)",
+              color: "var(--site-band-button-ink)",
+              // No brand light under a button that is already sitting on the
+              // brand: the glow would have nothing to spill onto.
+              boxShadow: "none",
+            }}
           >
             {c.buttonLabel}
           </SafeLink>
@@ -477,19 +540,19 @@ export function SectionRenderer({
               .map((image, index) => (
                 <li
                   key={index}
-                  className="group overflow-hidden"
-                  style={{ borderRadius: "var(--site-radius)" }}
+                  className="group overflow-hidden transition-transform duration-700 hover:-translate-y-1.5"
+                  style={{ borderRadius: "var(--site-panel-radius)" }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
                   <img
                     src={assetUrls.get(image.imagePath) ?? ""}
                     alt={image.alt}
-                    className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                     style={{
                       // The theme's ratio, so a gallery of a tasting menu is a
                       // column of portraits and a parrilla's is panoramic.
                       aspectRatio: "var(--site-media-ratio)",
-                      borderRadius: "var(--site-radius)",
+                      borderRadius: "var(--site-panel-radius)",
                     }}
                   />
                 </li>
@@ -553,16 +616,25 @@ export function SectionRenderer({
                  */
                 <li
                   key={product.id}
-                  className={cn("group flex flex-col gap-4", !product.isAvailable && "opacity-70")}
+                  className={cn(
+                    "group flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]",
+                    !product.isAvailable && "opacity-70",
+                  )}
+                  style={{
+                    gap: "var(--site-card-gap)",
+                    background: "var(--site-card-background)",
+                    border: "var(--site-card-border)",
+                    borderRadius: "var(--site-card-radius)",
+                  }}
                 >
                   <div
                     className="relative overflow-hidden"
                     style={{
-                      borderRadius: "var(--site-radius)",
-                      boxShadow: "var(--site-shadow)",
+                      borderRadius: "var(--site-media-radius)",
+                      boxShadow: "var(--site-media-shadow)",
                       // On a dark theme the shadow resolves to `none` and this
                       // hairline is what separates the frame from the page.
-                      border: "1px solid var(--site-border)",
+                      border: "var(--site-media-border)",
                     }}
                   >
                     {imageUrl !== undefined ? (
@@ -570,7 +642,7 @@ export function SectionRenderer({
                       <img
                         src={imageUrl}
                         alt={product.name}
-                        className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                         style={{ aspectRatio: "var(--site-media-ratio)" }}
                       />
                     ) : (
@@ -620,7 +692,10 @@ export function SectionRenderer({
                     ) : null}
                   </div>
 
-                  <div className="flex flex-col gap-2">
+                  <div
+                    className="flex flex-1 flex-col gap-2"
+                    style={{ padding: "var(--site-card-padding)" }}
+                  >
                     {/*
                       Name and price on one line, joined by a leader.
 
@@ -738,6 +813,7 @@ export function SectionRenderer({
             slides={slides}
             intervalSeconds={c.intervalSeconds}
             label={site?.name ?? "Portada"}
+            underHeader={isFirst}
           />
         );
       }
@@ -759,8 +835,9 @@ export function SectionRenderer({
           <div className="flex flex-col items-center gap-6 py-10 text-center">
             <Eyebrow>Bienvenidos</Eyebrow>
             <h1
-              className="max-w-4xl text-[clamp(2.75rem,7vw,5.5rem)] text-balance"
+              className="max-w-4xl text-balance"
               style={{
+                fontSize: "var(--site-hero-size)",
                 color: "var(--site-foreground)",
                 fontFamily: "var(--site-display-font)",
                 fontWeight: "var(--site-display-weight)",
@@ -816,7 +893,7 @@ export function SectionRenderer({
                       <img
                         src={image}
                         alt=""
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                       />
                       <div
                         aria-hidden
@@ -824,7 +901,7 @@ export function SectionRenderer({
                       />
                     </>
                   ) : null}
-                  <div className="relative flex flex-col gap-3 p-8">
+                  <div className="relative flex flex-col gap-3.5 p-10">
                     <h3
                       className="text-3xl text-balance"
                       style={{
@@ -863,10 +940,20 @@ export function SectionRenderer({
                 </>
               );
 
+              /*
+               * A DOOR, and it is meant to be enormous.
+               *
+               * 22rem was the height of a banner; the card these replaced on
+               * the site this look is measured against is 520px tall, and the
+               * difference is whether the photograph is a decoration beside the
+               * words or the thing the visitor is actually looking at. It lifts
+               * and warms its border on hover, which is the whole of what tells
+               * somebody the block is a link before they click it.
+               */
               const cardClass =
-                "group relative flex min-h-[22rem] flex-col justify-end overflow-hidden sm:min-h-[26rem]";
+                "group relative flex min-h-[26rem] flex-col justify-end overflow-hidden transition-[transform,box-shadow,border-color] duration-700 hover:-translate-y-2 hover:border-[color:var(--site-primary-line)] hover:shadow-[var(--site-glow-card)] sm:min-h-[32.5rem]";
               const cardStyle: React.CSSProperties = {
-                borderRadius: "var(--site-radius)",
+                borderRadius: "var(--site-panel-radius)",
                 border: "1px solid var(--site-border)",
                 background: image !== undefined ? "#000000" : "var(--site-primary-soft)",
                 boxShadow: "var(--site-shadow)",
@@ -958,14 +1045,20 @@ export function SectionRenderer({
                 <li key={product.id}>
                   <Link
                     href={`${basePath}/carta#producto-${product.id}`}
-                    className="group flex flex-col gap-4"
+                    className="group flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]"
+                    style={{
+                      gap: "var(--site-card-gap)",
+                      background: "var(--site-card-background)",
+                      border: "var(--site-card-border)",
+                      borderRadius: "var(--site-card-radius)",
+                    }}
                   >
                     <div
                       className="relative overflow-hidden"
                       style={{
-                        borderRadius: "var(--site-radius)",
-                        boxShadow: "var(--site-shadow)",
-                        border: "1px solid var(--site-border)",
+                        borderRadius: "var(--site-media-radius)",
+                        boxShadow: "var(--site-media-shadow)",
+                        border: "var(--site-media-border)",
                       }}
                     >
                       {imageUrl !== undefined ? (
@@ -973,7 +1066,7 @@ export function SectionRenderer({
                         <img
                           src={imageUrl}
                           alt={product.name}
-                          className="w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                          className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                           style={{ aspectRatio: "var(--site-media-ratio)" }}
                         />
                       ) : (
@@ -987,7 +1080,10 @@ export function SectionRenderer({
                         />
                       )}
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div
+                      className="flex flex-1 flex-col gap-2"
+                      style={{ padding: "var(--site-card-padding)" }}
+                    >
                       <h3
                         className="text-lg leading-snug"
                         style={{

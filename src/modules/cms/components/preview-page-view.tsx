@@ -60,16 +60,21 @@ export async function PreviewPageView({
 
   return (
     <article className="flex flex-col">
-      {page.sections.map((section) =>
+      {page.sections.map((section, index) =>
         section.isVisible ? (
-          <SectionRenderer
-            key={section.id}
-            section={section}
-            assetUrls={assetUrls}
-            catalog={catalog}
-            site={site}
-            basePath={basePath}
-          />
+          // `.reveal` es la misma entrada CSS que usa la landing (globals.css):
+          // nunca en la primera seccion, que ya esta en pantalla y ademas corre
+          // por debajo del header.
+          <div key={section.id} className={index === 0 ? undefined : "reveal"}>
+            <SectionRenderer
+              section={section}
+              assetUrls={assetUrls}
+              catalog={catalog}
+              site={site}
+              basePath={basePath}
+              isFirst={index === 0}
+            />
+          </div>
         ) : (
           <div key={section.id} className="relative my-2 opacity-40">
             <span

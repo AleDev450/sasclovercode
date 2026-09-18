@@ -54,7 +54,9 @@ export function ThemePicker({
         ) : null}
       </legend>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      {/* Three across while there are three to choose between; one card takes
+          the row rather than sitting in a third of an empty one. */}
+      <div className={cn("grid gap-4", presets.length > 1 && "sm:grid-cols-3")}>
         {presets.map((preset) => (
           <label
             key={preset.id}

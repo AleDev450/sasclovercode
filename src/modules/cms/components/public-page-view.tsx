@@ -56,14 +56,27 @@ export async function PublicPageView({ slug }: { slug: string }) {
           description="Esta pagina todavia no tiene contenido."
         />
       ) : (
-        page.sections.map((section) => (
-          <SectionRenderer
-            key={section.id}
-            section={section}
-            assetUrls={assetUrls}
-            catalog={catalog}
-            site={siteForSections}
-          />
+        /*
+         * `.reveal` is the entrance animation the landing page already uses:
+         * pure CSS, driven by `animation-timeline: view()`, defined once in
+         * `globals.css`. No client component, no observer, and an element that
+         * stays visible in a browser that does not support it - which is the
+         * whole reason it is not a script.
+         *
+         * Not on the block that opens the page: it is already on screen when
+         * the page loads, so there is nothing to animate INTO, and the cover in
+         * particular runs under the header and must not be given a transform.
+         */
+        page.sections.map((section, index) => (
+          <div key={section.id} className={index === 0 ? undefined : "reveal"}>
+            <SectionRenderer
+              section={section}
+              assetUrls={assetUrls}
+              catalog={catalog}
+              site={siteForSections}
+              isFirst={index === 0}
+            />
+          </div>
         ))
       )}
     </article>

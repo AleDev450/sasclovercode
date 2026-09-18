@@ -13,10 +13,10 @@
  */
 
 import Link from "next/link";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { IconCart, IconChevronDown, IconClose, IconMenu } from "@/components/ui/icons";
 import { useCart } from "./cart-provider";
-import { buttonClass, displayStyle, eyebrowStyle, primaryButtonStyle } from "./site-styles";
+import { buttonClass, displayStyle, primaryButtonStyle } from "./site-styles";
 
 export interface HeaderNavItem {
   readonly label: string;
@@ -42,7 +42,42 @@ export function SiteHeader({
 }) {
   const cart = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const bar = useRef<HTMLElement>(null);
   const menuId = useId();
+
+  /*
+   * Two things happen at the top of the page, and both are the same decision.
+   *
+   * THE BAR DISAPPEARS. On a style whose header floats over the cover
+   * (`--site-header-overlay`), the background, the blur and the hairline are
+   * withheld until the visitor has scrolled past the first 24 pixels, so the
+   * page opens on the photograph rather than on a strip of chrome. The nav
+   * itself does not move, so nothing reflows when it comes back.
+   *
+   * THE COVER CLIMBS UNDER IT. The header stays in the flow, and the slider
+   * pulls itself up by `--site-header-height` - which is published here, from
+   * the element's own measured box, rather than written as a number somebody
+   * has to remember to change when the logo grows.
+   */
+  useEffect(() => {
+    const publish = () => {
+      const height = bar.current?.offsetHeight;
+      if (height !== undefined && height > 0) {
+        document.documentElement.style.setProperty("--site-header-height", `${height}px`);
+      }
+    };
+    publish();
+    window.addEventListener("resize", publish);
+    return () => window.removeEventListener("resize", publish);
+  }, []);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   // No scrolling behind the full-screen menu, and Escape closes it.
   useEffect(() => {
@@ -66,7 +101,7 @@ export function SiteHeader({
         setMenuOpen(false);
         cart.open();
       }}
-      className={`${buttonClass} relative h-11 px-5`}
+      className={`${buttonClass} relative`}
       style={primaryButtonStyle}
     >
       <IconCart className="size-4" />
@@ -87,15 +122,50 @@ export function SiteHeader({
     </button>
   );
 
+  /*
+   * `bare` is the transparent state, and it only exists on a style that asked
+   * for it. The custom property is read as a string because that is what a
+   * custom property is; comparing it here rather than emitting two class names
+   * keeps the decision in the theme, where the rest of the look lives.
+   */
+  const overlay = "var(--site-header-overlay)";
+
   return (
     <header
-      className="sticky top-0 z-40 backdrop-blur-md print:hidden"
+      ref={bar}
+      className="sticky top-0 z-40 transition-[background-color,border-color] duration-500 print:hidden"
       style={{
-        borderBottom: "1px solid var(--site-border)",
-        background: "color-mix(in srgb, var(--site-background) 90%, transparent)",
+        // At the top of an overlaid page: no bar at all. Everywhere else: the
+        // page colour at 90% behind a blur, which is what keeps a photograph
+        // legible as it scrolls under the nav.
+        borderBottom: scrolled
+          ? "1px solid var(--site-border)"
+          : `1px solid color-mix(in srgb, var(--site-border) calc((1 - ${overlay}) * 100%), transparent)`,
+        background: scrolled
+          ? "color-mix(in srgb, var(--site-background) 92%, transparent)"
+          : `color-mix(in srgb, var(--site-background) calc((1 - ${overlay}) * 92%), transparent)`,
+        backdropFilter: scrolled ? "blur(16px)" : undefined,
       }}
     >
-      <div className="mx-auto flex h-18 w-full max-w-6xl items-center justify-between gap-6 px-6 sm:px-10">
+      {/*
+        A veil under the nav while it floats over the cover.
+
+        Without it the labels are set on whatever the first slide happens to be,
+        and a photograph of a tortilla under a white nav is a nav nobody can
+        read. It is drawn only where the style floats the header
+        (`--site-header-overlay` is the opacity) and only until the bar's own
+        background arrives on scroll - so on a solid header it renders as a
+        fully transparent element, which costs a paint and decides nothing.
+      */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-[180%] transition-opacity duration-500"
+        style={{
+          background: "linear-gradient(to bottom, rgb(0 0 0 / 0.62), rgb(0 0 0 / 0))",
+          opacity: scrolled ? 0 : "var(--site-header-overlay)",
+        }}
+      />
+      <div className="relative mx-auto flex h-18 w-full max-w-6xl items-center justify-between gap-6 px-6 sm:px-10">
         <Link
           href={basePath}
           className="flex min-w-0 items-center gap-3"
@@ -104,7 +174,11 @@ export function SiteHeader({
           {logoUrl !== null ? (
             /* eslint-disable-next-line @next/next/no-img-element -- a signed
                Storage URL, whose host is not known at build time. */
-            <img src={logoUrl} alt={name} className="h-10 w-auto max-w-[170px] object-contain" />
+            <img
+              src={logoUrl}
+              alt={name}
+              className="h-11 w-auto max-w-[190px] object-contain sm:h-12"
+            />
           ) : (
             <span
               className="truncate text-xl"
@@ -119,13 +193,27 @@ export function SiteHeader({
           <ul className="flex items-center gap-7">
             {nav.map((item) => (
               <li key={item.href} className="group relative">
+                {/*
+                  Sentence case and a rule that grows under the word.
+
+                  It was set in the overline style - caps at up to 0.42em of
+                  tracking, which is the treatment for a two-word label ABOVE a
+                  heading and turns a five-item nav into a band of letters you
+                  read one at a time. The underline is the cheapest hover a nav
+                  can have and the only one that does not move the layout.
+                */}
                 <Link
                   href={item.href}
-                  className="inline-flex items-center gap-1 py-2 text-xs font-medium transition-opacity hover:opacity-70"
-                  style={{ ...eyebrowStyle, color: "var(--site-foreground)" }}
+                  className="relative inline-flex items-center gap-1 py-2 text-[0.9rem] font-medium transition-colors hover:text-[color:var(--site-foreground)]"
+                  style={{ color: "var(--site-muted)" }}
                 >
                   {item.label}
                   {item.children.length > 0 ? <IconChevronDown className="size-3.5" /> : null}
+                  <span
+                    aria-hidden
+                    className="absolute -bottom-0.5 left-0 h-px w-0 transition-all duration-300 group-hover:w-full"
+                    style={{ background: "var(--site-primary)" }}
+                  />
                 </Link>
                 {item.children.length > 0 ? (
                   <ul
