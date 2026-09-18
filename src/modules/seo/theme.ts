@@ -266,6 +266,16 @@ export interface SiteStyle {
    */
   readonly surface: "neutral" | "brand";
   /**
+   * A halo of brand light behind the content, bleeding in from one side.
+   *
+   * The site this style is measured against lights its dark page with one: a
+   * 900px disc of its deep red, blurred to nothing, sitting half off the edge
+   * behind the hero - which is why its black reads as a lit room and a plain
+   * dark page reads as a switched-off screen. Off for the light styles, where
+   * a coloured cloud on bone would read as a stain.
+   */
+  readonly halo: boolean;
+  /**
    * Whether a dish, a shortcut or a gallery frame sits in a PANEL or bare on
    * the page.
    *
@@ -348,6 +358,7 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonInk: "neutral",
     ink: "neutral",
     surface: "neutral",
+    halo: false,
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -389,6 +400,7 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonInk: "neutral",
     ink: "neutral",
     surface: "neutral",
+    halo: false,
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -431,6 +443,7 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonInk: "neutral",
     ink: "neutral",
     surface: "neutral",
+    halo: false,
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -508,6 +521,7 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonInk: "brand",
     ink: "accent",
     surface: "brand",
+    halo: true,
     card: "panel",
     band: "fill",
     headerOverlay: true,
@@ -787,6 +801,23 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
      * Never the ink of a LIGHT page, which is dark and would sink into the veil.
      */
     "--site-on-photo": onDark ? foreground : "#ffffff",
+
+    /**
+     * The halo itself, as a background: see `SiteStyle.halo`.
+     *
+     * The brand taken a third of the way to black, as the reference site does
+     * with its deep red - the full-strength primary would glow orange-pink and
+     * look like a lens flare. A radial gradient with its own soft falloff and NO
+     * `filter: blur()`: the reference blurs a 900px element by 140px, which is
+     * a GPU pass on every repaint of every phone that scrolls past it, and a
+     * gradient that fades over 70% of its radius is indistinguishable from it.
+     */
+    "--site-halo": style.halo
+      ? `radial-gradient(circle closest-side, ${withAlpha(mix(primary, "#000000", 0.35), 0.55)} 0%, ${withAlpha(
+          mix(primary, "#000000", 0.35),
+          0.2,
+        )} 45%, ${withAlpha(mix(primary, "#000000", 0.35), 0)} 100%)`
+      : "none",
 
     "--site-display-size": style.displaySize,
     "--site-hero-size": style.heroSize,

@@ -3,6 +3,7 @@ import { EmptyState } from "@/components/ui";
 import { getPublicPage } from "../server/public-queries";
 import { loadSectionData } from "../server/section-data";
 import { getSiteContext } from "../server/site-context";
+import { SectionHalo, haloFor } from "./section-halo";
 import { SectionRenderer } from "./section-renderer";
 
 /**
@@ -68,7 +69,14 @@ export async function PublicPageView({ slug }: { slug: string }) {
          * particular runs under the header and must not be given a transform.
          */
         page.sections.map((section, index) => (
-          <div key={section.id} className={index === 0 ? undefined : "reveal"}>
+          <div
+            key={section.id}
+            // `relative isolate` for the halo behind it - see `SectionHalo`.
+            className={index === 0 ? "relative isolate" : "reveal relative isolate"}
+          >
+            {haloFor(index, section.type) !== null ? (
+              <SectionHalo side={haloFor(index, section.type)!} />
+            ) : null}
             <SectionRenderer
               section={section}
               assetUrls={assetUrls}

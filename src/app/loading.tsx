@@ -1,4 +1,17 @@
-import { Skeleton } from "@/components/ui";
+/*
+ * From its own file, NOT from the `@/components/ui` barrel - and this import
+ * is load-bearing for the Content-Security-Policy.
+ *
+ * The barrel also re-exports client components that use `next/link`. Imported
+ * here, they made the loading boundary a segment with client code, and Next.js
+ * renders the chunks of a loading boundary as a `<script async>` in the React
+ * tree WITHOUT the request's nonce. Under `'strict-dynamic'` the browser blocks
+ * an un-nonced script, so every page in the product logged a CSP violation for
+ * the `next/link` chunk (reproduced on a production build: 1 of 14 scripts
+ * with no nonce, on every route). A skeleton needs no JavaScript at all;
+ * imported directly, it pulls none, and Next.js emits no script for it.
+ */
+import { Skeleton } from "@/components/ui/skeleton";
 
 /** Route-level loading state (section 34: always show a loading state). */
 export default function Loading() {

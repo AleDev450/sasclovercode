@@ -1,6 +1,7 @@
 import { EmptyState } from "@/components/ui";
 import { getPreviewPage } from "../server/admin-queries";
 import { loadSectionData } from "../server/section-data";
+import { SectionHalo, haloFor } from "./section-halo";
 import { SectionRenderer } from "./section-renderer";
 
 /**
@@ -65,7 +66,13 @@ export async function PreviewPageView({
           // `.reveal` es la misma entrada CSS que usa la landing (globals.css):
           // nunca en la primera seccion, que ya esta en pantalla y ademas corre
           // por debajo del header.
-          <div key={section.id} className={index === 0 ? undefined : "reveal"}>
+          <div
+            key={section.id}
+            className={index === 0 ? "relative isolate" : "reveal relative isolate"}
+          >
+            {haloFor(index, section.type) !== null ? (
+              <SectionHalo side={haloFor(index, section.type)!} />
+            ) : null}
             <SectionRenderer
               section={section}
               assetUrls={assetUrls}

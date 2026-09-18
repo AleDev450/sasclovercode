@@ -454,3 +454,43 @@ describe("server-only modules stay on the server (TEST-2511)", () => {
     expect(clientFiles).toBeGreaterThan(10);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Loading boundaries emit no un-nonced script
+// ---------------------------------------------------------------------------
+
+/**
+ * A `loading.tsx` that imports client code breaks the CSP on every page.
+ *
+ * Next.js renders the chunks of a loading boundary as a `<script async>` in the
+ * React tree, and that script does NOT get the request's nonce. Under
+ * `'strict-dynamic'` the browser blocks it, and a production build logged one
+ * violation per route - for the `next/link` chunk, pulled in because the root
+ * `loading.tsx` imported `Skeleton` through the `@/components/ui` barrel, which
+ * also re-exports link-using client components.
+ *
+ * The rule this holds: a loading boundary imports ONLY from files, never from
+ * the UI barrel, so the skeleton stays free of client code.
+ */
+describe("loading boundaries stay free of client code", () => {
+  async function loadingFiles(dir: string): Promise<string[]> {
+    const found: string[] = [];
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) found.push(...(await loadingFiles(path)));
+      else if (entry.name === "loading.tsx") found.push(path);
+    }
+    return found;
+  }
+
+  it("never imports the @/components/ui barrel", async () => {
+    const files = await loadingFiles(join(process.cwd(), "src", "app"));
+    expect(files.length, "no loading.tsx found - the check would be vacuous").toBeGreaterThan(0);
+
+    for (const file of files) {
+      const source = await readFile(file, "utf8");
+      expect(source, file).not.toMatch(/from\s+["']@\/components\/ui["']/);
+      expect(source, `${file} must not be a client component`).not.toMatch(/^["']use client["']/m);
+    }
+  });
+});

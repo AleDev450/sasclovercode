@@ -1,3 +1,4 @@
+import { SectionHalo } from "@/modules/cms/components/section-halo";
 import { eyebrowStyle, headlineStyle, mutedStyle } from "./site-styles";
 
 /** The opening of every fixed storefront page: eyebrow, title, one line. */
@@ -12,9 +13,12 @@ export function PageHeading({
 }) {
   return (
     <header
-      className="flex flex-col items-center gap-4 text-center"
+      // The halo of the style behind the page title, as the reference lights
+      // its hero. `relative isolate`: see `SectionHalo`.
+      className="relative isolate flex flex-col items-center gap-4 text-center"
       style={{ paddingBlock: "calc(var(--site-section-space) / 2)" }}
     >
+      <SectionHalo side="right" />
       <span className="text-xs font-semibold" style={eyebrowStyle}>
         {eyebrow}
       </span>
