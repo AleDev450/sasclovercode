@@ -67,6 +67,7 @@ export function CartDrawer({
         type="button"
         aria-label="Cerrar carrito"
         className="absolute inset-0 h-full w-full cursor-default bg-black/60 backdrop-blur-[2px]"
+        style={{ animation: "site-fade-in 0.3s ease-out both" }}
         onClick={close}
         tabIndex={-1}
       />
@@ -80,6 +81,12 @@ export function CartDrawer({
           background: "var(--site-background)",
           color: "var(--site-foreground)",
           borderLeft: "1px solid var(--site-border)",
+          // Slides in from the edge it lives on: fast, then settling. NO
+          // overshoot - a panel that bounced past zero would pull away from the
+          // right edge and show the page through the gap for a frame. Entrance
+          // only: closing unmounts at once, because a cart that lingers after
+          // "cerrar" feels like it did not hear.
+          animation: "site-drawer-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both",
         }}
       >
         <header

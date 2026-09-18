@@ -49,7 +49,7 @@ export function SocialLinks({ links }: { links: readonly PublicSocialLink[] }) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label={LABELS[link.platform]}
-              className="flex size-10 items-center justify-center transition-[transform,opacity] hover:-translate-y-0.5 hover:opacity-80"
+              className="flex size-10 items-center justify-center transition-[translate,scale,transform,opacity] hover:-translate-y-0.5 hover:opacity-80"
               style={{
                 border: "1px solid var(--site-border-strong)",
                 borderRadius: "9999px",

@@ -163,7 +163,7 @@ export function MenuBrowser({
           </div>
 
           <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-            {group.products.map((product) => {
+            {group.products.map((product, position) => {
               const choosable = product.variants.length > 0 || product.options.length > 0;
               const fromPrice =
                 product.variants.length > 0
@@ -187,10 +187,15 @@ export function MenuBrowser({
                    * nothing on the printed-menu styles, which keep their look.
                    */
                   className={cn(
-                    "group flex h-full scroll-mt-40 flex-col overflow-hidden transition-[transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]",
+                    "group flex h-full scroll-mt-40 flex-col overflow-hidden transition-[translate,scale,transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]",
                     !product.isAvailable && "opacity-60",
+                    // One after another, as on the home page (`.reveal-stagger`
+                    // in globals.css) - except in the first category, which is
+                    // on screen when the carta opens.
+                    index > 0 && "reveal reveal-stagger",
                   )}
                   style={{
+                    ["--reveal-index" as string]: position % 3,
                     gap: "var(--site-card-gap)",
                     background: "var(--site-card-background)",
                     border: "var(--site-card-border)",

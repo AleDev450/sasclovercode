@@ -432,4 +432,117 @@
       transform: translateY(0);
     }
   }
+
+  /*
+   * A card in a grid enters a beat after the one before it.
+   *
+   * `--reveal-index` is the card's position in its row (0, 1, 2...), set by
+   * the component. The range is pushed later by that many steps, which on a
+   * scroll timeline is what a stagger is - there is no time to delay, only
+   * scroll. The override lives in its own rule so that a browser which rejects
+   * the `calc()` drops only this declaration and keeps the plain range above:
+   * the card still enters, just with its neighbours.
+   */
+  @supports (animation-timeline: view()) {
+    .reveal-stagger {
+      animation-range: entry calc(var(--reveal-index, 0) * 7%) cover
+        calc(22% + var(--reveal-index, 0) * 7%);
+    }
+  }
+
+  /* ------------------------------------------------------------------------
+   * TENANT SITE MOTION - the movements of the site this product was measured
+   * against, in CSS.
+   *
+   * Every one is an entrance or a hover. None loops except the WhatsApp ring,
+   * which is the one element that exists to be noticed. All of them are
+   * neutralised by the reduced-motion block in the base layer, which cuts
+   * every animation to one 0.01ms iteration - so each keyframe ENDS on the
+   * resting state, and a visitor who asked for less motion gets the finished
+   * page instead of a half-played one.
+   *
+   * The easing is `cubic-bezier(0.16, 1, 0.3, 1)` throughout - a fast start
+   * that settles slowly, the curve of a thing arriving rather than a thing
+   * sliding - and `cubic-bezier(0.34, 1.56, 0.64, 1)` where something should
+   * overshoot and land, which is what a spring does without the library.
+   * --------------------------------------------------------------------- */
+
+  /* A slide's photograph settles into place instead of cutting in. */
+  @keyframes site-settle {
+    from {
+      transform: scale(1.06);
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
+  /* Words that arrive from just below where they will sit. */
+  @keyframes site-rise {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* A link in the phone menu, arriving from the left. */
+  @keyframes site-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* The cart panel, arriving from the right edge with a little overshoot. */
+  @keyframes site-drawer-in {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes site-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* The WhatsApp button: pops in once, a moment after the page. */
+  @keyframes site-pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(20px) scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* ...and a ring that breathes out from it, forever. It ends transparent,
+     so the reduced-motion cut leaves nothing behind. */
+  @keyframes site-ping {
+    0% {
+      opacity: 0.45;
+      transform: scale(1);
+    }
+    80%,
+    100% {
+      opacity: 0;
+      transform: scale(1.9);
+    }
+  }
 }

@@ -88,6 +88,24 @@ const sectionSpacing: React.CSSProperties = {
 };
 
 /**
+ * A card that enters a beat after the one beside it (`.reveal-stagger` in
+ * globals.css), the way the cards of the site this product is measured against
+ * arrive one after another.
+ *
+ * `columns` is the widest the grid gets, so the beat restarts on each row
+ * rather than growing down the page. Off for the block that opens the page:
+ * its cards are on screen when it loads, and a scroll-driven entrance would
+ * leave them half-faded until the visitor scrolled.
+ */
+function staggered(index: number, columns: number, enabled: boolean) {
+  if (!enabled) return { className: undefined, style: {} };
+  return {
+    className: "reveal reveal-stagger",
+    style: { ["--reveal-index" as string]: index % columns } as React.CSSProperties,
+  };
+}
+
+/**
  * The small capitalised label above a heading.
  *
  * Tracking and case come from the style, not from this file: `atelier` sets it
@@ -194,7 +212,7 @@ function SafeLink({
  * control that acknowledges a cursor and one that does not.
  */
 const buttonClass =
-  "inline-flex h-14 items-center justify-center gap-2.5 px-9 text-[0.95rem] font-bold transition-[transform,box-shadow,filter] duration-500 hover:-translate-y-1 hover:brightness-110 active:translate-y-0 active:scale-[0.98]";
+  "inline-flex h-14 items-center justify-center gap-2.5 px-9 text-[0.95rem] font-bold transition-[translate,scale,transform,box-shadow,filter] duration-500 hover:-translate-y-1 hover:brightness-110 hover:[--btn-glow:var(--site-glow-strong)] active:translate-y-0 active:scale-[0.98]";
 
 const primaryButtonStyle: React.CSSProperties = {
   // A gradient where the style asks for one, the flat brand colour otherwise.
@@ -209,7 +227,9 @@ const primaryButtonStyle: React.CSSProperties = {
   textTransform: "var(--site-button-transform)" as "uppercase",
   // Brand-coloured light where the style asks for it; the ordinary elevation
   // otherwise, which on a dark page is already `none`.
-  boxShadow: "var(--site-glow)",
+  // Through `--btn-glow` so a hover class can raise it: an inline style
+  // beats every class, so the shadow itself cannot be the thing the hover sets.
+  boxShadow: "var(--btn-glow, var(--site-glow))",
 };
 
 /** A stored `/sitio/...` link, moved onto the base path of this render. */
@@ -619,8 +639,14 @@ export function SectionRenderer({
               .map((image, index) => (
                 <li
                   key={index}
-                  className="group overflow-hidden transition-transform duration-700 hover:-translate-y-1.5"
-                  style={{ borderRadius: "var(--site-panel-radius)" }}
+                  className={cn(
+                    "group overflow-hidden transition-transform duration-700 hover:-translate-y-1.5",
+                    staggered(index, 3, !isFirst).className,
+                  )}
+                  style={{
+                    borderRadius: "var(--site-panel-radius)",
+                    ...staggered(index, 3, !isFirst).style,
+                  }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
                   <img
@@ -674,9 +700,10 @@ export function SectionRenderer({
           </div>
 
           <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
-            {shown.map((product) => {
+            {shown.map((product, index) => {
               const imageUrl =
                 product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
+              const enter = staggered(index, 3, !isFirst);
 
               return (
                 /*
@@ -692,14 +719,20 @@ export function SectionRenderer({
                  * under it, with the name and the price on one line separated by
                  * a leader rule. The box is gone; the elevation the theme asks
                  * for lives on the IMAGE, which is the object worth lifting.
+                 *
+                 * On a `panel` style (`carbon`) the box comes back through the
+                 * card tokens, because a dark page has no paper for the type to
+                 * sit on - see `SiteStyle.card`.
                  */
                 <li
                   key={product.id}
                   className={cn(
-                    "group flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]",
+                    "group flex h-full flex-col overflow-hidden transition-[translate,scale,transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]",
                     !product.isAvailable && "opacity-70",
+                    enter.className,
                   )}
                   style={{
+                    ...enter.style,
                     gap: "var(--site-card-gap)",
                     background: "var(--site-card-background)",
                     border: "var(--site-card-border)",
@@ -1043,7 +1076,7 @@ export function SectionRenderer({
               // and short, the photograph a strip. Given the height back, a
               // pair keeps the proportion of a door.
               const cardClass = cn(
-                "group relative flex min-h-[26rem] flex-col justify-end overflow-hidden transition-[transform,box-shadow,border-color] duration-700 hover:-translate-y-2 hover:border-[color:var(--site-primary-line)] hover:shadow-[var(--site-glow-card)]",
+                "group relative flex min-h-[26rem] flex-col justify-end overflow-hidden transition-[translate,scale,transform,box-shadow,border-color] duration-700 hover:-translate-y-2 hover:border-[color:var(--site-primary-line)] hover:shadow-[var(--site-glow-card)]",
                 c.cards.length <= 2 ? "sm:min-h-[38rem]" : "sm:min-h-[32.5rem]",
               );
               const cardStyle: React.CSSProperties = {
@@ -1053,8 +1086,10 @@ export function SectionRenderer({
                 boxShadow: "var(--site-shadow)",
               };
 
+              const enter = staggered(index, 4, !isFirst);
+
               return (
-                <li key={index}>
+                <li key={index} className={enter.className} style={enter.style}>
                   {external ? (
                     <a
                       href={href}
@@ -1125,7 +1160,8 @@ export function SectionRenderer({
           </div>
 
           <ul className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-            {shown.map((product) => {
+            {shown.map((product, index) => {
+              const enter = staggered(index, 4, !isFirst);
               const imageUrl =
                 product.imagePath === null ? undefined : assetUrls.get(product.imagePath);
 
@@ -1136,10 +1172,10 @@ export function SectionRenderer({
                * and send them to the menu, where the choice is made.
                */
               return (
-                <li key={product.id}>
+                <li key={product.id} className={enter.className} style={enter.style}>
                   <Link
                     href={`${basePath}/carta#producto-${product.id}`}
-                    className="group flex h-full flex-col overflow-hidden transition-[transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]"
+                    className="group flex h-full flex-col overflow-hidden transition-[translate,scale,transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]"
                     style={{
                       gap: "var(--site-card-gap)",
                       background: "var(--site-card-background)",

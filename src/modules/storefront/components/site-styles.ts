@@ -53,7 +53,7 @@ export const subtleStyle: CSSProperties = { color: "var(--site-subtle)" };
  * there.
  */
 export const buttonClass =
-  "inline-flex h-13 items-center justify-center gap-2.5 px-8 text-[0.92rem] font-bold transition-[transform,box-shadow,filter] duration-500 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex h-13 items-center justify-center gap-2.5 px-8 text-[0.92rem] font-bold transition-[translate,scale,transform,box-shadow,filter] duration-500 hover:-translate-y-0.5 hover:brightness-110 hover:[--btn-glow:var(--site-glow-strong)] active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2";
 
 export const primaryButtonStyle: CSSProperties = {
   background: "var(--site-button-fill)",
@@ -61,7 +61,9 @@ export const primaryButtonStyle: CSSProperties = {
   borderRadius: "var(--site-button-radius)",
   letterSpacing: "var(--site-button-tracking)",
   textTransform: "var(--site-button-transform)" as "uppercase",
-  boxShadow: "var(--site-glow)",
+  // Through `--btn-glow` so a hover class can raise it: an inline style
+  // beats every class, so the shadow itself cannot be the thing the hover sets.
+  boxShadow: "var(--btn-glow, var(--site-glow))",
   outlineColor: "var(--site-primary)",
 };
 

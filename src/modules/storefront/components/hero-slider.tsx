@@ -36,6 +36,9 @@ export interface SlideView {
 
 const SWIPE_THRESHOLD = 40;
 
+/** Fast start, long settle: the curve of a thing arriving. See globals.css. */
+const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+
 export function HeroSlider({
   slides,
   intervalSeconds,
@@ -109,6 +112,19 @@ export function HeroSlider({
         const hasWords = slide.heading.length > 0 || slide.subheading.length > 0;
         const veil = Math.min(90, Math.max(0, slide.overlay)) / 100;
 
+        /*
+         * The arrival of a slide, in the order the eye takes it: the
+         * photograph settles from 106% to rest, then the headline, the line
+         * under it and the button rise in a beat apart.
+         *
+         * Switching `animation` from `none` to a value is what RESTARTS it, so
+         * every time a slide comes round again it arrives again - rather than
+         * a CSS class that would play once on page load and never again.
+         */
+        const settle = visible ? `site-settle 1.1s ${EASE} both` : "none";
+        const rise = (delay: number) =>
+          visible ? `site-rise 0.7s ${EASE} ${delay}s both` : "none";
+
         const body = (
           <>
             {slide.mobileUrl !== null ? (
@@ -117,6 +133,7 @@ export function HeroSlider({
                 src={slide.mobileUrl}
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover md:hidden"
+                style={{ animation: settle }}
                 loading={index === 0 ? "eager" : "lazy"}
               />
             ) : null}
@@ -127,6 +144,7 @@ export function HeroSlider({
               className={`absolute inset-0 h-full w-full object-cover ${
                 slide.mobileUrl !== null ? "hidden md:block" : ""
               }`}
+              style={{ animation: settle }}
               loading={index === 0 ? "eager" : "lazy"}
             />
 
@@ -151,6 +169,7 @@ export function HeroSlider({
                   <h2
                     className="max-w-4xl text-balance"
                     style={{
+                      animation: rise(0.15),
                       // The hero scale of the style: on a condensed face this is
                       // the size that makes the slide read as a poster.
                       fontSize: "var(--site-hero-size)",
@@ -166,12 +185,23 @@ export function HeroSlider({
                   </h2>
                 ) : null}
                 {slide.subheading.length > 0 ? (
-                  <p className="mt-4 max-w-xl text-base leading-relaxed opacity-85 sm:text-lg">
+                  <p
+                    className="mt-4 max-w-xl text-base leading-relaxed sm:text-lg"
+                    // 85% as a COLOUR, not as `opacity`: the rise animation owns
+                    // opacity and would hold it at 1 when it lands.
+                    style={{
+                      animation: rise(0.27),
+                      color: "color-mix(in srgb, var(--site-on-photo) 85%, transparent)",
+                    }}
+                  >
                     {slide.subheading}
                   </p>
                 ) : null}
                 {slide.ctaLabel.length > 0 && slide.href !== null ? (
-                  <span className={`${buttonClass} mt-8`} style={primaryButtonStyle}>
+                  <span
+                    className={`${buttonClass} mt-8`}
+                    style={{ ...primaryButtonStyle, animation: rise(0.39) }}
+                  >
                     {slide.ctaLabel}
                   </span>
                 ) : null}

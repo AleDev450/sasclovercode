@@ -298,7 +298,13 @@ export function SiteHeader({
           aria-modal="true"
           aria-label="Menú"
           className="fixed inset-0 z-50 flex flex-col overflow-y-auto lg:hidden"
-          style={{ background: "var(--site-background)" }}
+          style={{
+            background: "var(--site-background)",
+            // Fades in rather than cutting to a full-screen panel. The links
+            // then arrive one after another - see below - which is how the
+            // site this product is measured against opens its menu.
+            animation: "site-fade-in 0.25s ease-out both",
+          }}
         >
           <div className="flex h-18 items-center justify-between px-6">
             <span
@@ -324,8 +330,16 @@ export function SiteHeader({
           </div>
 
           <nav aria-label="Principal" className="flex flex-col px-6 pt-4">
-            {nav.map((item) => (
-              <div key={item.href} style={{ borderBottom: "1px solid var(--site-border)" }}>
+            {nav.map((item, index) => (
+              <div
+                key={item.href}
+                style={{
+                  borderBottom: "1px solid var(--site-border)",
+                  animation: `site-slide-in 0.55s cubic-bezier(0.16, 1, 0.3, 1) ${
+                    0.05 + index * 0.05
+                  }s both`,
+                }}
+              >
                 <Link
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
