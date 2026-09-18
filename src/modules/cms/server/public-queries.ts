@@ -36,6 +36,34 @@ export interface PublicNavItem {
   readonly children: readonly { id: string; label: string; href: string }[];
 }
 
+/**
+ * Whether THIS tenant has a published page at `slug`, and nothing else.
+ *
+ * For links that should exist only when their page does - the footer's
+ * "Preguntas frecuentes" is the first - and it selects the id alone, because
+ * it runs on every page of the site: `getPublicPage` would fetch every section
+ * of a page that is not being shown just to learn that it exists.
+ */
+export async function hasPublishedPage(tenantId: string, slug: string): Promise<boolean> {
+  const client = await createSupabaseServerClient();
+
+  const { data, error } = await client
+    .from("pages")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (error) {
+    // A footer link is not worth failing a page render over: without the
+    // answer the link is simply not drawn, and the error is still logged.
+    logger.error("site.page.exists_failed", { tenantId, slug, error });
+    return false;
+  }
+  return data !== null;
+}
+
 /** Resolves a page of THIS tenant by slug, or null. */
 export async function getPublicPage(tenantId: string, slug: string): Promise<PublicPage | null> {
   const client = await createSupabaseServerClient();

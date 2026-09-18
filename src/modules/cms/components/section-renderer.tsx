@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IconArrowRight } from "@/components/ui/icons";
+import { IconArrowRight, IconPlus } from "@/components/ui/icons";
 import { formatCurrency } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import { HeroSlider, type SlideView } from "@/modules/storefront/components/hero-slider";
@@ -859,39 +859,101 @@ export function SectionRenderer({
 
     case "faq": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["faq"]["_output"];
+
+      /*
+       * AN ACCORDION OF CARDS, in the language of the site this product is
+       * measured against: a centred overline and headline, then one card per
+       * question with a round "+" that turns into an "x" when it opens.
+       *
+       * It was a column of every question AND every answer, printed flat - fine
+       * at three questions, a wall of text at eight, which is the point at
+       * which a restaurant actually needs an FAQ. Closed, the page is a list of
+       * questions a visitor can scan for theirs.
+       *
+       * `<details>` and not a scripted accordion: it opens with no JavaScript,
+       * the browser gives it keyboard handling and an expanded state for
+       * screen readers, and a search in the page finds a closed answer and opens
+       * it. The first one starts open so it is obvious the others do too.
+       *
+       * The card is the style's: a panel on `carbon`, and on the printed-menu
+       * styles the same list with the hairline between items it always had.
+       */
       return (
-        <section className="flex max-w-3xl flex-col gap-8" style={sectionSpacing}>
-          <Heading>{c.heading}</Heading>
-          <dl className="flex flex-col">
-            {c.items.map((item, index) => (
-              <div
-                key={index}
-                className="flex flex-col gap-2 py-6 first:pt-0"
-                style={{
-                  // A rule between answers, not a box around each one. Six
-                  // bordered rectangles stacked vertically read as a form;
-                  // hairlines read as a printed page.
-                  borderTop: index === 0 ? "none" : "1px solid var(--site-border)",
-                }}
-              >
-                <dt
-                  className="text-lg"
+        <section className="mx-auto flex w-full max-w-3xl flex-col gap-10" style={sectionSpacing}>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <Eyebrow>Ayuda</Eyebrow>
+            <Heading>{c.heading}</Heading>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {c.items.map((item, index) => {
+              const enter = staggered(index, 6, !isFirst);
+              return (
+                <details
+                  key={index}
+                  open={index === 0}
+                  className={cn(
+                    "group overflow-hidden transition-[translate,box-shadow] duration-500 open:shadow-[0_0_0_1px_var(--site-primary-line),var(--site-glow-card)] hover:shadow-[0_0_0_1px_var(--site-primary-line)]",
+                    enter.className,
+                  )}
                   style={{
-                    color: "var(--site-foreground)",
-                    fontFamily: "var(--site-display-font)",
-                    fontStretch: "var(--site-display-stretch)",
-                    fontWeight: "var(--site-display-weight)",
-                    letterSpacing: "var(--site-display-tracking)",
+                    ...enter.style,
+                    background: "var(--site-card-background)",
+                    border: "var(--site-card-border)",
+                    // A hairline under every item on the bare styles, where the
+                    // card border above resolves to nothing; on a panel it is
+                    // the same line the card already draws.
+                    borderBottom: "1px solid var(--site-border)",
+                    borderRadius: "var(--site-card-radius)",
                   }}
                 >
-                  {item.question}
-                </dt>
-                <dd className="max-w-prose leading-relaxed" style={{ color: "var(--site-muted)" }}>
-                  {item.answer}
-                </dd>
-              </div>
-            ))}
-          </dl>
+                  <summary
+                    className="flex cursor-pointer list-none items-center justify-between gap-6 py-5 [&::-webkit-details-marker]:hidden"
+                    style={{ paddingInline: "var(--site-card-padding)" }}
+                  >
+                    <span
+                      className="text-lg leading-snug"
+                      style={{
+                        color: "var(--site-foreground)",
+                        fontFamily: "var(--site-display-font)",
+                        fontStretch: "var(--site-display-stretch)",
+                        fontWeight: "var(--site-display-weight)",
+                        letterSpacing: "var(--site-display-tracking)",
+                      }}
+                    >
+                      {item.question}
+                    </span>
+                    <span
+                      aria-hidden
+                      className="flex size-9 shrink-0 items-center justify-center rounded-full transition-[rotate,background-color] duration-500 group-open:rotate-45"
+                      style={{
+                        background: "var(--site-primary-soft)",
+                        color: "var(--site-primary)",
+                      }}
+                    >
+                      <IconPlus className="size-4" />
+                    </span>
+                  </summary>
+                  {/* Rises into place each time it opens: an element that goes
+                      from hidden to shown restarts its animation. */}
+                  <div
+                    className="pb-6"
+                    style={{
+                      paddingInline: "var(--site-card-padding)",
+                      animation: "site-rise 0.45s cubic-bezier(0.16, 1, 0.3, 1) both",
+                    }}
+                  >
+                    <p
+                      className="max-w-prose leading-relaxed"
+                      style={{ color: "var(--site-muted)" }}
+                    >
+                      {item.answer}
+                    </p>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
         </section>
       );
     }

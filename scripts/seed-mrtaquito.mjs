@@ -418,24 +418,32 @@ const BUSINESS = {
     },
     faq: [
       [
-        "Hacen delivery?",
-        "Si, con reparto propio en Miraflores, San Isidro, Barranco y Surquillo. Entre 25 y 40 minutos segun la zona, y desde S/ 60 el envio es gratis.",
+        "¿Hacen delivery?",
+        "Sí, con reparto propio en Miraflores, San Isidro, Barranco y Surquillo. Entre 25 y 40 minutos según la zona, y desde S/ 60 el envío es gratis.",
       ],
       [
-        "Los tacos pican?",
-        "El taco no pica: la salsa si. Van siempre aparte, en tres niveles, y el que sirve te dice cual es cual antes de que la pruebes.",
+        "¿Los tacos pican?",
+        "El taco no pica: la salsa sí. Van siempre aparte, en tres niveles, y el que sirve te dice cuál es cuál antes de que la pruebes.",
       ],
       [
-        "Tienen opciones vegetarianas?",
-        "Quesadilla de Oaxaca, esquites, guacamole y nachos sin carne. Avisanos al pedir y preparamos los nachos sin frijol con chorizo.",
+        "¿Tienen opciones vegetarianas?",
+        "Quesadilla de Oaxaca, esquites, guacamole y nachos sin carne. Avísanos al pedir y preparamos los nachos sin frijol con chorizo.",
       ],
       [
-        "Puedo reservar mesa?",
-        "Para grupos de seis o mas, si. Escribenos por WhatsApp con un dia de anticipacion y te guardamos la mesa larga del fondo.",
+        "¿Puedo reservar mesa?",
+        "Para grupos de seis o más, sí. Escríbenos por WhatsApp con un día de anticipación y te guardamos la mesa larga del fondo.",
       ],
       [
-        "Hacen pedidos para eventos?",
-        "Si, llevamos el trompo a domicilio desde 30 personas. Se cotiza por WhatsApp con una semana de anticipacion.",
+        "¿Hacen pedidos para eventos?",
+        "Sí, llevamos el trompo a domicilio desde 30 personas. Se cotiza por WhatsApp con una semana de anticipación.",
+      ],
+      [
+        "¿Qué medios de pago aceptan?",
+        "Efectivo, Yape, Plin y tarjetas de débito y crédito. En delivery también puedes pagar al recibir, con el monto exacto o con Yape.",
+      ],
+      [
+        "¿Puedo pedir si tengo alguna alergia?",
+        "Sí. Avísanos al pedir: la tortilla es de maíz, sin gluten, y podemos preparar la mayoría de tacos sin lácteos. Lo que lleva frutos secos está marcado en la carta.",
       ],
     ],
   },
@@ -774,6 +782,7 @@ const SHORTCUTS = [
  */
 const CLOSING = {
   nosotros: "tortillas",
+  "preguntas-frecuentes": "molcajete",
 };
 
 /** "El local". Five photographs no other section on the page is using. */
@@ -1251,13 +1260,12 @@ function homeSections(images) {
   return sections;
 }
 
-/** "Nosotros": the page the third shortcut opens, and the one nav item with prose. */
+/** "Nosotros": the page the second shortcut opens, and the one nav item with prose. */
 function aboutSections(images) {
   /*
-   * Everything the home page no longer carries: the story, the room and the
-   * questions. In that order because it is the order somebody asks them in -
-   * who are you, what is it like, and then the practical things - and it ends
-   * on a photograph and a button like every page on the site does.
+   * The story and the room, then a photograph and a button. The questions used
+   * to follow the room; they have their own page now, linked from the footer
+   * under "Ayuda y políticas", which is where somebody with a doubt looks.
    */
   return [
     {
@@ -1287,8 +1295,32 @@ function aboutSections(images) {
         ]
       : []),
     {
-      type: "faq",
+      type: "cta",
       position: 3,
+      content: {
+        heading: "Ven a probarlos",
+        body: `${BUSINESS.settings.address_line}, ${BUSINESS.settings.district}. De martes a domingo desde las 12:30.`,
+        buttonLabel: "Cómo llegar",
+        buttonHref: "/sitio/contacto",
+        ...(images.closing.has("nosotros") ? { imagePath: images.closing.get("nosotros") } : {}),
+      },
+    },
+  ];
+}
+
+/**
+ * "Preguntas frecuentes": its own page, reached from the footer.
+ *
+ * The questions open the page - there is nothing to introduce them with that
+ * the heading does not already say - and it closes on the one answer that
+ * covers every question not on the list: write to us. That close has a
+ * photograph for the same reason every other page does.
+ */
+function faqSections(images) {
+  return [
+    {
+      type: "faq",
+      position: 0,
       content: {
         heading: "Preguntas frecuentes",
         items: BUSINESS.home.faq.map(([question, answer]) => ({ question, answer })),
@@ -1296,13 +1328,15 @@ function aboutSections(images) {
     },
     {
       type: "cta",
-      position: 4,
+      position: 1,
       content: {
-        heading: "Ven a probarlos",
-        body: `${BUSINESS.settings.address_line}, ${BUSINESS.settings.district}. De martes a domingo desde las 12:30.`,
-        buttonLabel: "Cómo llegar",
-        buttonHref: "/sitio/contacto",
-        ...(images.closing.has("nosotros") ? { imagePath: images.closing.get("nosotros") } : {}),
+        heading: "¿No encontraste tu respuesta?",
+        body: "Escríbenos por WhatsApp y te contestamos en minutos.",
+        buttonLabel: "Escribir por WhatsApp",
+        buttonHref: whatsappUrl,
+        ...(images.closing.has("preguntas-frecuentes")
+          ? { imagePath: images.closing.get("preguntas-frecuentes") }
+          : {}),
       },
     },
   ];
@@ -1591,7 +1625,10 @@ async function seed(db, withImages) {
   await page("carta", "Carta", menuSections());
   const promos = await page("promociones", "Promociones", promoSections(images));
   const about = await page("nosotros", "Nosotros", aboutSections(images));
-  log("Paginas", "inicio, carta, promociones, nosotros (publicadas)");
+  // No nav item: `SiteChrome` links a published `preguntas-frecuentes` page
+  // from the footer on its own.
+  await page("preguntas-frecuentes", "Preguntas frecuentes", faqSections(images));
+  log("Paginas", "inicio, carta, promociones, nosotros, preguntas-frecuentes (publicadas)");
 
   /* --- navigation --------------------------------------------------------- */
   await db.remove(`navigation_items?tenant_id=eq.${tenant.id}`);

@@ -22,8 +22,11 @@ import {
 import { whatsappUrl } from "@/modules/storefront/whatsapp";
 import { cn } from "@/lib/utils";
 import { signAssetPaths } from "@/lib/storage/sign";
-import { getPublicNavigation } from "../server/public-queries";
+import { getPublicNavigation, hasPublishedPage } from "../server/public-queries";
 import type { SiteContext } from "../server/site-context";
+
+/** The slug a business's FAQ page lives at, and the footer looks for. */
+const FAQ_SLUG = "preguntas-frecuentes";
 
 /**
  * The frame around a tenant's website: header, navigation, footer, theme - and,
@@ -41,8 +44,8 @@ import type { SiteContext } from "../server/site-context";
  * to have the structure of their Sugu Rolls site: Inicio and Nuestra carta
  * always, Zonas de delivery when they deliver, the pages they add to the menu in
  * between, "Pedir ahora" in the header, WhatsApp floating, and a footer with the
- * policies, the hours and the Libro de Reclamaciones. The three themes change
- * how that looks, never what is there.
+ * policies, the help pages and the Libro de Reclamaciones (the hours moved to
+ * Contacto). The styles change how that looks, never what is there.
  *
  * THE THEME TRAVELS AS CSS CUSTOM PROPERTIES on one element's `style`
  * attribute, never as a generated stylesheet. React escapes a style object, so
@@ -70,16 +73,18 @@ export async function SiteChrome({
 
   // No locations query any more: it existed to print the week's hours in the
   // footer, which now lives on Contacto - one query fewer on every page.
-  const [navigation, theme, identity, seo, domain, storefront, social, zones] = await Promise.all([
-    getPublicNavigation(tenantId),
-    getPublicTheme(tenantId),
-    getPublicIdentity(tenantId, site.tenant.name),
-    getSiteSeo(tenantId),
-    getPrimaryDomain(tenantId),
-    getPublicStorefront(tenantId),
-    listPublicSocialLinks(tenantId),
-    listPublicDeliveryZones(tenantId),
-  ]);
+  const [navigation, theme, identity, seo, domain, storefront, social, zones, hasFaq] =
+    await Promise.all([
+      getPublicNavigation(tenantId),
+      getPublicTheme(tenantId),
+      getPublicIdentity(tenantId, site.tenant.name),
+      getSiteSeo(tenantId),
+      getPrimaryDomain(tenantId),
+      getPublicStorefront(tenantId),
+      listPublicSocialLinks(tenantId),
+      listPublicDeliveryZones(tenantId),
+      hasPublishedPage(tenantId, FAQ_SLUG),
+    ]);
 
   const resolved = resolveSeo({ site: seo, business: identity, tenantIsServing: true });
   const base = domain ?? site.tenant.domain;
@@ -106,6 +111,8 @@ export async function SiteChrome({
     "/sitio/carta",
     "/sitio/contacto",
     "/sitio/zonas-de-delivery",
+    // Drawn in the footer (see `helpLinks`), never twice in the top bar.
+    `/sitio/${FAQ_SLUG}`,
   ]);
   const custom: HeaderNavItem[] = navigation
     .filter((item) => !fixedHrefs.has(item.href))
@@ -134,7 +141,15 @@ export async function SiteChrome({
 
   const quickLinks: FooterLink[] = nav.map((item) => ({ label: item.label, href: item.href }));
 
+  /*
+   * "Preguntas frecuentes" belongs HERE, with the help and the policies, and
+   * not in the top bar: it is where a visitor looks for it when they have a
+   * doubt, and it is not a page anybody navigates to for pleasure. It appears
+   * only when the business has published a page at that slug, so a restaurant
+   * that never wrote one does not get a link to a 404.
+   */
   const helpLinks: FooterLink[] = [
+    ...(hasFaq ? [{ label: "Preguntas frecuentes", href: `${basePath}/${FAQ_SLUG}` }] : []),
     ...(hasDelivery ? [{ label: "Zonas de delivery", href: `${basePath}/zonas-de-delivery` }] : []),
     { label: "Términos y condiciones", href: `${basePath}/terminos` },
     { label: "Política de privacidad", href: `${basePath}/privacidad` },
