@@ -43,6 +43,5 @@ restaurante, asi que esto sirve para la demo y no para produccion.
 | `surtido` | 001 Tacos de carnitas, carne asada y al pastor | CC BY-SA 2.0 | [Commons](https://commons.wikimedia.org/wiki/File:001_Tacos_de_carnitas,_carne_asada_y_al_pastor.jpg) |
 | `molcajete` | Molcajete con salsa roja mexicana | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Molcajete_con_salsa_roja_mexicana_-_3.jpg) |
 | `tortillas` | Haciendo tortillas a mano | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Haciendo_tortillas_a_mano.jpg) |
-| `puesto` | Esquites variados | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:Esquites_variados.jpg) |
 | `parrillero` | Barbacoa Tacos Chef, Guadalajara | CC BY 2.0 | [Commons](https://commons.wikimedia.org/wiki/File:Barbacoa_Tacos_Chef,_Guadalajara.jpg) |
 | `churreria` | "Churros" of all flavors | CC BY-SA 4.0 | [Commons](https://commons.wikimedia.org/wiki/File:%22Churros%22_of_all_flavors.jpg) |

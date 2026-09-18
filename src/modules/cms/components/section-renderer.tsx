@@ -1038,8 +1038,14 @@ export function SectionRenderer({
                * and warms its border on hover, which is the whole of what tells
                * somebody the block is a link before they click it.
                */
-              const cardClass =
-                "group relative flex min-h-[26rem] flex-col justify-end overflow-hidden transition-[transform,box-shadow,border-color] duration-700 hover:-translate-y-2 hover:border-[color:var(--site-primary-line)] hover:shadow-[var(--site-glow-card)] sm:min-h-[32.5rem]";
+              // Fewer doors, taller doors. Two cards across are each half the
+              // row, and at the three-card height they read as banners - wide
+              // and short, the photograph a strip. Given the height back, a
+              // pair keeps the proportion of a door.
+              const cardClass = cn(
+                "group relative flex min-h-[26rem] flex-col justify-end overflow-hidden transition-[transform,box-shadow,border-color] duration-700 hover:-translate-y-2 hover:border-[color:var(--site-primary-line)] hover:shadow-[var(--site-glow-card)]",
+                c.cards.length <= 2 ? "sm:min-h-[38rem]" : "sm:min-h-[32.5rem]",
+              );
               const cardStyle: React.CSSProperties = {
                 borderRadius: "var(--site-panel-radius)",
                 border: "1px solid var(--site-border)",

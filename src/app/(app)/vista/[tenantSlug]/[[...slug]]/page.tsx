@@ -81,8 +81,18 @@ export default async function SitePreviewPage({
     pageSlug === "inicio" ? "" : `/${pageSlug}`
   }`;
 
+  /*
+   * The preview bar scrolls away with the page; it is NOT sticky.
+   *
+   * It was `sticky top-0` one layer above the site's own header, which is also
+   * `sticky top-0`, so the moment the owner scrolled the two landed on the same
+   * line and this bar sat on top of the site's nav - logo, menu and "Pedir
+   * ahora" disappeared behind it. The header is the thing being previewed and
+   * has to behave exactly as a visitor sees it; this bar is a toolbar the owner
+   * reaches by scrolling back up.
+   */
   const banner = (
-    <div className="bg-foreground text-background sticky top-0 z-50 print:hidden">
+    <div className="bg-foreground text-background relative z-50 print:hidden">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-6 py-2.5 text-sm">
         <span className="inline-flex items-center gap-2 font-medium">
           <IconGlobe className="size-4" />

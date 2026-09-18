@@ -408,10 +408,6 @@ const BUSINESS = {
   home: {
     heroSubheading:
       "Trompo de pastor prendido desde el mediodia, tortilla hecha en casa y salsas molidas en molcajete. Pide en linea y recogelo en Miraflores, o te lo mandamos a tu puerta.",
-    banner: {
-      message: "Martes de tacos: 3 al pastor por S/ 20, todo el dia.",
-      tone: "success",
-    },
     about: {
       heading: "Cómo nació Mr. Taquito",
       paragraphs: [
@@ -673,13 +669,6 @@ const PHOTOS = {
     page: "https://commons.wikimedia.org/wiki/File:Haciendo_tortillas_a_mano.jpg",
     focus: "attention",
   },
-  puesto: {
-    url: `${COMMONS}/8/85/Esquites_variados.jpg/1920px-Esquites_variados.jpg`,
-    title: "Esquites variados",
-    license: "CC BY-SA 4.0",
-    page: "https://commons.wikimedia.org/wiki/File:Esquites_variados.jpg",
-    focus: "centre",
-  },
   parrillero: {
     url: `${UPLOAD}/2/27/Barbacoa_Tacos_Chef%2C_Guadalajara.jpg`,
     title: "Barbacoa Tacos Chef, Guadalajara",
@@ -753,14 +742,12 @@ const SLIDES = [
 ];
 
 /** The three doors under the cover. */
+/*
+ * Two, not three: "Nuestra carta" came out. It is the second item of the nav
+ * and the button on every slide, and a third door to the same room was the
+ * card the owner asked to remove.
+ */
 const SHORTCUTS = [
-  {
-    photo: "puesto",
-    title: "Nuestra carta",
-    body: "Nueve tacos, antojitos para compartir y aguas frescas del día.",
-    href: "/sitio/carta",
-    linkLabel: "Ver la carta",
-  },
   {
     photo: "dorados",
     title: "Zonas de delivery",
@@ -782,13 +769,10 @@ const SHORTCUTS = [
  *
  * The close used to be a slab of brand orange with "Pedir por WhatsApp" on
  * it, and next to a page of photographs a flat slab reads as the one block
- * nobody designed. The trompo with its pineapple crown says "it is lit right
- * now" without a sentence of copy - and it leaves the lower-left dark, which
- * is where the headline goes. (The cook at the plancha was tried first: a
- * washed-out frame with his face cut by the crop.)
+ * nobody designed. Only "Nosotros" closes this way now - the home ends on the
+ * food, with "Pedir ahora" in the header the whole way down.
  */
 const CLOSING = {
-  inicio: "trompo",
   nosotros: "tortillas",
 };
 
@@ -1248,35 +1232,22 @@ function homeSections(images) {
     },
   });
 
-  sections.push({ type: "banner", position: 3, content: BUSINESS.home.banner });
-
   sections.push({
     type: "products",
-    position: 4,
+    position: 3,
     content: { heading: "Antojitos para compartir", categorySlug: "antojitos", limit: 6 },
   });
 
   /*
-   * THE HOME STOPS HERE, on purpose.
+   * THE HOME STOPS HERE, on the food, and on purpose.
    *
    * It used to carry the story, the gallery and the FAQ as well - nine blocks,
    * the last four of which were about the restaurant rather than about eating
-   * in it. Those are what "Nosotros" is for, one tap away in the nav; a home
-   * page that ends on the food and a button converts, and one that ends on an
-   * FAQ is a brochure.
+   * in it - and then a closing photograph with a button. The owner took the
+   * close out too: the header's "Pedir ahora" is on screen the whole way
+   * down, so a second button at the bottom was asking the same thing twice.
+   * The story lives on "Nosotros", one tap away in the nav.
    */
-  sections.push({
-    type: "cta",
-    position: 5,
-    content: {
-      heading: "El trompo está prendido",
-      body: "",
-      buttonLabel: "Hacer mi pedido",
-      buttonHref: "/sitio/carta",
-      ...(images.closing.has("inicio") ? { imagePath: images.closing.get("inicio") } : {}),
-    },
-  });
-
   return sections;
 }
 
