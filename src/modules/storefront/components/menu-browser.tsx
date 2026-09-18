@@ -139,11 +139,14 @@ export function MenuBrowser({
         </div>
       ) : null}
 
-      {visible.map((group) => (
+      {visible.map((group, index) => (
         <section
           key={group.id}
           aria-labelledby={`categoria-${group.id}`}
-          className="flex flex-col gap-8"
+          // `.reveal` (globals.css) is the same CSS-only entrance the home page
+          // uses. Not on the first category, which is on screen when the page
+          // opens and would otherwise load half-faded.
+          className={cn("flex flex-col gap-8", index > 0 && "reveal")}
         >
           <div className="flex flex-col gap-2">
             <h2
@@ -172,17 +175,34 @@ export function MenuBrowser({
                 <li
                   key={product.id}
                   id={`producto-${product.id}`}
+                  /*
+                   * The same card the home page draws (`section-renderer.tsx`),
+                   * so a dish looks like one object on every page of the site.
+                   *
+                   * It was a photograph with a paragraph under it and nothing
+                   * holding the two together: on a dark page the name and the
+                   * price floated loose, and a row of three read as six things
+                   * instead of three. The panel tokens give it a surface, a
+                   * hairline and its own padding on `carbon`, and resolve to
+                   * nothing on the printed-menu styles, which keep their look.
+                   */
                   className={cn(
-                    "flex scroll-mt-40 flex-col gap-4",
+                    "group flex h-full scroll-mt-40 flex-col overflow-hidden transition-[transform,box-shadow] duration-700 hover:-translate-y-2 hover:shadow-[var(--site-glow-card)]",
                     !product.isAvailable && "opacity-60",
                   )}
+                  style={{
+                    gap: "var(--site-card-gap)",
+                    background: "var(--site-card-background)",
+                    border: "var(--site-card-border)",
+                    borderRadius: "var(--site-card-radius)",
+                  }}
                 >
                   <div
                     className="relative overflow-hidden"
                     style={{
-                      borderRadius: "var(--site-radius)",
-                      boxShadow: "var(--site-shadow)",
-                      border: "1px solid var(--site-border)",
+                      borderRadius: "var(--site-media-radius)",
+                      boxShadow: "var(--site-media-shadow)",
+                      border: "var(--site-media-border)",
                     }}
                   >
                     {product.imageUrl !== null ? (
@@ -191,7 +211,7 @@ export function MenuBrowser({
                         src={product.imageUrl}
                         alt={product.name}
                         loading="lazy"
-                        className="w-full object-cover"
+                        className="w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
                         style={{ aspectRatio: "var(--site-media-ratio)" }}
                       />
                     ) : (
@@ -233,7 +253,10 @@ export function MenuBrowser({
                     ) : null}
                   </div>
 
-                  <div className="flex flex-1 flex-col gap-2">
+                  <div
+                    className="flex flex-1 flex-col gap-2"
+                    style={{ padding: "var(--site-card-padding)" }}
+                  >
                     <h3 className="text-lg leading-snug" style={displayStyle}>
                       {product.name}
                     </h3>
