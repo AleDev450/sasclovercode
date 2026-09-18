@@ -90,9 +90,13 @@ const BUSINESS = {
    * readable pairs clear 4.5:1, which `seo-theme.test.ts` re-measures.
    */
   theme: {
-    primary_color: "#e36626",
-    accent_color: "#f2b23e",
-    background_color: "#120b07",
+    // The owner's own palette, sampled from the 1024px logo: "naranja marca",
+    // "amarillo dorado" (the tortilla) and "negro neutro" (the sunglasses). The
+    // cream and the "marron cafe" of that palette are not stored - `carbon`
+    // derives both from these three (see SiteStyle.ink / .surface).
+    primary_color: "#e86628",
+    accent_color: "#f3bf52",
+    background_color: "#1c1817",
     font_family: "dm-sans",
     border_radius: "lg",
     style: "carbon",

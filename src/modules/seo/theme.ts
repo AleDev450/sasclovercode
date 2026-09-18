@@ -243,6 +243,29 @@ export interface SiteStyle {
    */
   readonly buttonInk: "neutral" | "brand";
   /**
+   * The colour of TEXT on the page: the measured neutral, or that neutral
+   * warmed toward the accent.
+   *
+   * A brand's own palette almost never has a pure white in it - it has the
+   * cream its logo is lettered in - and on a dark page a neutral white next to
+   * warm photography reads as a screen rather than as a menu. Warmed a quarter
+   * of the way toward the accent, white lands on that cream: from Mr. Taquito's
+   * gold it gives #fcf0d6 against the #faf1d6 of the logo, without storing a
+   * fourth colour. Still measured - the tests hold body text above 4.5:1.
+   */
+  readonly ink: "neutral" | "accent";
+  /**
+   * What cards, the footer and panels are made of: a tint of the ink, or the
+   * page warmed toward the brand.
+   *
+   * A tint of white on near-black is grey, and grey cards under orange buttons
+   * look borrowed from another site. A tenth of the primary mixed into the
+   * page is the brown of a clay plate or a sombrero - from #1c1817 and #e86628
+   * it gives #32211a, which is the "marron cafe" the owner's own palette asks
+   * for the footer.
+   */
+  readonly surface: "neutral" | "brand";
+  /**
    * Whether a dish, a shortcut or a gallery frame sits in a PANEL or bare on
    * the page.
    *
@@ -323,6 +346,8 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonTracking: "0.34em",
     buttonTransform: "uppercase",
     buttonInk: "neutral",
+    ink: "neutral",
+    surface: "neutral",
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -362,6 +387,8 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonTracking: "0.2em",
     buttonTransform: "uppercase",
     buttonInk: "neutral",
+    ink: "neutral",
+    surface: "neutral",
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -402,6 +429,8 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonTracking: "0.26em",
     buttonTransform: "uppercase",
     buttonInk: "neutral",
+    ink: "neutral",
+    surface: "neutral",
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -477,6 +506,8 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     buttonTracking: "0.01em",
     buttonTransform: "none",
     buttonInk: "brand",
+    ink: "accent",
+    surface: "brand",
     card: "panel",
     band: "fill",
     headerOverlay: true,
@@ -653,7 +684,10 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
 
   // Everything readable is measured against the BACKGROUND, so a dark theme
   // flips the whole page rather than half of it.
-  const foreground = pageInk(background);
+  // `accent` ink: the measured neutral warmed a quarter of the way toward the
+  // accent (see `SiteStyle.ink`). Otherwise the paper-matched ink it always was.
+  const foreground =
+    style.ink === "accent" ? mix(readableOn(background), accent, 0.24) : pageInk(background);
   const onDark = readableOn(background) === "#ffffff";
 
   const [radius, radiusChip] = RADII[theme.borderRadius] ?? RADII.md!;
@@ -668,9 +702,21 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
    * measure for the neutral ink is a floor this can only clear by more.
    */
   const neutralLabel = readableOn(primary);
+  /*
+   * On a DARK page the label is the page itself, cut through the button - a
+   * business's darkest colour is the one its palette already pairs with its
+   * brand (Mr. Taquito's #1c1817 on #e86628, 5.3:1). It is used when it clears
+   * 4.5:1 against the flat primary, which is the DARKEST stop of the fill - the
+   * gradient only ever lightens from there - so it clears every stop. Otherwise
+   * the brand taken almost to black, which always does.
+   */
+  const brandBlack = mix(primary, "#000000", 0.86);
+  const pageAsInk = onDark && contrast(background, primary) >= 4.5;
   const buttonInk =
     style.buttonInk === "brand" && neutralLabel !== "#ffffff"
-      ? mix(primary, "#000000", 0.86)
+      ? pageAsInk
+        ? background
+        : brandBlack
       : neutralLabel;
 
   const variables: Record<string, string> = {
@@ -693,8 +739,12 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
     /** Hairlines and panels, as a tint of the text colour so they always show. */
     "--site-border": withAlpha(foreground, 0.12),
     "--site-border-strong": withAlpha(foreground, 0.22),
-    "--site-surface": withAlpha(foreground, 0.035),
-    "--site-surface-strong": withAlpha(foreground, 0.07),
+    // `brand` surfaces are the page warmed toward the primary, solid - see
+    // `SiteStyle.surface`. `neutral` keeps the ink tint every style had.
+    "--site-surface":
+      style.surface === "brand" ? mix(background, primary, 0.11) : withAlpha(foreground, 0.035),
+    "--site-surface-strong":
+      style.surface === "brand" ? mix(background, primary, 0.18) : withAlpha(foreground, 0.07),
 
     /** Brand tints, for section bands and badges. */
     "--site-primary-soft": withAlpha(primary, 0.1),
@@ -728,6 +778,16 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
 
     /* ----------------------------------------------------------- the scale */
 
+    /**
+     * Text set ON a photograph, over a black veil.
+     *
+     * White, except on a dark page, where the page's own ink is already a light
+     * colour and usually a warmer one: the headline on the cover was pure white
+     * while every heading under it was the logo's cream, and the seam showed.
+     * Never the ink of a LIGHT page, which is dark and would sink into the veil.
+     */
+    "--site-on-photo": onDark ? foreground : "#ffffff",
+
     "--site-display-size": style.displaySize,
     "--site-hero-size": style.heroSize,
     "--site-panel-radius": style.panelRadius,
@@ -759,7 +819,12 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
      * it is a card at all - which is the only way to add a panelled look
      * without every block in the file learning the name of a style.
      */
-    "--site-card-background": style.card === "panel" ? withAlpha(foreground, 0.045) : "transparent",
+    "--site-card-background":
+      style.card !== "panel"
+        ? "transparent"
+        : style.surface === "brand"
+          ? mix(background, primary, 0.11)
+          : withAlpha(foreground, 0.045),
     "--site-card-border":
       style.card === "panel" ? `1px solid ${withAlpha(foreground, 0.1)}` : "none",
     "--site-card-padding": style.card === "panel" ? "1.75rem" : "0px",
@@ -780,10 +845,13 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
     /** The closing call to action, as a fill and the ink that survives on it. */
     "--site-band-fill":
       style.band === "fill"
-        ? `linear-gradient(135deg, ${primary} 0%, ${mix(primary, "#000000", 0.42)} 100%)`
+        ? // The same lit fill as the button, and for the same reason: see
+          // `--site-button-fill`. Its ink is the button's ink, so the two read
+          // as one family on the page.
+          `linear-gradient(135deg, ${mix(primary, "#ffffff", 0.14)} 0%, ${primary} 100%)`
         : withAlpha(primary, 0.1),
-    "--site-band-ink": style.band === "fill" ? readableOn(primary) : primary,
-    "--site-band-body": style.band === "fill" ? withAlpha(readableOn(primary), 0.85) : foreground,
+    "--site-band-ink": style.band === "fill" ? buttonInk : primary,
+    "--site-band-body": style.band === "fill" ? withAlpha(buttonInk, 0.85) : foreground,
     "--site-band-border":
       style.band === "fill" ? "1px solid transparent" : `1px solid ${withAlpha(primary, 0.32)}`,
     /**
@@ -805,15 +873,21 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
     /**
      * The fill of the one button that matters.
      *
-     * A gradient between the brand colour and a darkened third of itself, which
-     * is the same move every restaurant site makes with its order button and
-     * the reason a flat fill reads as a prototype. `mix` toward black rather
-     * than a second stored colour: a business picks a brand colour, not a pair
-     * of stops, and a hand-picked second stop is how a gradient goes muddy.
+     * The brand colour LIT from the top-left: a stop 14% toward white fading
+     * into the exact primary. It used to fade the other way, into the primary
+     * darkened by up to 42%, which is how an orange turns into the brown of a
+     * dirty pan - the owner's word for it was that the colours "no van". Ending
+     * on the stored value also means the button IS the brand colour where most
+     * of it sits, and that the primary is the darkest stop, which is the one the
+     * label has to be measured against.
+     *
+     * `mix` rather than a second stored colour: a business picks a brand colour,
+     * not a pair of stops, and a hand-picked second stop is how a gradient goes
+     * muddy.
      */
     "--site-button-fill":
       style.buttonFill === "gradient"
-        ? `linear-gradient(135deg, ${mix(primary, "#ffffff", 0.14)} 0%, ${mix(primary, "#000000", 0.1)} 100%)`
+        ? `linear-gradient(135deg, ${mix(primary, "#ffffff", 0.14)} 0%, ${primary} 100%)`
         : primary,
 
     /**

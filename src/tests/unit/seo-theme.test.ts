@@ -347,6 +347,35 @@ describe("preset contrast (TEST-806)", () => {
     expect(failures, `button labels below 4.5:1:\n${failures.join("\n")}`).toEqual([]);
   });
 
+  /*
+   * `carbon` derives two colours a palette never stores: the cream text (ink
+   * warmed toward the accent) and the clay surfaces (page warmed toward the
+   * primary). Measured on a real owner palette - Mr. Taquito's, sampled from its
+   * logo - because the point of both derivations is that they land on colours
+   * the owner already has, and a regression there is a regression in legibility.
+   */
+  it("derives a readable cream ink and clay surface from a real palette", () => {
+    const palette: ThemeValues = {
+      primaryColor: "#e86628",
+      accentColor: "#f3bf52",
+      backgroundColor: "#1c1817",
+      fontFamily: "dm-sans",
+      borderRadius: "lg",
+      style: "carbon",
+    };
+    const ink = readFrom(palette, "--site-foreground");
+    const surface = readFrom(palette, "--site-surface");
+
+    // Near the logo's own #faf1d6 and the palette's #32211b.
+    expect(ink).toMatch(/^#f[a-f][ef][0-9a-f][cd][0-9a-f]$/);
+    expect(surface).toMatch(/^#3[0-3]2[01]1[89a-b]$/);
+
+    expect(ratio(ink, palette.backgroundColor)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(ink, surface)).toBeGreaterThanOrEqual(4.5);
+    // The page is the button's label here: exactly the owner's #1c1817.
+    expect(readFrom(palette, "--site-button-ink")).toBe("#1c1817");
+  });
+
   it("keeps body text readable on every background, light or dark", () => {
     for (const preset of ALL_PALETTES) {
       const foreground = readFrom(preset, "--site-foreground");

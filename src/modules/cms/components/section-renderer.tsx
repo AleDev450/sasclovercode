@@ -514,7 +514,7 @@ export function SectionRenderer({
                 className="text-balance"
                 style={{
                   fontSize: "var(--site-display-size)",
-                  color: "#ffffff",
+                  color: "var(--site-on-photo)",
                   fontFamily: "var(--site-display-font)",
                   fontStretch: "var(--site-display-stretch)",
                   fontWeight: "var(--site-display-weight)",
@@ -526,7 +526,12 @@ export function SectionRenderer({
                 {c.heading}
               </h2>
               {c.body.length > 0 ? (
-                <p className="max-w-prose text-lg leading-relaxed text-white/85">{c.body}</p>
+                <p
+                  className="max-w-prose text-lg leading-relaxed opacity-85"
+                  style={{ color: "var(--site-on-photo)" }}
+                >
+                  {c.body}
+                </p>
               ) : null}
               <SafeLink
                 href={c.buttonHref}
@@ -989,7 +994,8 @@ export function SectionRenderer({
                         fontWeight: "var(--site-display-weight)",
                         letterSpacing: "var(--site-display-tracking)",
                         lineHeight: "var(--site-display-leading)",
-                        color: image !== undefined ? "#ffffff" : "var(--site-foreground)",
+                        color:
+                          image !== undefined ? "var(--site-on-photo)" : "var(--site-foreground)",
                       }}
                     >
                       {card.title}
@@ -999,7 +1005,9 @@ export function SectionRenderer({
                         className="max-w-[34ch] text-sm leading-relaxed"
                         style={{
                           color:
-                            image !== undefined ? "rgb(255 255 255 / 0.85)" : "var(--site-muted)",
+                            image !== undefined
+                              ? "color-mix(in srgb, var(--site-on-photo) 85%, transparent)"
+                              : "var(--site-muted)",
                         }}
                       >
                         {card.body}
@@ -1008,7 +1016,7 @@ export function SectionRenderer({
                     <span
                       className="mt-3 inline-flex items-center gap-2 text-xs font-semibold"
                       style={{
-                        color: image !== undefined ? "#ffffff" : "var(--site-primary)",
+                        color: image !== undefined ? "var(--site-on-photo)" : "var(--site-primary)",
                         letterSpacing: "var(--site-eyebrow-tracking)",
                         textTransform: "var(--site-eyebrow-transform)" as "uppercase",
                       }}

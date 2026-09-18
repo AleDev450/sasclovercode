@@ -165,7 +165,14 @@ export function SiteHeader({
           opacity: scrolled ? 0 : "var(--site-header-overlay)",
         }}
       />
-      <div className="relative mx-auto flex h-18 w-full max-w-6xl items-center justify-between gap-6 px-6 sm:px-10">
+      {/*
+        Taller than it was (72px), for the logo. A square badge with the name
+        lettered inside it - which is what most restaurant marks are - was drawn
+        at 44px and its own name became unreadable. The bar keeps ONE height
+        scrolled or not: it is sticky, so shrinking it on scroll would change the
+        document height and jolt the page under the reader.
+      */}
+      <div className="relative mx-auto flex h-20 w-full max-w-6xl items-center justify-between gap-6 px-6 sm:h-24 sm:px-10">
         <Link
           href={basePath}
           className="flex min-w-0 items-center gap-3"
@@ -177,7 +184,8 @@ export function SiteHeader({
             <img
               src={logoUrl}
               alt={name}
-              className="h-11 w-auto max-w-[190px] object-contain sm:h-12"
+              className="h-14 w-auto max-w-[200px] object-contain sm:h-[4.5rem]"
+              style={{ borderRadius: "var(--site-radius-chip)" }}
             />
           ) : (
             <span

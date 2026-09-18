@@ -58,7 +58,12 @@ export function SiteFooter({
           <Link href={basePath} aria-label={`${name}, inicio`}>
             {logoUrl !== null ? (
               /* eslint-disable-next-line @next/next/no-img-element -- signed Storage URL */
-              <img src={logoUrl} alt={name} className="h-12 w-auto max-w-[180px] object-contain" />
+              <img
+                src={logoUrl}
+                alt={name}
+                className="h-20 w-auto max-w-[200px] object-contain"
+                style={{ borderRadius: "var(--site-radius-chip)" }}
+              />
             ) : (
               <span className="text-2xl" style={{ ...displayStyle, color: "var(--site-primary)" }}>
                 {name}

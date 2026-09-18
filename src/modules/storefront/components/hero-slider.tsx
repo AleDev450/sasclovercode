@@ -143,7 +143,10 @@ export function HeroSlider({
             ) : null}
 
             {hasWords || slide.ctaLabel.length > 0 ? (
-              <div className="relative mx-auto flex h-full max-w-6xl flex-col items-start justify-end px-6 pb-16 text-white sm:px-10 sm:pb-24">
+              <div
+                className="relative mx-auto flex h-full max-w-6xl flex-col items-start justify-end px-6 pb-16 sm:px-10 sm:pb-24"
+                style={{ color: "var(--site-on-photo)" }}
+              >
                 {slide.heading.length > 0 ? (
                   <h2
                     className="max-w-4xl text-balance"
@@ -163,7 +166,7 @@ export function HeroSlider({
                   </h2>
                 ) : null}
                 {slide.subheading.length > 0 ? (
-                  <p className="mt-4 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
+                  <p className="mt-4 max-w-xl text-base leading-relaxed opacity-85 sm:text-lg">
                     {slide.subheading}
                   </p>
                 ) : null}
