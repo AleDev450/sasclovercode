@@ -18,8 +18,19 @@ export const displayStyle: CSSProperties = {
   color: "var(--site-foreground)",
   fontFamily: "var(--site-display-font)",
   fontWeight: "var(--site-display-weight)",
+  // The width axis travels with the face everywhere it is used - a product
+  // name in the cart is set in the same condensed cut as the headline above it.
+  // The CAPITALS do not: those belong to headlines, and a dish name in caps
+  // reads as shouting. See `headlineStyle`.
+  fontStretch: "var(--site-display-stretch)",
   letterSpacing: "var(--site-display-tracking)",
   lineHeight: "var(--site-display-leading)",
+};
+
+/** The display face at headline scale: `displayStyle` plus the style's case. */
+export const headlineStyle: CSSProperties = {
+  ...displayStyle,
+  textTransform: "var(--site-display-transform)" as "uppercase",
 };
 
 export const eyebrowStyle: CSSProperties = {
@@ -42,14 +53,14 @@ export const subtleStyle: CSSProperties = { color: "var(--site-subtle)" };
  * there.
  */
 export const buttonClass =
-  "inline-flex h-13 items-center justify-center gap-2.5 px-8 text-[0.85rem] font-semibold transition-[transform,box-shadow,opacity] duration-500 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2";
+  "inline-flex h-13 items-center justify-center gap-2.5 px-8 text-[0.92rem] font-bold transition-[transform,box-shadow,filter] duration-500 hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2";
 
 export const primaryButtonStyle: CSSProperties = {
   background: "var(--site-button-fill)",
-  color: "var(--site-on-primary)",
+  color: "var(--site-button-ink)",
   borderRadius: "var(--site-button-radius)",
-  letterSpacing: "var(--site-eyebrow-tracking)",
-  textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+  letterSpacing: "var(--site-button-tracking)",
+  textTransform: "var(--site-button-transform)" as "uppercase",
   boxShadow: "var(--site-glow)",
   outlineColor: "var(--site-primary)",
 };
@@ -59,8 +70,8 @@ export const outlineButtonStyle: CSSProperties = {
   color: "var(--site-foreground)",
   border: "1px solid var(--site-border-strong)",
   borderRadius: "var(--site-button-radius)",
-  letterSpacing: "var(--site-eyebrow-tracking)",
-  textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+  letterSpacing: "var(--site-button-tracking)",
+  textTransform: "var(--site-button-transform)" as "uppercase",
   outlineColor: "var(--site-primary)",
 };
 

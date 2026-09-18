@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { IconBook, IconMail, IconMapPin, IconPhone, IconWhatsApp } from "@/components/ui/icons";
 import { PRODUCT_NAME, VENDOR_NAME, VENDOR_SITE } from "@/config/app";
-import type { HoursLine } from "../hours";
 import type { PublicSocialLink } from "../server/queries";
 import { SocialLinks } from "./social-links";
 import { displayStyle, subtleStyle } from "./site-styles";
@@ -13,7 +12,7 @@ export interface FooterLink {
 
 /**
  * The footer of every restaurant site, in Sugu Rolls' four columns: the brand,
- * quick links, help and policies, and contact with the opening hours.
+ * quick links, help and policies, and contact - the hours live on Contacto.
  *
  * THE LIBRO DE RECLAMACIONES GETS ITS OWN BOX, outside the link lists. The
  * consumer protection rules ask for it to be clearly visible from every page -
@@ -32,7 +31,6 @@ export function SiteFooter({
   phone,
   whatsappHref,
   email,
-  hours,
 }: {
   basePath: string;
   name: string;
@@ -45,7 +43,6 @@ export function SiteFooter({
   phone: string | null;
   whatsappHref: string | null;
   email: string | null;
-  hours: readonly HoursLine[];
 }) {
   const year = new Date().getFullYear();
 
@@ -172,21 +169,21 @@ export function SiteFooter({
             ) : null}
           </ul>
 
-          <h2 className={`${columnTitle} mt-8`}>Horario de atención</h2>
-          {hours.length === 0 ? (
-            <p className="mt-4 text-sm" style={subtleStyle}>
-              Consultar horario
-            </p>
-          ) : (
-            <dl className="mt-4 flex flex-col gap-1.5 text-sm">
-              {hours.map((line) => (
-                <div key={line.days} className="flex flex-wrap justify-between gap-x-3">
-                  <dt style={{ color: "var(--site-muted)" }}>{line.days}</dt>
-                  <dd className="font-medium tabular-nums">{line.hours}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
+          {/*
+            The week's hours used to be printed here, on every page, as a
+            seven-line table - which made the footer the tallest block on the
+            site and repeated, word for word, the table Contacto exists to show.
+            A footer is for finding things, not for reading them; the hours are
+            one link away, next to the address they belong with.
+          */}
+          <Link
+            href={`${basePath}/contacto`}
+            className="mt-6 inline-flex items-center gap-2 text-sm font-semibold transition-opacity hover:opacity-80"
+            style={{ color: "var(--site-primary)" }}
+          >
+            Ver horario y cómo llegar
+            <span aria-hidden>→</span>
+          </Link>
         </div>
       </div>
 

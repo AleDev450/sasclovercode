@@ -56,7 +56,7 @@ export interface ThemeValues {
 
 /**
  * Same defaults as the `tenant_themes` column defaults, which are the "Carbon"
- * theme (migration 20260919120000).
+ * theme (migrations 20260919120000 and 20260919130000).
  *
  * They have to match. This is the fallback the renderer uses when the theme row
  * cannot be read, so a drift shows up as a business whose site changes colour
@@ -66,7 +66,7 @@ export const THEME_DEFAULTS: ThemeValues = {
   primaryColor: "#e36626",
   accentColor: "#f2b23e",
   backgroundColor: "#120b07",
-  fontFamily: "inter",
+  fontFamily: "dm-sans",
   borderRadius: "lg",
   style: "carbon",
 };
@@ -102,6 +102,9 @@ const FONT_STACKS: Record<string, string> = {
   cormorant: "var(--font-cormorant), 'Cormorant Garamond', Georgia, 'Times New Roman', serif",
   playfair: "var(--font-playfair), 'Playfair Display', Georgia, 'Times New Roman', serif",
   fraunces: "var(--font-fraunces), Fraunces, Georgia, 'Times New Roman', serif",
+  // Condensed caps fall back to the narrowest face a phone is likely to have,
+  // so a slow font load does not reflow every heading to twice its width.
+  archivo: "var(--font-archivo), 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif",
 
   /* Legacy keys. Stored by themes that predate the three-theme gallery. */
   poppins: "Poppins, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -185,6 +188,17 @@ export interface SiteStyle {
    * that asks which style it is in.
    * --------------------------------------------------------------------- */
 
+  /**
+   * The width axis and the case of the display face.
+   *
+   * A condensed face in capitals is the typography of a taqueria's own
+   * signage and of every poster on the street outside it, and it is the one
+   * thing a grotesk at 800 cannot do however tightly it is tracked: Inter set
+   * heavy reads as a product launch, not as a kitchen. `100%` / `none` for the
+   * styles whose faces have no width axis or were never meant to shout.
+   */
+  readonly displayStretch: string;
+  readonly displayTransform: "none" | "uppercase";
   /** The size of a section heading. A clamp, because it is read on a phone too. */
   readonly displaySize: string;
   /** The size of a headline that sits on a photograph. Always larger. */
@@ -207,6 +221,27 @@ export interface SiteStyle {
    * to the look rather than to the shop.
    */
   readonly buttonRadius: "chip" | "pill";
+  /**
+   * How a button's LABEL is set, separately from the overline.
+   *
+   * The two used to share one token, which is fine when the overline is
+   * tracked at 0.2em and wrong at 0.42em: "P E D I R  A H O R A" is an
+   * overline pretending to be a verb. A button is read as one word, so it gets
+   * its own tracking and case.
+   */
+  readonly buttonTracking: string;
+  readonly buttonTransform: "uppercase" | "none";
+  /**
+   * The dark label on a light brand fill: neutral slate, or the brand itself
+   * taken almost to black.
+   *
+   * `readableOn` answers with a cool near-black (`#111827`), which is the right
+   * answer on a champagne or a lime and the wrong one on an orange: slate on
+   * ember reads as two palettes. `brand` keeps the label in the button's own
+   * family. It is only ever darker than the neutral one, so contrast can only
+   * go up.
+   */
+  readonly buttonInk: "neutral" | "brand";
   /**
    * Whether a dish, a shortcut or a gallery frame sits in a PANEL or bare on
    * the page.
@@ -278,11 +313,16 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1fr",
     heroRatio: "16 / 9",
     bodyTracking: "0.015em",
+    displayStretch: "100%",
+    displayTransform: "none",
     displaySize: "clamp(2rem, 3.6vw, 3.25rem)",
     heroSize: "clamp(2.4rem, 4.6vw, 4rem)",
     buttonFill: "flat",
     glow: false,
     buttonRadius: "chip",
+    buttonTracking: "0.34em",
+    buttonTransform: "uppercase",
+    buttonInk: "neutral",
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -312,11 +352,16 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1.05fr 1fr",
     heroRatio: "4 / 3",
     bodyTracking: "0em",
+    displayStretch: "100%",
+    displayTransform: "none",
     displaySize: "clamp(2.1rem, 4vw, 3.5rem)",
     heroSize: "clamp(2.5rem, 5vw, 4.25rem)",
     buttonFill: "flat",
     glow: false,
     buttonRadius: "chip",
+    buttonTracking: "0.2em",
+    buttonTransform: "uppercase",
+    buttonInk: "neutral",
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -347,11 +392,16 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1fr 0.85fr",
     heroRatio: "4 / 5",
     bodyTracking: "0.005em",
+    displayStretch: "100%",
+    displayTransform: "none",
     displaySize: "clamp(2.1rem, 4vw, 3.5rem)",
     heroSize: "clamp(2.5rem, 5vw, 4.25rem)",
     buttonFill: "flat",
     glow: false,
     buttonRadius: "chip",
+    buttonTracking: "0.26em",
+    buttonTransform: "uppercase",
+    buttonInk: "neutral",
     card: "bare",
     band: "tint",
     headerOverlay: false,
@@ -383,14 +433,31 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
    */
   carbon: {
     id: "carbon",
-    // The body face too, deliberately: a grotesk at 800 with negative tracking
-    // IS the display face of this look, and a second family would dilute it.
-    displayFont: "inter",
-    displayWeight: "800",
-    displayTracking: "-0.03em",
-    displayLeading: "1.02",
-    // Very wide. The overline is a graphic element here, not a label.
-    eyebrowTracking: "0.42em",
+    /*
+     * Archivo, condensed to 78% and set in capitals at 900.
+     *
+     * It was Inter at 800, on the argument that a heavy grotesk IS the look of
+     * a site like this. Put in front of the owner it read as "web de
+     * universitario" - a product launch, not a kitchen - and the complaint was
+     * fair: Inter is the default face of half the software on the internet,
+     * and at 800 it announces that more loudly, not less. Six candidates were
+     * set side by side on this page's own headings; the condensed caps are the
+     * typography of taqueria signage and street posters, and of the banner on
+     * the very site this style is measured against. Archivo over Oswald because
+     * its spacing survives a long heading, and over Anton because Anton at
+     * this size stops being type and becomes texture.
+     */
+    displayFont: "archivo",
+    displayWeight: "900",
+    displayStretch: "78%",
+    displayTransform: "uppercase",
+    // Capitals need less negative tracking than lowercase: they have no
+    // ascenders to crowd, and too tight and "TROMPO" becomes one shape.
+    displayTracking: "-0.005em",
+    displayLeading: "0.94",
+    // Wide, but no longer 0.42em: at that width a two-word overline became a
+    // row of loose letters, and it was the same token the buttons used.
+    eyebrowTracking: "0.24em",
     eyebrowTransform: "uppercase",
     sectionSpace: "clamp(5rem, 10vw, 11rem)",
     elevation: "raised",
@@ -399,11 +466,17 @@ export const SITE_STYLES: Record<string, SiteStyle> = {
     heroColumns: "1fr",
     heroRatio: "16 / 9",
     bodyTracking: "0em",
-    displaySize: "clamp(2.4rem, 5.4vw, 4.4rem)",
-    heroSize: "clamp(2.6rem, 6vw, 4.75rem)",
+    // A condensed face is narrow, so it has to be set larger to carry the same
+    // weight on the page: these are a third bigger than the Inter values were.
+    displaySize: "clamp(2.8rem, 6.4vw, 5.25rem)",
+    heroSize: "clamp(3.2rem, 8vw, 6.5rem)",
     buttonFill: "gradient",
     glow: true,
     buttonRadius: "pill",
+    // A button is one word to the reader: sentence case, barely tracked.
+    buttonTracking: "0.01em",
+    buttonTransform: "none",
+    buttonInk: "brand",
     card: "panel",
     band: "fill",
     headerOverlay: true,
@@ -586,6 +659,20 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
   const [radius, radiusChip] = RADII[theme.borderRadius] ?? RADII.md!;
   const [shadow, shadowLifted] = shadowFor(style.elevation, onDark);
 
+  /*
+   * The label on a primary button. See `SiteStyle.buttonInk`.
+   *
+   * When the measured answer is the dark one and the style wants a brand ink,
+   * the brand is taken 86% of the way to black instead of using the neutral
+   * slate. That is darker than `#111827` for every hue, so the ratio the tests
+   * measure for the neutral ink is a floor this can only clear by more.
+   */
+  const neutralLabel = readableOn(primary);
+  const buttonInk =
+    style.buttonInk === "brand" && neutralLabel !== "#ffffff"
+      ? mix(primary, "#000000", 0.86)
+      : neutralLabel;
+
   const variables: Record<string, string> = {
     "--site-primary": primary,
     "--site-accent": accent,
@@ -621,6 +708,8 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
     "--site-display-weight": style.displayWeight,
     "--site-display-tracking": style.displayTracking,
     "--site-display-leading": style.displayLeading,
+    "--site-display-stretch": style.displayStretch,
+    "--site-display-transform": style.displayTransform,
     "--site-body-tracking": style.bodyTracking,
 
     /** The overline above a heading: "Nuestra carta", "Desde 1998". */
@@ -643,6 +732,9 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
     "--site-hero-size": style.heroSize,
     "--site-panel-radius": style.panelRadius,
     "--site-button-radius": style.buttonRadius === "pill" ? "9999px" : radiusChip,
+    "--site-button-ink": buttonInk,
+    "--site-button-tracking": style.buttonTracking,
+    "--site-button-transform": style.buttonTransform,
 
     /**
      * How far the cover has to climb to sit UNDER the header.
@@ -702,8 +794,8 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
      * and the brand becomes the label, which is the same measured pair in the
      * other order and therefore the same contrast ratio.
      */
-    "--site-band-button": style.band === "fill" ? readableOn(primary) : primary,
-    "--site-band-button-ink": style.band === "fill" ? primary : readableOn(primary),
+    "--site-band-button": style.band === "fill" ? buttonInk : primary,
+    "--site-band-button-ink": style.band === "fill" ? primary : buttonInk,
 
     "--site-media-radius": style.card === "panel" ? "0px" : radius,
     "--site-media-border":
@@ -721,7 +813,7 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
      */
     "--site-button-fill":
       style.buttonFill === "gradient"
-        ? `linear-gradient(135deg, ${primary} 0%, ${mix(primary, "#000000", 0.42)} 100%)`
+        ? `linear-gradient(135deg, ${mix(primary, "#ffffff", 0.14)} 0%, ${mix(primary, "#000000", 0.1)} 100%)`
         : primary,
 
     /**
@@ -732,8 +824,10 @@ export function themeCssVariables(theme: ThemeValues): CSSProperties {
      * red button on near-black look lit is red light spilling below it. Off for
      * the quiet styles, where it would look like a browser default.
      */
-    "--site-glow": style.glow ? `0 14px 38px -12px ${withAlpha(primary, 0.85)}` : shadow,
-    "--site-glow-strong": style.glow ? `0 22px 54px -10px ${withAlpha(primary, 1)}` : shadowLifted,
+    "--site-glow": style.glow ? `0 10px 28px -14px ${withAlpha(primary, 0.6)}` : shadow,
+    "--site-glow-strong": style.glow
+      ? `0 18px 40px -14px ${withAlpha(primary, 0.75)}`
+      : shadowLifted,
     "--site-glow-card": style.glow ? `0 36px 90px -30px ${withAlpha(primary, 0.6)}` : shadowLifted,
 
     /**

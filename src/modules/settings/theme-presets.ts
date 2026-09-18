@@ -79,13 +79,15 @@ export const THEME_PRESETS: readonly ThemePreset[] = [
     tagline: "Taqueria, barra, parrilla de noche",
     description:
       "Fondo carbon, titulares enormes, foto a sangre y luz de marca bajo los botones. Para taquerias, barras, pollerias y cualquier local que se vea mejor de noche.",
-    traits: ["Fondo carbon", "Titulares de 4.75rem", "Foto a sangre", "Boton con degradado"],
+    traits: ["Fondo carbon", "Titulares condensados", "Foto a sangre", "Boton con degradado"],
     // Ember and maize on near-black. Both clear 4.5:1 against the page and
     // against their own labels, which `seo-theme.test.ts` re-measures.
     primaryColor: "#e36626",
     accentColor: "#f2b23e",
     backgroundColor: "#0e0c0b",
-    fontFamily: "inter",
+    // DM Sans under the condensed caps: warmer and rounder than Inter, which
+    // set in both roles was half of why the first version read as a template.
+    fontFamily: "dm-sans",
     borderRadius: "lg",
     style: "carbon",
   },

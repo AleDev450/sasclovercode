@@ -127,8 +127,10 @@ function Heading({ children, className }: { children: string; className?: string
       className={cn("text-balance", className)}
       style={{
         fontSize: "var(--site-display-size)",
+        textTransform: "var(--site-display-transform)" as "uppercase",
         color: "var(--site-foreground)",
         fontFamily: "var(--site-display-font)",
+        fontStretch: "var(--site-display-stretch)",
         fontWeight: "var(--site-display-weight)",
         letterSpacing: "var(--site-display-tracking)",
         lineHeight: "var(--site-display-leading)",
@@ -192,17 +194,19 @@ function SafeLink({
  * control that acknowledges a cursor and one that does not.
  */
 const buttonClass =
-  "inline-flex h-14 items-center justify-center gap-2.5 px-9 text-[0.9rem] font-semibold transition-[transform,box-shadow,opacity] duration-500 hover:-translate-y-1 active:translate-y-0 active:scale-[0.98]";
+  "inline-flex h-14 items-center justify-center gap-2.5 px-9 text-[0.95rem] font-bold transition-[transform,box-shadow,filter] duration-500 hover:-translate-y-1 hover:brightness-110 active:translate-y-0 active:scale-[0.98]";
 
 const primaryButtonStyle: React.CSSProperties = {
   // A gradient where the style asks for one, the flat brand colour otherwise.
   background: "var(--site-button-fill)",
-  color: "var(--site-on-primary)",
+  // The button ink, not `--site-on-primary`: on a style that asks for it the
+  // label is the brand itself taken nearly to black rather than cool slate.
+  color: "var(--site-button-ink)",
   // Neither the card radius nor the chip one: a button's shape is part of the
   // look, and `--site-button-radius` is where that decision lives.
   borderRadius: "var(--site-button-radius)",
-  letterSpacing: "var(--site-eyebrow-tracking)",
-  textTransform: "var(--site-eyebrow-transform)" as "uppercase",
+  letterSpacing: "var(--site-button-tracking)",
+  textTransform: "var(--site-button-transform)" as "uppercase",
   // Brand-coloured light where the style asks for it; the ordinary elevation
   // otherwise, which on a dark page is already `none`.
   boxShadow: "var(--site-glow)",
@@ -306,8 +310,10 @@ export function SectionRenderer({
                 className="text-balance"
                 style={{
                   fontSize: "var(--site-hero-size)",
+                  textTransform: "var(--site-display-transform)" as "uppercase",
                   color: "var(--site-foreground)",
                   fontFamily: "var(--site-display-font)",
+                  fontStretch: "var(--site-display-stretch)",
                   fontWeight: "var(--site-display-weight)",
                   letterSpacing: "var(--site-display-tracking)",
                   lineHeight: "var(--site-display-leading)",
@@ -469,6 +475,72 @@ export function SectionRenderer({
 
     case "cta": {
       const c = parsed.data as (typeof SECTION_SCHEMAS)["cta"]["_output"];
+      const photo = c.imagePath === undefined ? undefined : assetUrls.get(c.imagePath);
+
+      /*
+       * WITH A PHOTOGRAPH: the photograph is the argument, the button is the
+       * answer. The block runs the width of the column at the panel radius,
+       * the words sit bottom-left on a veil that darkens toward them, and the
+       * button is the site's ordinary primary - on a photo there is no brand
+       * slab for it to disappear into, which is why the inverted pair below
+       * exists and is not needed here.
+       *
+       * The veil is black and not the page colour: it has to hold white type
+       * over whatever the photo is doing, and the page colour of a light theme
+       * would wash the photograph out instead of shading it.
+       */
+      if (photo !== undefined) {
+        return (
+          <section
+            className="group relative my-10 flex min-h-[26rem] items-end overflow-hidden sm:min-h-[34rem]"
+            style={{ borderRadius: "var(--site-panel-radius)", background: "#000000" }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- see hero */}
+            <img
+              src={photo}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1.4s] ease-out group-hover:scale-105"
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                background:
+                  "linear-gradient(to top, rgb(0 0 0 / 0.86) 0%, rgb(0 0 0 / 0.45) 45%, rgb(0 0 0 / 0.05) 100%), linear-gradient(to right, rgb(0 0 0 / 0.55) 0%, rgb(0 0 0 / 0) 65%)",
+              }}
+            />
+            <div className="relative flex max-w-2xl flex-col items-start gap-5 p-8 sm:p-14">
+              <h2
+                className="text-balance"
+                style={{
+                  fontSize: "var(--site-display-size)",
+                  color: "#ffffff",
+                  fontFamily: "var(--site-display-font)",
+                  fontStretch: "var(--site-display-stretch)",
+                  fontWeight: "var(--site-display-weight)",
+                  letterSpacing: "var(--site-display-tracking)",
+                  lineHeight: "var(--site-display-leading)",
+                  textTransform: "var(--site-display-transform)" as "uppercase",
+                }}
+              >
+                {c.heading}
+              </h2>
+              {c.body.length > 0 ? (
+                <p className="max-w-prose text-lg leading-relaxed text-white/85">{c.body}</p>
+              ) : null}
+              <SafeLink
+                href={c.buttonHref}
+                basePath={basePath}
+                className={cn(buttonClass, "mt-2")}
+                style={primaryButtonStyle}
+              >
+                {c.buttonLabel}
+              </SafeLink>
+            </div>
+          </section>
+        );
+      }
+
       return (
         <section
           className="relative my-10 flex flex-col items-center gap-7 overflow-hidden px-6 py-20 text-center sm:px-12 sm:py-24"
@@ -493,8 +565,10 @@ export function SectionRenderer({
             className="relative max-w-2xl text-balance"
             style={{
               fontSize: "var(--site-display-size)",
+              textTransform: "var(--site-display-transform)" as "uppercase",
               color: "var(--site-band-ink)",
               fontFamily: "var(--site-display-font)",
+              fontStretch: "var(--site-display-stretch)",
               fontWeight: "var(--site-display-weight)",
               letterSpacing: "var(--site-display-tracking)",
               lineHeight: "var(--site-display-leading)",
@@ -711,6 +785,7 @@ export function SectionRenderer({
                         style={{
                           color: "var(--site-foreground)",
                           fontFamily: "var(--site-display-font)",
+                          fontStretch: "var(--site-display-stretch)",
                           fontWeight: "var(--site-display-weight)",
                           letterSpacing: "var(--site-display-tracking)",
                         }}
@@ -766,6 +841,7 @@ export function SectionRenderer({
                   style={{
                     color: "var(--site-foreground)",
                     fontFamily: "var(--site-display-font)",
+                    fontStretch: "var(--site-display-stretch)",
                     fontWeight: "var(--site-display-weight)",
                     letterSpacing: "var(--site-display-tracking)",
                   }}
@@ -838,8 +914,10 @@ export function SectionRenderer({
               className="max-w-4xl text-balance"
               style={{
                 fontSize: "var(--site-hero-size)",
+                textTransform: "var(--site-display-transform)" as "uppercase",
                 color: "var(--site-foreground)",
                 fontFamily: "var(--site-display-font)",
+                fontStretch: "var(--site-display-stretch)",
                 fontWeight: "var(--site-display-weight)",
                 letterSpacing: "var(--site-display-tracking)",
                 lineHeight: "var(--site-display-leading)",
@@ -903,9 +981,11 @@ export function SectionRenderer({
                   ) : null}
                   <div className="relative flex flex-col gap-3.5 p-10">
                     <h3
-                      className="text-3xl text-balance"
+                      className="text-4xl text-balance"
                       style={{
+                        textTransform: "var(--site-display-transform)" as "uppercase",
                         fontFamily: "var(--site-display-font)",
+                        fontStretch: "var(--site-display-stretch)",
                         fontWeight: "var(--site-display-weight)",
                         letterSpacing: "var(--site-display-tracking)",
                         lineHeight: "var(--site-display-leading)",
@@ -1089,6 +1169,7 @@ export function SectionRenderer({
                         style={{
                           color: "var(--site-foreground)",
                           fontFamily: "var(--site-display-font)",
+                          fontStretch: "var(--site-display-stretch)",
                           fontWeight: "var(--site-display-weight)",
                           letterSpacing: "var(--site-display-tracking)",
                         }}

@@ -33,6 +33,7 @@
  */
 
 import {
+  Archivo,
   Cormorant_Garamond,
   DM_Sans,
   Fraunces,
@@ -108,6 +109,24 @@ const inter = Inter({
 });
 
 /**
+ * Carbon's display face, condensed.
+ *
+ * Loaded with its WIDTH axis, because the look is Archivo at 78% width and a
+ * static instance of the family only ships at 100%. That is what
+ * `--site-display-stretch` drives; without the axis the property would
+ * silently do nothing and the caps would come out a third wider than designed.
+ * Variable weight too - no `weight` list - which `next/font` requires when an
+ * axis is requested.
+ */
+const archivo = Archivo({
+  subsets: ["latin"],
+  variable: "--font-archivo",
+  display: "swap",
+  preload: false,
+  axes: ["wdth"],
+});
+
+/**
  * Put this on the element that also carries the `--site-*` custom properties.
  *
  * Every element that renders tenant markup needs it - `SiteChrome` for the real
@@ -122,4 +141,5 @@ export const SITE_FONT_CLASSNAME = [
   playfair.variable,
   dmSans.variable,
   inter.variable,
+  archivo.variable,
 ].join(" ");

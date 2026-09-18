@@ -74,7 +74,7 @@ const PLAN_CODE = "professional";
 const BUSINESS = {
   slug: "mrtaquito",
   name: "Mr. Taquito",
-  tagline: "Taqueria mexicana, al carbon",
+  tagline: "Taquería mexicana, al carbón",
 
   /*
    * `carbon`, with the three colours of the logo.
@@ -93,7 +93,7 @@ const BUSINESS = {
     primary_color: "#e36626",
     accent_color: "#f2b23e",
     background_color: "#120b07",
-    font_family: "inter",
+    font_family: "dm-sans",
     border_radius: "lg",
     style: "carbon",
   },
@@ -409,7 +409,7 @@ const BUSINESS = {
       tone: "success",
     },
     about: {
-      heading: "Como nacio Mr. Taquito",
+      heading: "Cómo nació Mr. Taquito",
       paragraphs: [
         "Empezamos en 2019 con un trompo prestado y una carpa en la Diagonal. La receta del adobo es la de la abuela de Chucho, nuestro taquero, que vino de Puebla con ella escrita a mano y no ha cambiado una coma desde entonces.",
         "Hacemos la tortilla aqui mismo, con maiz nixtamalizado, porque una tortilla de bolsa arruina el mejor pastor del mundo. Las salsas se muelen en molcajete cada manana: la roja pica, la verde pica mas, y avisamos siempre cual es cual.",
@@ -438,11 +438,6 @@ const BUSINESS = {
         "Si, llevamos el trompo a domicilio desde 30 personas. Se cotiza por WhatsApp con una semana de anticipacion.",
       ],
     ],
-    cta: {
-      heading: "El trompo esta prendido",
-      body: "Escribenos por WhatsApp y te confirmamos el pedido al toque. Recojo en 15 minutos, delivery en 30.",
-      buttonLabel: "Pedir por WhatsApp",
-    },
   },
 };
 
@@ -730,7 +725,7 @@ const SLIDES = [
     photo: "surtido",
     mobilePhoto: "trompo",
     heading: "Del trompo a tu mesa",
-    subheading: "Pastor cortado al momento, tortilla hecha en casa y pina que se dora sola.",
+    subheading: "Pastor cortado al momento, tortilla hecha en casa y piña que se dora sola.",
     ctaLabel: "Ver la carta",
     ctaHref: "/sitio/carta",
     overlay: 45,
@@ -758,25 +753,40 @@ const SHORTCUTS = [
   {
     photo: "puesto",
     title: "Nuestra carta",
-    body: "Nueve tacos, antojitos para compartir y aguas frescas del dia.",
+    body: "Nueve tacos, antojitos para compartir y aguas frescas del día.",
     href: "/sitio/carta",
     linkLabel: "Ver la carta",
   },
   {
     photo: "dorados",
     title: "Zonas de delivery",
-    body: "Mira si llegamos a tu distrito y cuanto cuesta el envio.",
+    body: "Mira si llegamos a tu distrito y cuánto cuesta el envío.",
     href: "/sitio/zonas-de-delivery",
     linkLabel: "Ver zonas",
   },
   {
     photo: "tortillas",
-    title: "Quienes somos",
+    title: "Quiénes somos",
     body: "El trompo, la tortilla y el adobo que trajimos de Puebla.",
     href: "/sitio/nosotros",
-    linkLabel: "Conocenos",
+    linkLabel: "Conócenos",
   },
 ];
+
+/**
+ * The photograph each page closes on, behind its last button.
+ *
+ * The close used to be a slab of brand orange with "Pedir por WhatsApp" on
+ * it, and next to a page of photographs a flat slab reads as the one block
+ * nobody designed. The trompo with its pineapple crown says "it is lit right
+ * now" without a sentence of copy - and it leaves the lower-left dark, which
+ * is where the headline goes. (The cook at the plancha was tried first: a
+ * washed-out frame with his face cut by the crop.)
+ */
+const CLOSING = {
+  inicio: "trompo",
+  nosotros: "tortillas",
+};
 
 /** "El local". Five photographs no other section on the page is using. */
 const GALLERY = [
@@ -1038,6 +1048,8 @@ async function seedImages(db, tenantId, enabled) {
     logo: undefined,
     favicon: undefined,
     hero: undefined,
+    /** The closing photographs, one per page that ends on one. */
+    closing: new Map(),
     byProduct: new Map(),
     slides: [],
     shortcuts: new Map(),
@@ -1102,6 +1114,18 @@ async function seedImages(db, tenantId, enabled) {
   );
   count += 1;
 
+  for (const [page, key] of Object.entries(CLOSING)) {
+    images.closing.set(
+      page,
+      await db.upload(
+        folder("banners", `cierre-${page}.webp`),
+        await photoBuffer(key, SIZES.hero),
+        "image/webp",
+      ),
+    );
+    count += 1;
+  }
+
   for (const [, slug, , , , , photo] of BUSINESS.products) {
     images.byProduct.set(
       slug,
@@ -1144,6 +1168,9 @@ async function previewImages(dir) {
     await writeFile(join(dir, `local-${key}.webp`), await photoBuffer(key, SIZES.card));
   }
   await writeFile(join(dir, "nosotros.webp"), await photoBuffer("surtido", SIZES.hero));
+  for (const [page, key] of Object.entries(CLOSING)) {
+    await writeFile(join(dir, `cierre-${page}.webp`), await photoBuffer(key, SIZES.hero));
+  }
   for (const [, slug, , , , , photo] of BUSINESS.products) {
     await writeFile(join(dir, `${slug}.webp`), await photoBuffer(photo, SIZES.product));
   }
@@ -1210,7 +1237,7 @@ function homeSections(images) {
     type: "bestsellers",
     position: 2,
     content: {
-      eyebrow: "Los mas pedidos",
+      eyebrow: "Los más pedidos",
       heading: "Lo que sale sin parar",
       limit: 8,
       linkLabel: "Ver la carta completa",
@@ -1225,55 +1252,44 @@ function homeSections(images) {
     content: { heading: "Antojitos para compartir", categorySlug: "antojitos", limit: 6 },
   });
 
+  /*
+   * THE HOME STOPS HERE, on purpose.
+   *
+   * It used to carry the story, the gallery and the FAQ as well - nine blocks,
+   * the last four of which were about the restaurant rather than about eating
+   * in it. Those are what "Nosotros" is for, one tap away in the nav; a home
+   * page that ends on the food and a button converts, and one that ends on an
+   * FAQ is a brochure.
+   */
   sections.push({
-    type: "text",
+    type: "cta",
     position: 5,
     content: {
-      heading: BUSINESS.home.about.heading,
-      paragraphs: BUSINESS.home.about.paragraphs.slice(0, 2),
+      heading: "El trompo está prendido",
+      body: "",
+      buttonLabel: "Hacer mi pedido",
+      buttonHref: "/sitio/carta",
+      ...(images.closing.has("inicio") ? { imagePath: images.closing.get("inicio") } : {}),
     },
   });
-
-  // A gallery with no images fails its own schema (min 1), which is exactly
-  // what `--no-images` would produce.
-  if (images.gallery.length > 0) {
-    sections.push({
-      type: "gallery",
-      position: 6,
-      content: {
-        heading: "El local",
-        images: images.gallery.map((image) => ({ imagePath: image.path, alt: image.alt })),
-      },
-    });
-  }
-
-  sections.push(
-    {
-      type: "faq",
-      position: 7,
-      content: {
-        heading: "Preguntas frecuentes",
-        items: BUSINESS.home.faq.map(([question, answer]) => ({ question, answer })),
-      },
-    },
-    {
-      type: "cta",
-      position: 8,
-      content: { ...BUSINESS.home.cta, buttonHref: whatsappUrl },
-    },
-  );
 
   return sections;
 }
 
 /** "Nosotros": the page the third shortcut opens, and the one nav item with prose. */
 function aboutSections(images) {
+  /*
+   * Everything the home page no longer carries: the story, the room and the
+   * questions. In that order because it is the order somebody asks them in -
+   * who are you, what is it like, and then the practical things - and it ends
+   * on a photograph and a button like every page on the site does.
+   */
   return [
     {
       type: "hero",
       position: 0,
       content: {
-        heading: "Quienes somos",
+        heading: "Quiénes somos",
         subheading: BUSINESS.tagline,
         ctaLabel: "Ver la carta",
         ctaHref: "/sitio/carta",
@@ -1281,27 +1297,37 @@ function aboutSections(images) {
       },
     },
     { type: "text", position: 1, content: BUSINESS.home.about },
-    ...(images.shortcuts.has("tortillas")
+    // A gallery with no images fails its own schema (min 1), which is exactly
+    // what `--no-images` would produce.
+    ...(images.gallery.length > 0
       ? [
           {
-            type: "image",
+            type: "gallery",
             position: 2,
             content: {
-              imagePath: images.shortcuts.get("tortillas"),
-              alt: "Manos prensando una tortilla de maiz sobre el metate",
-              caption: "Maiz nixtamalizado, molido y prensado aqui mismo cada manana.",
+              heading: "El local",
+              images: images.gallery.map((image) => ({ imagePath: image.path, alt: image.alt })),
             },
           },
         ]
       : []),
     {
-      type: "cta",
+      type: "faq",
       position: 3,
+      content: {
+        heading: "Preguntas frecuentes",
+        items: BUSINESS.home.faq.map(([question, answer]) => ({ question, answer })),
+      },
+    },
+    {
+      type: "cta",
+      position: 4,
       content: {
         heading: "Ven a probarlos",
         body: `${BUSINESS.settings.address_line}, ${BUSINESS.settings.district}. De martes a domingo desde las 12:30.`,
-        buttonLabel: "Escribenos por WhatsApp",
-        buttonHref: whatsappUrl,
+        buttonLabel: "Cómo llegar",
+        buttonHref: "/sitio/contacto",
+        ...(images.closing.has("nosotros") ? { imagePath: images.closing.get("nosotros") } : {}),
       },
     },
   ];
@@ -1333,7 +1359,7 @@ function promoSections(images) {
     {
       type: "products",
       position: 1,
-      content: { heading: "Lo que esta en promocion", categorySlug: "promos", limit: 8 },
+      content: { heading: "Lo que está en promoción", categorySlug: "promos", limit: 8 },
     },
     {
       type: "text",

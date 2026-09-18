@@ -101,11 +101,11 @@ describe("themeCssVariables", () => {
   it("uses the same defaults the database column defaults use", () => {
     // If these drift, a tenant that never opened the theme editor renders one
     // way on the site and another way in the preview. They are the "Carbon"
-    // theme, set by migration 20260919120000.
+    // theme, set by migrations 20260919120000 and 20260919130000 (body face).
     expect(THEME_DEFAULTS.primaryColor).toBe("#e36626");
     expect(THEME_DEFAULTS.accentColor).toBe("#f2b23e");
     expect(THEME_DEFAULTS.backgroundColor).toBe("#120b07");
-    expect(THEME_DEFAULTS.fontFamily).toBe("inter");
+    expect(THEME_DEFAULTS.fontFamily).toBe("dm-sans");
     expect(THEME_DEFAULTS.borderRadius).toBe("lg");
     expect(THEME_DEFAULTS.style).toBe("carbon");
   });
@@ -320,6 +320,31 @@ describe("preset contrast (TEST-806)", () => {
     }
 
     expect(failures, `contrasts below 4.5:1:\n${failures.join("\n")}`).toEqual([]);
+  });
+
+  /*
+   * The label of a primary button sits on a GRADIENT on `carbon`, and on a
+   * brand-tinted ink rather than `--site-on-primary`. The assertion above
+   * measures the flat brand colour against the neutral label, which is no
+   * longer what a visitor reads: this measures the ink the button actually
+   * uses against every stop of the fill it actually has.
+   */
+  it("keeps the button label above 4.5:1 across its whole gradient", () => {
+    const failures: string[] = [];
+
+    for (const preset of ALL_PALETTES) {
+      const ink = readFrom(preset, "--site-button-ink");
+      const stops = readFrom(preset, "--site-button-fill").match(/#[0-9a-f]{6}/g) ?? [];
+      expect(stops.length, preset.id).toBeGreaterThan(0);
+
+      for (const stop of stops) {
+        const value = ratio(ink, stop);
+        if (value < 4.5)
+          failures.push(`${preset.id} — ${ink} sobre ${stop}: ${value.toFixed(2)}:1`);
+      }
+    }
+
+    expect(failures, `button labels below 4.5:1:\n${failures.join("\n")}`).toEqual([]);
   });
 
   it("keeps body text readable on every background, light or dark", () => {

@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import type { MenuCategory, MenuProduct } from "../server/queries";
 import { useCart } from "./cart-provider";
 import { ProductDialog, type ProductChoice } from "./product-dialog";
-import { displayStyle, eyebrowStyle, mutedStyle, subtleStyle } from "./site-styles";
+import { displayStyle, eyebrowStyle, headlineStyle, mutedStyle, subtleStyle } from "./site-styles";
 
 export interface MenuProductView extends MenuProduct {
   readonly imageUrl: string | null;
@@ -148,7 +148,7 @@ export function MenuBrowser({
           <div className="flex flex-col gap-2">
             <h2
               id={`categoria-${group.id}`}
-              style={{ ...displayStyle, fontSize: "var(--site-display-size)" }}
+              style={{ ...headlineStyle, fontSize: "var(--site-display-size)" }}
             >
               {group.name}
             </h2>

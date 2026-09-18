@@ -451,6 +451,15 @@ function SectionFields({
               onChange={(value) => set({ buttonHref: value })}
             />
           </div>
+          <AssetPicker
+            tenantSlug={tenantSlug}
+            folder="banners"
+            label="Foto de fondo"
+            aspect="wide"
+            hint="Opcional. Con foto, el bloque se convierte en una imagen a lo ancho con el boton encima."
+            value={str("imagePath") || null}
+            onChange={(path) => set({ imagePath: path ?? undefined })}
+          />
         </div>
       );
 

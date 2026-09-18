@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { listPublicLocations } from "@/modules/locations/server/queries";
 import { canonicalUrl, resolveSeo } from "@/modules/seo/metadata";
 import {
   getPrimaryDomain,
@@ -15,7 +14,6 @@ import { CartProvider } from "@/modules/storefront/components/cart-provider";
 import { SiteFooter, type FooterLink } from "@/modules/storefront/components/site-footer";
 import { SiteHeader, type HeaderNavItem } from "@/modules/storefront/components/site-header";
 import { WhatsAppButton } from "@/modules/storefront/components/whatsapp-button";
-import { summarizeWeek } from "@/modules/storefront/hours";
 import {
   getPublicStorefront,
   listPublicDeliveryZones,
@@ -70,18 +68,18 @@ export async function SiteChrome({
 }) {
   const tenantId = site.tenant.id;
 
-  const [navigation, theme, identity, seo, domain, locations, storefront, social, zones] =
-    await Promise.all([
-      getPublicNavigation(tenantId),
-      getPublicTheme(tenantId),
-      getPublicIdentity(tenantId, site.tenant.name),
-      getSiteSeo(tenantId),
-      getPrimaryDomain(tenantId),
-      listPublicLocations(tenantId),
-      getPublicStorefront(tenantId),
-      listPublicSocialLinks(tenantId),
-      listPublicDeliveryZones(tenantId),
-    ]);
+  // No locations query any more: it existed to print the week's hours in the
+  // footer, which now lives on Contacto - one query fewer on every page.
+  const [navigation, theme, identity, seo, domain, storefront, social, zones] = await Promise.all([
+    getPublicNavigation(tenantId),
+    getPublicTheme(tenantId),
+    getPublicIdentity(tenantId, site.tenant.name),
+    getSiteSeo(tenantId),
+    getPrimaryDomain(tenantId),
+    getPublicStorefront(tenantId),
+    listPublicSocialLinks(tenantId),
+    listPublicDeliveryZones(tenantId),
+  ]);
 
   const resolved = resolveSeo({ site: seo, business: identity, tenantIsServing: true });
   const base = domain ?? site.tenant.domain;
@@ -143,12 +141,6 @@ export async function SiteChrome({
     { label: "Política de cookies", href: `${basePath}/cookies` },
     { label: "Libro de Reclamaciones", href: `${basePath}/libro-de-reclamaciones` },
   ];
-
-  // The hours shown are the ordering branch's: they are the hours the website
-  // is open, which is what a visitor reading this footer is asking.
-  const orderingBranch =
-    locations.find((location) => location.id === storefront.locationId) ?? locations[0];
-  const hours = summarizeWeek(orderingBranch?.shifts ?? []);
 
   const addressParts = [identity.addressLine, identity.district, identity.city].filter(
     (part): part is string => part !== null && part.length > 0,
@@ -218,7 +210,6 @@ export async function SiteChrome({
           phone={identity.phone}
           whatsappHref={whatsappHref}
           email={storefront.publicEmail}
-          hours={hours}
         />
 
         <CartDrawer

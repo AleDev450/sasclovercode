@@ -146,9 +146,14 @@ export function HeroSlider({
               <div className="relative mx-auto flex h-full max-w-6xl flex-col items-start justify-end px-6 pb-16 text-white sm:px-10 sm:pb-24">
                 {slide.heading.length > 0 ? (
                   <h2
-                    className="max-w-3xl text-[clamp(2.25rem,5.5vw,4.5rem)] text-balance"
+                    className="max-w-4xl text-balance"
                     style={{
+                      // The hero scale of the style: on a condensed face this is
+                      // the size that makes the slide read as a poster.
+                      fontSize: "var(--site-hero-size)",
+                      textTransform: "var(--site-display-transform)" as "uppercase",
                       fontFamily: "var(--site-display-font)",
+                      fontStretch: "var(--site-display-stretch)",
                       fontWeight: "var(--site-display-weight)",
                       letterSpacing: "var(--site-display-tracking)",
                       lineHeight: "var(--site-display-leading)",

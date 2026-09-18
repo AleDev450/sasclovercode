@@ -1,4 +1,4 @@
-import { displayStyle, eyebrowStyle, mutedStyle } from "./site-styles";
+import { eyebrowStyle, headlineStyle, mutedStyle } from "./site-styles";
 
 /** The opening of every fixed storefront page: eyebrow, title, one line. */
 export function PageHeading({
@@ -20,7 +20,7 @@ export function PageHeading({
       </span>
       <h1
         className="max-w-3xl text-balance"
-        style={{ ...displayStyle, fontSize: "var(--site-hero-size)" }}
+        style={{ ...headlineStyle, fontSize: "var(--site-hero-size)" }}
       >
         {title}
       </h1>

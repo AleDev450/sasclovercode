@@ -81,11 +81,21 @@ const bannerSchema = z.object({
   tone: z.enum(["info", "success", "warning"]).default("info"),
 });
 
+/**
+ * The closing call to action.
+ *
+ * `imagePath` turns it from a coloured slab into a photograph with the button
+ * on it. Optional, and deliberately so: a slab of brand colour is still the
+ * right close for a business with no photos, and every CTA stored before the
+ * field existed stays valid without a migration - `page_sections.content` is
+ * only checked for being an object.
+ */
 const ctaSchema = z.object({
   heading: requiredText(120),
   body: text(400).optional().default(""),
   buttonLabel: requiredText(40),
   buttonHref: link,
+  imagePath: assetPath.optional(),
 });
 
 const gallerySchema = z.object({

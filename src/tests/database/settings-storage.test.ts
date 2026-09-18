@@ -420,7 +420,7 @@ describe("provisioning creates defaults (TEST-619, TEST-620)", () => {
     // before 20260914140000 and would happen again the day the gallery changes
     // without these moving. They moved with it this time.
     expect(theme[0]?.primary_color).toBe("#e36626");
-    expect(theme[0]?.font_family).toBe("inter");
+    expect(theme[0]?.font_family).toBe("dm-sans");
     expect(theme[0]?.style).toBe("carbon");
   });
 
